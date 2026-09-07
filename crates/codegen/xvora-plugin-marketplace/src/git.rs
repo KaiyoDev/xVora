@@ -1,5 +1,5 @@
 //! Provides persistent caching of git marketplace repos.
-//! Cache root: `~/.grok/marketplace-cache/<url-hash>/`
+//! Cache root: `~/.xvora/marketplace-cache/<url-hash>/`
 
 use std::collections::VecDeque;
 use std::fs::{File, OpenOptions};
@@ -156,7 +156,7 @@ fn is_cache_fresh(cache_dir: &Path) -> bool {
 }
 
 pub fn default_cache_root() -> PathBuf {
-    config::grok_home().join("marketplace-cache")
+    config::xvora_home().join("marketplace-cache")
 }
 
 /// Deterministic hash for a URL (used as cache directory name).

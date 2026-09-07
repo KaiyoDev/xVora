@@ -1154,7 +1154,7 @@ pub enum RetryState {
 /// Whether a terminal retry failure is a recoverable authentication error (expired/invalid credentials, 401).
 /// The user can fix those by signing in again; this drives the actionable re-auth banner.
 ///
-/// `legacy_auth` is excluded: its message carries its own migration guidance (`grok update` / `grok logout` / `grok login`), shown verbatim.
+/// `legacy_auth` is excluded: its message carries its own migration guidance (`xvora update` / `xvora logout` / `xvora login`), shown verbatim.
 /// `auth_transient` is excluded for the opposite reason: it is emitted only when the failure self-heals (`AuthManager::requires_manual_reauth`).
 /// Its message already says it recovers on its own, so no `/login` banner is shown.
 pub fn is_reauthable_failure(error_type: Option<&str>, message: &str) -> bool {
@@ -1332,7 +1332,7 @@ pub struct CompactionRequestFile {
     /// What kicked off the compaction: `"manual"` (user ran `/compact`) or `"auto"`.
     pub trigger: String,
     /// Which prompt template was used.
-    /// `"short"` is the concise self-summarization; `"detailed"` is the 10-section structured prompt for grok-build and similar agents.
+    /// `"short"` is the concise self-summarization; `"detailed"` is the 10-section structured prompt for xvora-build and similar agents.
     pub prompt_variant: String,
     /// The model id that ran the summarization.
     pub model: String,
@@ -1456,7 +1456,7 @@ mod tests {
             created_at: "2026-06-15T00:00:00Z".into(),
             trigger: "auto".into(),
             prompt_variant: "detailed".into(),
-            model: "grok".into(),
+            model: "xvora".into(),
             user_context: None,
             chat_history: vec![],
             tools: vec![],
@@ -1504,7 +1504,7 @@ mod tests {
             "created_at": "2026-06-01T00:00:00Z",
             "trigger": "manual",
             "prompt_variant": "detailed",
-            "model": "grok",
+            "model": "xvora",
             "user_context": null,
             "chat_history": [],
             "summary": "ok",
@@ -1738,7 +1738,7 @@ mod tests {
     fn memory_flush_completed_with_path_roundtrips() {
         let update = SessionUpdate::MemoryFlushCompleted {
             result: "written".into(),
-            path: Some("/home/user/.grok/memory/ws/sessions/log.md".into()),
+            path: Some("/home/user/.xvora/memory/ws/sessions/log.md".into()),
         };
         let json_str = serde_json::to_string(&update).unwrap();
         let parsed: SessionUpdate = serde_json::from_str(&json_str).unwrap();
@@ -1763,7 +1763,7 @@ mod tests {
     fn memory_dream_completed_roundtrips() {
         let update = SessionUpdate::MemoryDreamCompleted {
             result: "written (500 chars)".into(),
-            path: Some("/home/user/.grok/memory/ws/MEMORY.md".into()),
+            path: Some("/home/user/.xvora/memory/ws/MEMORY.md".into()),
         };
         let json_str = serde_json::to_string(&update).unwrap();
         let parsed: SessionUpdate = serde_json::from_str(&json_str).unwrap();
@@ -1773,7 +1773,7 @@ mod tests {
     #[test]
     fn memory_session_saved_roundtrips() {
         let update = SessionUpdate::MemorySessionSaved {
-            path: "/home/user/.grok/memory/ws/sessions/2026-01-15-fix-auth-abc12345.md".into(),
+            path: "/home/user/.xvora/memory/ws/sessions/2026-01-15-fix-auth-abc12345.md".into(),
         };
         let json_str = serde_json::to_string(&update).unwrap();
         let parsed: SessionUpdate = serde_json::from_str(&json_str).unwrap();
@@ -1798,13 +1798,13 @@ mod tests {
         let update = SessionUpdate::MemoryFiles {
             files: vec![
                 MemoryFileInfo {
-                    path: "/home/user/.grok/memory/MEMORY.md".into(),
+                    path: "/home/user/.xvora/memory/MEMORY.md".into(),
                     source: "global".into(),
                     size_bytes: 1024,
                     modified_epoch_secs: Some(1_700_000_000),
                 },
                 MemoryFileInfo {
-                    path: "/project/.grok/memory/MEMORY.md".into(),
+                    path: "/project/.xvora/memory/MEMORY.md".into(),
                     source: "workspace".into(),
                     size_bytes: 512,
                     modified_epoch_secs: None,
@@ -1946,7 +1946,7 @@ mod tests {
             total_worker_rounds: 4,
             total_verify_rounds: 2,
             live_subagent_tokens: Some(10_000),
-            live_tokens_by_model: vec![("grok-4".into(), 6_000), ("grok-3".into(), 4_000)],
+            live_tokens_by_model: vec![("xvora-4".into(), 6_000), ("grok-3".into(), 4_000)],
             live_context_pct: Some(35),
             live_turn_count: Some(3),
             live_tool_call_count: Some(8),
@@ -2020,7 +2020,7 @@ mod tests {
         assert_eq!(json["total_worker_rounds"], 4);
         assert_eq!(json["total_verify_rounds"], 2);
         assert_eq!(json["live_subagent_tokens"], 10_000);
-        assert_eq!(json["live_tokens_by_model"][0][0], "grok-4");
+        assert_eq!(json["live_tokens_by_model"][0][0], "xvora-4");
         assert_eq!(json["live_tokens_by_model"][0][1], 6_000);
         assert_eq!(json["live_context_pct"], 35);
         assert_eq!(json["last_event"], "worker_completed");
@@ -2188,12 +2188,12 @@ mod tests {
     #[test]
     fn model_changed_serializes_snake_case_with_optional_effort() {
         let with_effort = SessionUpdate::ModelChanged {
-            model_id: "grok-4".into(),
+            model_id: "xvora-4".into(),
             reasoning_effort: Some("high".into()),
         };
         let json = serde_json::to_value(&with_effort).unwrap();
         assert_eq!(json["sessionUpdate"], "model_changed");
-        assert_eq!(json["model_id"], "grok-4");
+        assert_eq!(json["model_id"], "xvora-4");
         assert_eq!(json["reasoning_effort"], "high");
 
         let without_effort = SessionUpdate::ModelChanged {
@@ -2216,7 +2216,7 @@ mod tests {
     #[test]
     fn model_changed_roundtrips_through_json() {
         let original = SessionUpdate::ModelChanged {
-            model_id: "grok-4".into(),
+            model_id: "xvora-4".into(),
             reasoning_effort: Some("medium".into()),
         };
         let json_str = serde_json::to_string(&original).unwrap();
@@ -2233,7 +2233,7 @@ mod tests {
         let notif = SessionNotification {
             session_id: acp::SessionId::new("sess-abc"),
             update: SessionUpdate::ModelChanged {
-                model_id: "grok-4".into(),
+                model_id: "xvora-4".into(),
                 reasoning_effort: None,
             },
             meta: None,
@@ -2241,7 +2241,7 @@ mod tests {
         let json = serde_json::to_value(&notif).unwrap();
         assert_eq!(json["sessionId"], "sess-abc");
         assert_eq!(json["update"]["sessionUpdate"], "model_changed");
-        assert_eq!(json["update"]["model_id"], "grok-4");
+        assert_eq!(json["update"]["model_id"], "xvora-4");
     }
 
     // ── TurnCompleted (durable, replayable turn-end signal) ──

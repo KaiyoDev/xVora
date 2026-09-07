@@ -260,7 +260,7 @@ pub(crate) struct SubagentSpawnContext {
     /// Reading from `ctx.sampling_config.attribution_callback` would not work.
     /// The baseline `MvpAgent.sampling_config` goes through `agent/config.rs::sampling_config_for_model`, which always sets that field to `None`.
     pub attribution_callback: Option<sampler::SharedAttributionCallback>,
-    /// Parent session's agent name (e.g. "grok-build").
+    /// Parent session's agent name (e.g. "xvora-build").
     pub parent_agent_name: Option<String>,
     /// `agent_type` of the parent's current model: the harness-flavor fallback when `parent_agent_name` is not a recognized harness.
     /// For example, a custom client profile keeps its own name but runs a strict-harness model.
@@ -1083,7 +1083,7 @@ async fn bootstrap_initial_context(
             cwd: source.child_cwd.clone(),
         };
         let storage = crate::session::storage::jsonl::JsonlStorageAdapter::with_root(
-            crate::util::grok_home::grok_home(),
+            crate::util::xvora_home::xvora_home(),
         );
         let copy_options = crate::session::storage::CopySessionOptions {
             parent_session_id: Some(source.child_session_id.clone()),
@@ -1215,7 +1215,7 @@ async fn bootstrap_initial_context(
     }
     if let Some(ref parent_info) = ctx.parent_session_info {
         let storage = crate::session::storage::jsonl::JsonlStorageAdapter::with_root(
-            crate::util::grok_home::grok_home(),
+            crate::util::xvora_home::xvora_home(),
         );
         let copy_options = crate::session::storage::CopySessionOptions {
             parent_session_id: Some(ctx.parent_session_id.clone()),
@@ -1532,10 +1532,10 @@ pub(crate) fn subagent_harness_flavor_is_representable(agent_type: &str) -> bool
 }
 /// Apply the harness-dependent toolset/prompt re-selection to a resolved agent definition.
 ///
-/// The harness flavor (alternate vs grok-build) normally follows the PARENT: `GrokBuildOrchestrator` parents give children the alternate harness.
+/// The harness flavor (alternate vs xvora-build) normally follows the PARENT: `GrokBuildOrchestrator` parents give children the alternate harness.
 /// The orchestrator keeps children lean, and other parents inherit the file-tool override (hashline vs standard).
 /// A `/goal` role may pass `harness_agent_type` to OVERRIDE that flavor regardless of the parent.
-/// So a grok-build session can run an alternate-harness verifier and vice-versa.
+/// So a xvora-build session can run an alternate-harness verifier and vice-versa.
 /// `None` for every non-goal spawn means the parent decides (unchanged).
 /// The base toolset stays role-dependent on `subagent_type` (general-purpose gets implementer, else explorer).
 ///

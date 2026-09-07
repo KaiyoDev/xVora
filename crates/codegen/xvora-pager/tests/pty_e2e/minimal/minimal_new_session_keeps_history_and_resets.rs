@@ -8,13 +8,13 @@ use crate::common::*;
 ///
 /// The first turn is genuinely taller than the screen (a fenced code block, not reflowable prose).
 /// The first welcome card and the turn's head therefore scroll into *native scrollback* before `/new`.
-/// The robust "new session" signal is then a *second* welcome card (two `Grok Build` banners across scrollback and screen).
+/// The robust "new session" signal is then a *second* welcome card (two `xvora build` banners across scrollback and screen).
 /// That signal is independent of exactly how content scrolled.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 #[ignore]
 async fn minimal_new_session_keeps_history_and_resets() {
     /// Substring printed once per minimal welcome card (see `minimal::welcome`).
-    const WELCOME_BANNER: &str = "Grok Build";
+    const WELCOME_BANNER: &str = "xvora build";
 
     let content = ContentController::start().await.expect("start content");
     // Code-block rows (not prose, which markdown-reflows to fit on screen) so turn 1 is genuinely taller than the screen

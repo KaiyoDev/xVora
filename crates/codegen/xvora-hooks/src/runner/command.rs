@@ -1887,10 +1887,10 @@ mod tests {
             resolve_command_path(&spec(
                 HandlerType::Command,
                 Some("bin/check.sh"),
-                "/project/.grok/hooks"
+                "/project/.xvora/hooks"
             )),
             Some(std::path::PathBuf::from(
-                "/project/.grok/hooks/bin/check.sh"
+                "/project/.xvora/hooks/bin/check.sh"
             ))
         );
         assert_eq!(
@@ -2238,7 +2238,7 @@ mod tests {
     #[cfg(unix)]
     async fn tilde_expansion_runs_via_shell() {
         let tmp = tempfile::tempdir().unwrap();
-        let hook_dir = tmp.path().join(".grok-test-hooks-gb856");
+        let hook_dir = tmp.path().join(".xvora-test-hooks-gb856");
         std::fs::create_dir_all(&hook_dir).unwrap();
         let script = hook_dir.join("tilde-test.sh");
         std::fs::write(&script, "#!/bin/sh\nexit 0\n").unwrap();
@@ -2255,7 +2255,7 @@ mod tests {
             tmp.path().to_string_lossy().into_owned(),
         );
 
-        let mut spec = make_shell_spec("~/.grok-test-hooks-gb856/tilde-test.sh");
+        let mut spec = make_shell_spec("~/.xvora-test-hooks-gb856/tilde-test.sh");
         spec.extra_env = extra_env;
 
         let envelope = make_envelope();

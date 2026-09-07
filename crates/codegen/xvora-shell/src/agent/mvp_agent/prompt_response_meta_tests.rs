@@ -1,4 +1,4 @@
-use super::{PromptResponseMetaArgs, build_prompt_response_meta};
+﻿use super::{PromptResponseMetaArgs, build_prompt_response_meta};
 use xvora_sampling_types::TokenUsage;
 
 /// Baseline args with no usage, cancellation, or structured output.

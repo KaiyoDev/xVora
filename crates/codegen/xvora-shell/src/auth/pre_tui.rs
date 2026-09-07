@@ -1,19 +1,21 @@
 //! Interactive-pager external login that runs on the real TTY before raw mode.
 //!
-//! `auth_provider_command` already works via `grok login` because stderr is inherited.
+//! `auth_provider_command` already works via `xvora login` because stderr is inherited.
 //! The TUI path instead pipes that stderr into the welcome copy-link overlay.
 //! That overlay is unusable in Docker (no host browser, mouse capture, wrapped URLs).
-//! This module is the first-launch equivalent of `grok login`.
+//! This module is the first-launch equivalent of `xvora login`.
 //! It prints the provider URL on the real terminal, persists the token, then lets the pager start already authenticated.
 //!
 //! Deliberately does **not** call [`super::flow::run_auth_flow`]: on provider failure that falls through to browser OIDC.
 //! The fallthrough (`Signing in with browser instead...`) would re-enter the TUI splash this path exists to skip.
+//!
+//! When `XVORA_NO_AUTH=1` is set, callers should skip this module entirely.
 
 use std::sync::Arc;
 
 use super::flow::{apply_post_login_config, report_signed_in, run_external_auth_provider};
 use super::{AuthManager, GrokAuth, GrokComConfig, try_ensure_fresh_auth};
-use crate::util::grok_home;
+use crate::util::xvora_home;
 
 /// Whether the pager should attempt a pre-TUI provider login.
 ///
@@ -56,7 +58,7 @@ pub async fn maybe_run_pre_tui_external_login(
     }
 
     let auth_manager = Arc::new(AuthManager::new(
-        &grok_home::grok_home(),
+        &xvora_home::xvora_home(),
         grok_com_config.clone(),
     ));
     auth_manager.configure_refresher(Some(cmd.to_owned()), None);
@@ -64,7 +66,7 @@ pub async fn maybe_run_pre_tui_external_login(
 }
 
 /// Runs the provider and persists the result.
-/// The `AuthManager` is injected so tests can use a temp grok-home instead of the process-cached [`grok_home::grok_home`].
+/// The `AuthManager` is injected so tests can use a temp xvora-home instead of the process-cached [`xvora_home::xvora_home`].
 pub(crate) async fn run_pre_tui_external_login_with(
     auth_manager: &Arc<AuthManager>,
     command: &str,

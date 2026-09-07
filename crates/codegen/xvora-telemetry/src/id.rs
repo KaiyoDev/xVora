@@ -6,7 +6,7 @@ const ENV_AGENT_ID: &str = "GROK_AGENT_ID";
 static AGENT_ID: OnceLock<String> = OnceLock::new();
 static AGENT_INSTANCE_ID: OnceLock<String> = OnceLock::new();
 
-/// Returns the stable agent ID: `GROK_AGENT_ID` if set, else the value cached in `$GROK_HOME/agent_id`.
+/// Returns the stable agent ID: `GROK_AGENT_ID` if set, else the value cached in `$xvora_home/agent_id`.
 /// Otherwise a machine-derived UUID is computed once and persisted there.
 /// The first call in a process may block while the computation runs; [`prefetch_agent_id`] starts it early.
 pub fn agent_id() -> String {
@@ -57,7 +57,7 @@ fn load_or_compute_agent_id() -> String {
         }
     }
 
-    let cache_path = config::grok_home().join("agent_id");
+    let cache_path = config::xvora_home().join("agent_id");
     if let Ok(cached) = std::fs::read_to_string(&cache_path) {
         let cached = cached.trim();
         if !cached.is_empty() {

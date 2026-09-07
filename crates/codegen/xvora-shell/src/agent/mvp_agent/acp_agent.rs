@@ -105,13 +105,13 @@ impl acp::Agent for MvpAgent {
                 "auto worktree gc and session search deferred until remote_settings arrive"
             );
         }
-        let grok_home = fast_worktree::resolve_grok_home();
+        let xvora_home = fast_worktree::resolve_grok_home();
         tokio::task::spawn_blocking(move || {
             crate::session::worktree_pool::cleanup_stale_pool_worktrees(None);
             if !remote_settled {
                 return;
             }
-            Self::reclaim_worktrees(grok_home, auto_gc_policy);
+            Self::reclaim_worktrees(xvora_home, auto_gc_policy);
         });
         tokio::task::spawn_blocking(|| {
             crate::session::persistence::cleanup_stale_sessions(None);
@@ -272,7 +272,7 @@ impl acp::Agent for MvpAgent {
         if !self.cfg.borrow().grok_com_config.api_key_auth_disabled()
             && auth_method::read_xai_api_key_env().is_err()
             && let Some(api_key) = crate::auth::read_api_key(
-                &crate::util::grok_home::grok_home(),
+                &crate::util::xvora_home::xvora_home(),
             )
         {
             unsafe { std::env::set_var("XAI_API_KEY", &api_key) };
@@ -332,6 +332,9 @@ impl acp::Agent for MvpAgent {
             self.models_manager.models().values(),
             first_party_env_ok,
         );
+        // No-auth mode: skip interactive login when no credentials exist at all.
+        // This lets the app start with an empty auth_methods list → welcome screen,
+        // rather than advertising a broken login that will fail with no API key configured.
         let init_token_state = self.auth_manager.cached_token_state();
         let init_has_current = matches!(init_token_state, CachedTokenState::Valid(_));
         let init_is_expired = matches!(init_token_state, CachedTokenState::Expired);
@@ -345,13 +348,14 @@ impl acp::Agent for MvpAgent {
             }),
             ),
         );
-        let mut has_cached_token = init_has_current;
+        let mut has_cached_token_after_refresh = init_has_current;
         if !init_has_current && init_is_expired {
-            has_cached_token = match self.auth_manager.silent_refresh().await {
+            has_cached_token_after_refresh = match self.auth_manager.silent_refresh().await {
                 SilentRefresh::Renewed(_) => true,
                 SilentRefresh::Failed(remedy) => remedy.is_self_healing(),
             };
         }
+        let mut has_cached_token = has_cached_token_after_refresh;
         let (
             login_label,
             has_auth_provider,
@@ -386,9 +390,13 @@ impl acp::Agent for MvpAgent {
             tracing::info!(
                 label = ?login_label,
                 has_auth_provider,
-                "auth: advertising grok.com auth method",
+                "auth: advertising xvora.com auth method",
             );
         }
+        let skip_interactive_login = crate::auth::is_no_auth_mode()
+            && !has_external_api_key
+            && !has_cached_token_after_refresh
+            && !has_enterprise_oidc;
         let preferred_method = preferred_method_early;
         let has_external_api_key = match preferred_method {
             Some(crate::auth::PreferredAuthMethod::Oidc) => false,
@@ -406,6 +414,7 @@ impl acp::Agent for MvpAgent {
             login_label: login_label.as_deref(),
             has_auth_provider_command: has_auth_provider,
             preferred_method,
+            skip_interactive_login,
         });
         let auth_methods = built.methods;
         telemetry::unified_log::info(
@@ -413,7 +422,7 @@ impl acp::Agent for MvpAgent {
             None,
             Some(
                 serde_json::json!({
-                "grok_home": crate::util::grok_home::grok_home().display().to_string(),
+                "xvora_home": crate::util::xvora_home::xvora_home().display().to_string(),
                 "HOME": std::env::var("HOME").unwrap_or_else(|_| "(unset)".into()),
                 "has_external_api_key": has_external_api_key,
                 "first_party_env_api_key_ok": first_party_env_ok,
@@ -605,7 +614,7 @@ impl acp::Agent for MvpAgent {
                     if let Ok(api_key) = auth_method::read_xai_api_key_env() {
                         sampling_config.api_key = Some(api_key.clone());
                         if let Err(e) = crate::auth::store_api_key(
-                            &crate::util::grok_home::grok_home(),
+                            &crate::util::xvora_home::xvora_home(),
                             &api_key,
                         ) {
                             tracing::warn!("failed to persist API key to auth.json: {e}");
@@ -915,9 +924,9 @@ impl acp::Agent for MvpAgent {
                 {
                     let mut sampling_config = self.sampling_config.borrow_mut();
                     sampling_config.api_key = Some(auth.key.clone());
-                    tracing::debug!("auth: grok.com/oidc handler set api_key (SessionToken)");
+                    tracing::debug!("auth: xvora.com/oidc handler set api_key (SessionToken)");
                     telemetry::unified_log::debug(
-                        "auth: grok.com/oidc handler set api_key (SessionToken)",
+                        "auth: xvora.com/oidc handler set api_key (SessionToken)",
                         None,
                         None,
                     );
@@ -2344,7 +2353,7 @@ impl acp::Agent for MvpAgent {
                 crate::extensions::auth_gate::require_xai_auth(
                     &self.auth_manager,
                     "Authentication required",
-                    "Run `grok login` to authenticate.",
+                    "Run `xvora login` to authenticate, or set XVORA_NO_AUTH=1 to skip authentication.",
                 )?;
                 let params: serde_json::Value = serde_json::from_str(args.params.get())
                     .map_err(|e| acp::Error::invalid_params().data(e.to_string()))?;
@@ -2376,7 +2385,7 @@ impl acp::Agent for MvpAgent {
                 crate::extensions::auth_gate::require_xai_auth(
                     &self.auth_manager,
                     "Authentication required",
-                    "Run `grok login` to authenticate.",
+                    "Run `xvora login` to authenticate, or set XVORA_NO_AUTH=1 to skip authentication.",
                 )?;
                 let sandbox_client = crate::remote::SandboxClient::new(
                     self.cli_chat_proxy_base_url(),
@@ -2401,7 +2410,7 @@ impl acp::Agent for MvpAgent {
                 crate::extensions::auth_gate::require_xai_auth(
                     &self.auth_manager,
                     "Authentication required",
-                    "Run `grok login` to authenticate.",
+                    "Run `xvora login` to authenticate, or set XVORA_NO_AUTH=1 to skip authentication.",
                 )?;
                 let params: serde_json::Value = serde_json::from_str(args.params.get())
                     .map_err(|e| acp::Error::invalid_params().data(e.to_string()))?;
@@ -2458,7 +2467,7 @@ impl acp::Agent for MvpAgent {
                 crate::extensions::auth_gate::require_xai_auth(
                     &self.auth_manager,
                     "Authentication required",
-                    "Run `grok login` to authenticate.",
+                    "Run `xvora login` to authenticate, or set XVORA_NO_AUTH=1 to skip authentication.",
                 )?;
                 let params: serde_json::Value = serde_json::from_str(args.params.get())
                     .map_err(|e| acp::Error::invalid_params().data(e.to_string()))?;
@@ -2518,7 +2527,7 @@ impl acp::Agent for MvpAgent {
                 crate::extensions::auth_gate::require_xai_auth(
                     &self.auth_manager,
                     "Authentication required",
-                    "Run `grok login` to authenticate.",
+                    "Run `xvora login` to authenticate, or set XVORA_NO_AUTH=1 to skip authentication.",
                 )?;
                 let params: serde_json::Value = serde_json::from_str(args.params.get())
                     .map_err(|e| acp::Error::invalid_params().data(e.to_string()))?;

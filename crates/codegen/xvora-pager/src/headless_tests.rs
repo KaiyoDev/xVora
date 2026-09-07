@@ -219,7 +219,7 @@ fn post_open_error_carries_real_session_context() {
     let mut post = reducer_for(OutputFormat::StreamingMessagesJson).unwrap();
     post.begin(SessionContext {
         session_id: "sess-real".into(),
-        model: Some("grok-4".into()),
+        model: Some("xvora-4".into()),
         cwd: "/work/dir".into(),
         permission_mode: None,
         mcp_servers: Vec::new(),

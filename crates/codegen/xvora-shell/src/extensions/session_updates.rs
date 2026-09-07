@@ -651,7 +651,7 @@ mod tests {
         );
         assert_eq!(json["updates"].as_array().unwrap().len(), 2);
 
-        // Clean up the dir written under the real grok home.
+        // Clean up the dir written under the real xvora home.
         let _ = std::fs::remove_dir_all(&child_dir);
     }
 

@@ -2,7 +2,7 @@ pub const ENV_SYSTEM_PROMPT_LABEL: &str = "GROK_SYSTEM_PROMPT_LABEL";
 
 pub const DEFAULT_SYSTEM_PROMPT_LABEL: &str = agent::DEFAULT_SYSTEM_PROMPT_LABEL;
 
-/// Precedence: env > config per-model > `[agent]` > GB per-model > GB global > `"Grok"`.
+/// Precedence: env > config per-model > `[agent]` > GB per-model > GB global > `"xvora"`.
 /// Empty/whitespace falls through.
 ///
 /// Per-model TOML is looked up by session catalog id, then routing slug (`ModelInfo.model`).

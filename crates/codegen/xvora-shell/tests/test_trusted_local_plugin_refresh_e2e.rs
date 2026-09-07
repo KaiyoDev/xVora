@@ -2,9 +2,9 @@
 //! 1. Install a local plugin (full copy into `installed-plugins/`).
 //! 2. Add a new agent only on the **live** source tree.
 //! 3. Start a headless session: startup must re-copy trusted and user-home local installs.
-//! 4. After exit, check the session JSON under `$GROK_HOME/sessions/` parses.
+//! 4. After exit, check the session JSON under `$xvora_home/sessions/` parses.
 //!
-//! Requires a built `grok` binary (`GROK_BINARY` or cargo-built pager) for the ignored headless test.
+//! Requires a built `xvora` binary (`GROK_BINARY` or cargo-built pager) for the ignored headless test.
 //!
 //! ```bash
 //! cargo test -p xvora-shell --test test_trusted_local_plugin_refresh_e2e
@@ -105,9 +105,9 @@ fn trusted_local_refresh_surfaces_new_agent_via_discovery() {
     // Canonicalize so auto-trust for installs under the home dir holds when the temp root is a symlink (on macOS `/var` links to `/private/var`)
     let home_tmp = TempDir::new().unwrap();
     let home = dunce::canonicalize(home_tmp.path()).unwrap();
-    let grok_home = home.join(".grok");
+    let xvora_home = home.join(".xvora");
     let _home_guard = EnvVarGuard::set("HOME", &home);
-    let _grok_guard = EnvVarGuard::set("GROK_HOME", &grok_home);
+    let _grok_guard = EnvVarGuard::set("xvora_home", &xvora_home);
 
     // Live source: a user-home local plugin (mirrors a `~/.claude` local tree).
     let source = home
@@ -118,7 +118,7 @@ fn trusted_local_refresh_surfaces_new_agent_via_discovery() {
     write_agent(&source, "old", "old-agent", "exists at install");
 
     // The install copies a full snapshot into installed-plugins, not a live symlink
-    let mut registry = InstallRegistry::empty(grok_home.join("installed-plugins"));
+    let mut registry = InstallRegistry::empty(xvora_home.join("installed-plugins"));
     let installed = register_local_install(&mut registry, &source);
     registry.save().expect("save registry");
 
@@ -159,7 +159,7 @@ fn trusted_local_refresh_surfaces_new_agent_via_discovery() {
     );
 
     // Session `_meta.pluginDirs` load
-    // This runs in the same test because grok_home() caches the first GROK_HOME per process
+    // This runs in the same test because xvora_home() caches the first xvora_home per process
     // A separate test could seed the cache first and break the assertions above
     let plugin_dir = home.join("session-plugin");
     write_minimal_plugin(&plugin_dir, "session-plugin");
@@ -191,7 +191,7 @@ fn trusted_local_refresh_surfaces_new_agent_via_discovery() {
 
 /// Runs the real binary end to end: session start refreshes the snapshot, then writes session JSON.
 #[tokio::test]
-#[ignore = "requires pre-built grok binary; run with --ignored"]
+#[ignore = "requires pre-built xvora binary; run with --ignored"]
 #[serial]
 async fn headless_session_refreshes_trusted_local_plugin_and_writes_session_json() {
     let server = MockInferenceServer::start()
@@ -201,8 +201,8 @@ async fn headless_session_refreshes_trusted_local_plugin_and_writes_session_json
     // Canonicalize so auto-trust for installs under the home dir holds when the temp root is a symlink (on macOS `/var` links to `/private/var`)
     let home_tmp = TempDir::new().unwrap();
     let home = dunce::canonicalize(home_tmp.path()).unwrap();
-    let grok_home = home.join(".grok");
-    std::fs::create_dir_all(&grok_home).unwrap();
+    let xvora_home = home.join(".xvora");
+    std::fs::create_dir_all(&xvora_home).unwrap();
 
     let source = home
         .join(".claude")
@@ -211,13 +211,13 @@ async fn headless_session_refreshes_trusted_local_plugin_and_writes_session_json
     write_minimal_plugin(&source, "demo-plugin");
     write_agent(&source, "old", "old-agent", "exists at install");
 
-    // The spawned binary gets HOME and GROK_HOME via `cmd.env` below
-    // This global env only serves the discovery assertion run in-process after the binary exits; it resolves the registry via grok_home()
+    // The spawned binary gets HOME and xvora_home via `cmd.env` below
+    // This global env only serves the discovery assertion run in-process after the binary exits; it resolves the registry via xvora_home()
     // `#[serial]` keeps it from racing other tests
     let _home_guard = EnvVarGuard::set("HOME", &home);
-    let _grok_guard = EnvVarGuard::set("GROK_HOME", &grok_home);
+    let _grok_guard = EnvVarGuard::set("xvora_home", &xvora_home);
 
-    let mut registry = InstallRegistry::empty(grok_home.join("installed-plugins"));
+    let mut registry = InstallRegistry::empty(xvora_home.join("installed-plugins"));
     let installed = register_local_install(&mut registry, &source);
     registry.save().expect("save registry");
 
@@ -244,7 +244,7 @@ async fn headless_session_refreshes_trusted_local_plugin_and_writes_session_json
     sandbox
         .set_env("HOME", &home)
         .set_env("USERPROFILE", &home)
-        .set_env("GROK_HOME", &grok_home);
+        .set_env("xvora_home", &xvora_home);
 
     let result = run_headless_in_sandbox(cmd, sandbox).await;
     assert_headless_success(
@@ -281,8 +281,8 @@ async fn headless_session_refreshes_trusted_local_plugin_and_writes_session_json
         "new agent must surface in /agents after the binary's session-start refresh"
     );
 
-    // Session storage under GROK_HOME/sessions must hold JSON files that parse
-    let sessions_root = grok_home.join("sessions");
+    // Session storage under xvora_home/sessions must hold JSON files that parse
+    let sessions_root = xvora_home.join("sessions");
     assert!(
         sessions_root.is_dir(),
         "expected sessions dir at {}",

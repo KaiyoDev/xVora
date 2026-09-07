@@ -339,7 +339,7 @@ mod tests {
             outcome: TurnHookOutcome::Cancelled,
             duration_ms: 200,
             tool_call_count: 1,
-            model_id: "grok-4".to_string(),
+            model_id: "xvora-4".to_string(),
             written_repo_paths: vec![],
             cancellation_category: Some("doom_loop_repetition".to_string()),
             cancellation_context: Some(json!({ "reason": "repetition" })),

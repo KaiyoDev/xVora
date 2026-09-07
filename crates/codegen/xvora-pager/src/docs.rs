@@ -178,10 +178,10 @@ pub static USER_GUIDE: &[Doc] = &[
     // Direct include_str! so gazelle can put this file in compile_data.
     // `guide!` hides the path inside concat!($file) and gazelle cannot see it.
     Doc {
-        filename: "27-grok-clone.md",
-        title: "grok clone",
+        filename: "27-xvora-clone.md",
+        title: "xvora clone",
         description: "Depth-1 Grove clone, --full-history, and safe deepen/switch commands",
-        content: include_str!("../docs/user-guide/27-grok-clone.md"),
+        content: include_str!("../docs/user-guide/27-xvora-clone.md"),
     },
 ];
 
@@ -241,11 +241,11 @@ pub fn default_howto_entries() -> Vec<DocEntry> {
         .collect()
 }
 
-/// Extract user-guide docs to `<grok_home>/docs/user-guide/`.
+/// Extract user-guide docs to `<xvora_home>/docs/user-guide/`.
 ///
 /// Called from the pager binary startup so the model can read them from disk.
-pub fn extract_user_guide_docs(grok_home: &std::path::Path) {
-    let docs_dir = grok_home.join("docs").join("user-guide");
+pub fn extract_user_guide_docs(xvora_home: &std::path::Path) {
+    let docs_dir = xvora_home.join("docs").join("user-guide");
     if let Err(e) = std::fs::create_dir_all(&docs_dir) {
         tracing::warn!(error = %e, "Failed to create user-guide docs directory");
         return;

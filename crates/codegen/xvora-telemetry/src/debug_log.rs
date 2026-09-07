@@ -2,7 +2,7 @@
 //!
 //! Two install modes, chosen by env precedence (see `resolve_debug_target_inner`):
 //! - PerSession (`GROK_DEBUG_LOG=1`): a routing layer fans each session's
-//!   firehose to `~/.grok/debug/<session_id>.txt` (one file per session), with a
+//!   firehose to `~/.xvora/debug/<session_id>.txt` (one file per session), with a
 //!   `<role>-<pid>.txt` catch-all for events fired outside any session span, and
 //!   a `latest.txt` symlink pointing at the most-recently-opened session file.
 //! - SingleFile (explicit path via `GROK_LOG_FILE` or `GROK_DEBUG_LOG=<path>`): one flat `fmt` file, routing bypassed.
@@ -22,7 +22,7 @@ use tracing_subscriber::layer::{Context, Layer};
 use tracing_subscriber::registry::LookupSpan;
 
 use crate::session_ctx::SESSION_ID_FIELD;
-use config::grok_home;
+use config::xvora_home;
 
 /// Which env var requested a single-file debug log (drives filter and diagnostics).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -59,7 +59,7 @@ pub const RMCP_SSE_NOISE_TARGET: &str = "rmcp::transport::common::client_side_ss
 
 // Broad firehose filter for the routing and GROK_DEBUG_LOG sources
 // Capture our crates at debug regardless of a narrowing RUST_LOG, with deps at info so they don't flood
-// Curated first-party allowlist: new grok crates default to `info` until added here
+// Curated first-party allowlist: new xvora crates default to `info` until added here
 const FIREHOSE_BASE_DIRECTIVES: &str = "info,xvora_pager=debug,shell=debug,tools=debug,telemetry=debug,agent=debug,mcp=debug,session_search=debug,acp_lib=debug,sampling_log=off";
 
 // Full firehose directives: the curated crate list plus the pager's ACP update target (built from the constant above, not a literal)
@@ -380,7 +380,7 @@ pub fn flush() {
 /// Where the firehose should go, if anywhere.
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum DebugTarget {
-    /// `GROK_DEBUG_LOG=1` → route per session into `<dir>` (`~/.grok/debug`).
+    /// `GROK_DEBUG_LOG=1` → route per session into `<dir>` (`~/.xvora/debug`).
     PerSession { dir: PathBuf },
     /// An explicit path writes one flat `fmt` file, routing bypassed.
     SingleFile { path: PathBuf, src: DebugSource },
@@ -388,7 +388,7 @@ pub(crate) enum DebugTarget {
 
 /// Resolve the debug target, honoring precedence: explicit GROK_LOG_FILE wins
 /// (single file, RUST_LOG filter); else GROK_DEBUG_LOG — a truthy bool routes
-/// per session into `~/.grok/debug`, an explicit path writes a single file.
+/// per session into `~/.xvora/debug`, an explicit path writes a single file.
 ///
 /// Read via `var_os` (not `var`) so a non-UTF-8 path isn't silently dropped.
 pub(crate) fn resolve_debug_target() -> Option<DebugTarget> {
@@ -397,7 +397,7 @@ pub(crate) fn resolve_debug_target() -> Option<DebugTarget> {
     resolve_debug_target_inner(
         grok_log_file.as_deref(),
         grok_debug_log.as_deref(),
-        &grok_home().join("debug"),
+        &xvora_home().join("debug"),
     )
 }
 
@@ -450,10 +450,10 @@ fn resolve_debug_target_inner(
 const LOG_RETENTION: std::time::Duration = std::time::Duration::from_secs(7 * 24 * 60 * 60);
 
 /// Prune `*.txt` firehose files (and orphaned `latest.txt` swap temps) under
-/// `~/.grok/debug` older than [`LOG_RETENTION`] so the dir doesn't grow
+/// `~/.xvora/debug` older than [`LOG_RETENTION`] so the dir doesn't grow
 /// unbounded. Age-based (not count-based) so a still-open log from a concurrent process is never unlinked mid-write; best-effort, ignore errors.
 pub(crate) fn sweep_old_logs() {
-    prune_old_logs(&grok_home().join("debug"), LOG_RETENTION);
+    prune_old_logs(&xvora_home().join("debug"), LOG_RETENTION);
 }
 
 // Pure prune core: remove `*.txt` files and orphaned `latest.txt` swap temps in `dir` older than `max_age`
@@ -911,7 +911,7 @@ mod tests {
     fn prune_old_logs_missing_dir_is_noop() {
         // Best-effort: a nonexistent debug dir must not panic.
         prune_old_logs(
-            Path::new("/no/such/grok/debug/dir"),
+            Path::new("/no/such/xvora/debug/dir"),
             std::time::Duration::from_secs(1),
         );
     }

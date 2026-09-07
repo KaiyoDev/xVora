@@ -197,7 +197,7 @@ async fn wait_for_leader_auth_resolves_when_wired_late() {
 #[tokio::test]
 async fn workspace_start_errors_when_cancelled_before_auth() {
     // Cancelling while auth is unwired returns a clean error, no hang
-    let state = default_test_control_state(Path::new("/tmp/grok-ws-auth-test.sock"));
+    let state = default_test_control_state(Path::new("/tmp/xvora-ws-auth-test.sock"));
     let cancel = CancellationToken::new();
     cancel.cancel();
     let err = handle_workspace_start(state, None, "/tmp".to_string(), cancel)
@@ -347,8 +347,8 @@ async fn connect_and_register_with_mode(
     (reader, writer)
 }
 
-/// A Stdio registration must NOT signal relay demand: a leader serving only interactive clients (TUI dashboard, IDE) keeps the grok.com relay off.
-/// The first Headless registration (the devbox / `grok agent headless` flow) flips the watch so `run_leader` starts the deferred relay connection.
+/// A Stdio registration must NOT signal relay demand: a leader serving only interactive clients (TUI dashboard, IDE) keeps the xvora.com relay off.
+/// The first Headless registration (the devbox / `xvora agent headless` flow) flips the watch so `run_leader` starts the deferred relay connection.
 #[tokio::test]
 async fn relay_demand_signals_only_on_headless_registration() {
     let temp = TempDir::new().unwrap();
@@ -359,7 +359,7 @@ async fn relay_demand_signals_only_on_headless_registration() {
 
     // A Stdio (interactive) client registers: demand must stay false.
     // Hold the connection open so the server doesn't exit on disconnect.
-    let _stdio = connect_and_register_with_mode(&sock_path, "grok-tui", ClientMode::Stdio).await;
+    let _stdio = connect_and_register_with_mode(&sock_path, "xvora-tui", ClientMode::Stdio).await;
     // The Registered server-event is processed asynchronously after the wire ack
     // Give the server loop a beat before asserting the negative
     tokio::time::sleep(Duration::from_millis(100)).await;
@@ -370,7 +370,7 @@ async fn relay_demand_signals_only_on_headless_registration() {
 
     // A Headless (devbox-flow) client registers: demand flips to true.
     let _headless =
-        connect_and_register_with_mode(&sock_path, "grok-headless", ClientMode::Headless).await;
+        connect_and_register_with_mode(&sock_path, "xvora-headless", ClientMode::Headless).await;
     tokio::time::timeout(Duration::from_secs(5), relay_demand_rx.wait_for(|d| *d))
         .await
         .expect("relay demand must flip after headless registration")
@@ -691,11 +691,11 @@ async fn initialize_gets_client_identifier_injected() {
     let stream = LeaderStream::connect(&sock_path).await.unwrap();
     let (mut reader, mut writer) = tokio::io::split(stream);
 
-    // Register with client_type "grok-tui"
+    // Register with client_type "xvora-tui"
     write_message(
         &mut writer,
         &ClientMessage::Register {
-            client_type: "grok-tui".into(),
+            client_type: "xvora-tui".into(),
             mode: ClientMode::Stdio,
             capabilities: ClientCapabilities::default(),
         },
@@ -720,7 +720,7 @@ async fn initialize_gets_client_identifier_injected() {
     let received = acp_rx.recv().await.unwrap();
     let json: serde_json::Value = serde_json::from_str(&received).unwrap();
     assert_eq!(
-        json["params"]["_meta"]["clientIdentifier"], "grok-tui",
+        json["params"]["_meta"]["clientIdentifier"], "xvora-tui",
         "Leader should inject clientIdentifier from IPC registration"
     );
     // Injection leaves the rest of the message intact (the id is now namespaced)
@@ -737,11 +737,11 @@ async fn initialize_preserves_existing_client_identifier() {
     let stream = LeaderStream::connect(&sock_path).await.unwrap();
     let (mut reader, mut writer) = tokio::io::split(stream);
 
-    // Register with client_type "grok-tui"
+    // Register with client_type "xvora-tui"
     write_message(
         &mut writer,
         &ClientMessage::Register {
-            client_type: "grok-tui".into(),
+            client_type: "xvora-tui".into(),
             mode: ClientMode::Stdio,
             capabilities: ClientCapabilities::default(),
         },
@@ -751,7 +751,7 @@ async fn initialize_preserves_existing_client_identifier() {
     let _: ServerMessage = read_message(&mut reader).await.unwrap();
 
     // Send initialize WITH clientIdentifier already set
-    let payload = r#"{"jsonrpc":"2.0","method":"initialize","id":1,"params":{"protocolVersion":"0.1","_meta":{"clientIdentifier":"grok-web"}}}"#;
+    let payload = r#"{"jsonrpc":"2.0","method":"initialize","id":1,"params":{"protocolVersion":"0.1","_meta":{"clientIdentifier":"xvora-web"}}}"#;
     write_message(
         &mut writer,
         &ClientMessage::Acp {
@@ -765,7 +765,7 @@ async fn initialize_preserves_existing_client_identifier() {
     let received = acp_rx.recv().await.unwrap();
     let json: serde_json::Value = serde_json::from_str(&received).unwrap();
     assert_eq!(
-        json["params"]["_meta"]["clientIdentifier"], "grok-web",
+        json["params"]["_meta"]["clientIdentifier"], "xvora-web",
         "Leader should not override existing clientIdentifier"
     );
 
@@ -1234,7 +1234,7 @@ fn inject_capabilities_adds_auto_mode_to_session_load() {
     assert!(inject_session_request_context(
         &mut json,
         &caps,
-        "grok-tui",
+        "xvora-tui",
         ClientId(1)
     ));
     assert_eq!(json["params"]["_meta"]["autoMode"], true);
@@ -1255,7 +1255,7 @@ fn inject_capabilities_adds_auto_mode_to_session_resume() {
     assert!(inject_session_request_context(
         &mut json,
         &caps,
-        "grok-tui",
+        "xvora-tui",
         ClientId(1)
     ));
     assert_eq!(json["params"]["_meta"]["autoMode"], true);
@@ -1303,7 +1303,7 @@ fn inject_capabilities_preserves_explicit_auto_over_stale_yolo() {
     assert!(inject_session_request_context(
         &mut json,
         &caps,
-        "grok-tui",
+        "xvora-tui",
         ClientId(1)
     ));
     assert_eq!(json["params"]["_meta"]["yoloMode"], false);
@@ -1929,12 +1929,12 @@ fn inject_capabilities_adds_client_identifier_to_session_new() {
     assert!(inject_session_request_context(
         &mut json,
         &caps,
-        "grok-code-extension",
+        "xvora-code-extension",
         ClientId(1),
     ));
     assert_eq!(
         json["params"]["_meta"]["clientIdentifier"],
-        "grok-code-extension"
+        "xvora-code-extension"
     );
 }
 
@@ -1947,7 +1947,7 @@ fn inject_capabilities_does_not_override_existing_client_identifier() {
     let caps = ClientCapabilities::default();
 
     let mut json = pv(&payload);
-    inject_session_request_context(&mut json, &caps, "grok-tui", ClientId(1));
+    inject_session_request_context(&mut json, &caps, "xvora-tui", ClientId(1));
     assert_eq!(json["params"]["_meta"]["clientIdentifier"], "custom-client");
 }
 
@@ -1963,12 +1963,12 @@ fn inject_capabilities_adds_client_identifier_to_session_load() {
     assert!(inject_session_request_context(
         &mut json,
         &caps,
-        "grok-code-extension",
+        "xvora-code-extension",
         ClientId(1),
     ));
     assert_eq!(
         json["params"]["_meta"]["clientIdentifier"],
-        "grok-code-extension"
+        "xvora-code-extension"
     );
     // session/load gets neither yoloMode nor modelId injected
     assert!(json["params"]["_meta"].get("yoloMode").is_none());
@@ -1984,7 +1984,7 @@ fn inject_capabilities_adds_leader_client_id_to_session_load() {
     let caps = ClientCapabilities::default();
 
     let mut json = pv(&payload);
-    inject_session_request_context(&mut json, &caps, "grok-tui", ClientId(42));
+    inject_session_request_context(&mut json, &caps, "xvora-tui", ClientId(42));
     // The unique ClientId is stamped so the agent can echo it onto replay notifications for leader unicast routing
     assert_eq!(
         json["params"]["_meta"]["x.ai/leaderClientId"].as_u64(),
@@ -2001,7 +2001,7 @@ fn inject_capabilities_does_not_override_existing_leader_client_id() {
     let caps = ClientCapabilities::default();
 
     let mut json = pv(&payload);
-    inject_session_request_context(&mut json, &caps, "grok-tui", ClientId(42));
+    inject_session_request_context(&mut json, &caps, "xvora-tui", ClientId(42));
     // An explicit value already present is respected (mirrors the clientIdentifier guard)
     assert_eq!(
         json["params"]["_meta"]["x.ai/leaderClientId"].as_u64(),
@@ -2037,9 +2037,10 @@ fn inject_yolo_notification_adds_client_identifier() {
         pv(r#"{"jsonrpc":"2.0","method":"x.ai/yolo_mode_changed","params":{"yolo_mode":true}}"#);
 
     assert!(inject_client_identity_into_yolo_notification(
-        &mut json, "grok-tui"
+        &mut json,
+        "xvora-tui"
     ));
-    assert_eq!(json["params"]["clientIdentifier"], "grok-tui");
+    assert_eq!(json["params"]["clientIdentifier"], "xvora-tui");
     assert_eq!(json["params"]["yolo_mode"], true);
 }
 
@@ -2049,7 +2050,8 @@ fn inject_yolo_notification_skips_non_yolo_methods() {
     let before = json.clone();
 
     assert!(!inject_client_identity_into_yolo_notification(
-        &mut json, "grok-tui"
+        &mut json,
+        "xvora-tui"
     ));
     assert_eq!(json, before);
 }
@@ -2059,22 +2061,22 @@ fn inject_client_identity_adds_identifier_to_initialize() {
     let mut json =
         pv(r#"{"jsonrpc":"2.0","method":"initialize","id":1,"params":{"protocolVersion":"0.1"}}"#);
 
-    let (mutated, was_initialize) = inject_client_identity_into_initialize(&mut json, "grok-tui");
+    let (mutated, was_initialize) = inject_client_identity_into_initialize(&mut json, "xvora-tui");
     assert!(was_initialize, "should have detected an initialize message");
     assert!(mutated, "should have injected the identifier");
-    assert_eq!(json["params"]["_meta"]["clientIdentifier"], "grok-tui");
+    assert_eq!(json["params"]["_meta"]["clientIdentifier"], "xvora-tui");
 }
 
 #[test]
 fn inject_client_identity_does_not_override_existing() {
     let mut json = pv(
-        r#"{"jsonrpc":"2.0","method":"initialize","id":1,"params":{"protocolVersion":"0.1","_meta":{"clientIdentifier":"grok-web"}}}"#,
+        r#"{"jsonrpc":"2.0","method":"initialize","id":1,"params":{"protocolVersion":"0.1","_meta":{"clientIdentifier":"xvora-web"}}}"#,
     );
 
-    let (mutated, was_initialize) = inject_client_identity_into_initialize(&mut json, "grok-tui");
+    let (mutated, was_initialize) = inject_client_identity_into_initialize(&mut json, "xvora-tui");
     assert!(was_initialize, "should have detected an initialize message");
     assert!(!mutated, "existing identifier means nothing was injected");
-    assert_eq!(json["params"]["_meta"]["clientIdentifier"], "grok-web");
+    assert_eq!(json["params"]["_meta"]["clientIdentifier"], "xvora-web");
 }
 
 #[test]
@@ -2082,7 +2084,7 @@ fn inject_client_identity_skips_non_initialize() {
     let mut json = pv(r#"{"jsonrpc":"2.0","method":"session/new","id":1,"params":{"cwd":"/tmp"}}"#);
     let before = json.clone();
 
-    let (mutated, was_initialize) = inject_client_identity_into_initialize(&mut json, "grok-tui");
+    let (mutated, was_initialize) = inject_client_identity_into_initialize(&mut json, "xvora-tui");
     assert!(
         !was_initialize,
         "session/new should not be detected as initialize"
@@ -2113,13 +2115,13 @@ fn inject_client_identity_preserves_existing_meta() {
     );
 
     let (mutated, was_initialize) =
-        inject_client_identity_into_initialize(&mut json, "grok-code-extension");
+        inject_client_identity_into_initialize(&mut json, "xvora-code-extension");
     assert!(was_initialize, "should have detected an initialize message");
     assert!(mutated);
     assert_eq!(json["params"]["_meta"]["foo"], "bar");
     assert_eq!(
         json["params"]["_meta"]["clientIdentifier"],
-        "grok-code-extension"
+        "xvora-code-extension"
     );
 }
 
@@ -2173,7 +2175,7 @@ async fn model_injected_after_set_model(response: Option<serde_json::Value>) -> 
             mode: ClientMode::Stdio,
             capabilities: ClientCapabilities {
                 yolo_mode: false,
-                default_model: Some("grok-original".to_string()),
+                default_model: Some("xvora-original".to_string()),
                 ..Default::default()
             },
         },
@@ -2242,7 +2244,7 @@ async fn rejected_set_model_rolls_back_default_model() {
     ))
     .await;
     assert_eq!(
-        injected, "grok-original",
+        injected, "xvora-original",
         "rejected switch rolls back to the previous model"
     );
 }
@@ -3067,7 +3069,7 @@ async fn high_throughput_replay_no_drops() {
     let (sock_path, cancel, response_tx, mut acp_rx) =
         setup_persistent_server_with_agent(&temp).await;
 
-    let (mut reader, mut writer) = connect_and_register(&sock_path, "grok-tui").await;
+    let (mut reader, mut writer) = connect_and_register(&sock_path, "xvora-tui").await;
 
     let load_req =
         r#"{"jsonrpc":"2.0","method":"session/load","id":1,"params":{"session_id":"sess_replay"}}"#;
@@ -4403,17 +4405,17 @@ async fn models_update_broadcasts_to_all_clients() {
     let (mut reader_b, _writer_b) = connect_and_register(&sock_path, "client-b").await;
     tokio::time::sleep(Duration::from_millis(20)).await;
 
-    let update = r#"{"jsonrpc":"2.0","method":"_x.ai/models/update","params":{"currentModelId":"grok-new","availableModels":[{"modelId":"grok-new","name":"Grok New"}]}}"#;
+    let update = r#"{"jsonrpc":"2.0","method":"_x.ai/models/update","params":{"currentModelId":"xvora-new","availableModels":[{"modelId":"xvora-new","name":"xvora New"}]}}"#;
     response_tx.send(update.to_string()).unwrap();
 
     let got_a = next_acp_payload(&mut reader_a).await;
     let got_b = next_acp_payload(&mut reader_b).await;
     assert!(
-        got_a.as_deref().is_some_and(|p| p.contains("grok-new")),
+        got_a.as_deref().is_some_and(|p| p.contains("xvora-new")),
         "client A must receive the models broadcast, got {got_a:?}"
     );
     assert!(
-        got_b.as_deref().is_some_and(|p| p.contains("grok-new")),
+        got_b.as_deref().is_some_and(|p| p.contains("xvora-new")),
         "client B must receive the models broadcast, got {got_b:?}"
     );
 
@@ -4510,7 +4512,7 @@ fn inject_capabilities_sets_code_nav_enabled_true() {
     let payload =
         r#"{"jsonrpc":"2.0","method":"session/new","id":1,"params":{"cwd":"/repo","_meta":{}}}"#;
     let mut json = pv(payload);
-    inject_session_request_context(&mut json, &caps, "grok-web", ClientId(1));
+    inject_session_request_context(&mut json, &caps, "xvora-web", ClientId(1));
     assert_eq!(
         json["params"]["_meta"]["codeNavEnabled"],
         serde_json::json!(true),
@@ -4529,9 +4531,9 @@ fn inject_capabilities_sets_code_nav_enabled_false() {
         code_nav_enabled: false,
         ..Default::default()
     };
-    let payload = r#"{"jsonrpc":"2.0","method":"session/new","id":1,"params":{"cwd":"/repo","_meta":{"clientIdentifier":"grok-tui"}}}"#;
+    let payload = r#"{"jsonrpc":"2.0","method":"session/new","id":1,"params":{"cwd":"/repo","_meta":{"clientIdentifier":"xvora-tui"}}}"#;
     let mut json = pv(payload);
-    inject_session_request_context(&mut json, &caps, "grok-tui", ClientId(1));
+    inject_session_request_context(&mut json, &caps, "xvora-tui", ClientId(1));
     assert_eq!(
         json["params"]["_meta"]["codeNavEnabled"],
         serde_json::json!(false),
@@ -4551,7 +4553,7 @@ fn inject_capabilities_injects_code_nav_into_session_load() {
     };
     let payload = r#"{"jsonrpc":"2.0","method":"session/load","id":2,"params":{"sessionId":"abc","cwd":"/repo","_meta":{}}}"#;
     let mut json = pv(payload);
-    inject_session_request_context(&mut json, &caps, "grok-web", ClientId(1));
+    inject_session_request_context(&mut json, &caps, "xvora-web", ClientId(1));
     assert_eq!(
         json["params"]["_meta"]["codeNavEnabled"],
         serde_json::json!(true),
@@ -4575,9 +4577,9 @@ fn inject_capabilities_two_clients_stay_isolated() {
         r#"{"jsonrpc":"2.0","method":"session/new","id":1,"params":{"cwd":"/repo","_meta":{}}}"#;
 
     let mut web_json = pv(session_new);
-    inject_session_request_context(&mut web_json, &web_caps, "grok-web", ClientId(1));
+    inject_session_request_context(&mut web_json, &web_caps, "xvora-web", ClientId(1));
     let mut tui_json = pv(session_new);
-    inject_session_request_context(&mut tui_json, &tui_caps, "grok-tui", ClientId(2));
+    inject_session_request_context(&mut tui_json, &tui_caps, "xvora-tui", ClientId(2));
 
     assert_eq!(
         web_json["params"]["_meta"]["codeNavEnabled"],
@@ -4607,9 +4609,9 @@ fn inject_capabilities_terminal_and_fs_per_client() {
         r#"{"jsonrpc":"2.0","method":"session/new","id":1,"params":{"cwd":"/repo","_meta":{}}}"#;
 
     let mut web_json = pv(session_new);
-    inject_session_request_context(&mut web_json, &web_caps, "grok-web", ClientId(1));
+    inject_session_request_context(&mut web_json, &web_caps, "xvora-web", ClientId(1));
     let mut tui_json = pv(session_new);
-    inject_session_request_context(&mut tui_json, &tui_caps, "grok-tui", ClientId(2));
+    inject_session_request_context(&mut tui_json, &tui_caps, "xvora-tui", ClientId(2));
 
     assert_eq!(
         web_json["params"]["_meta"]["clientTerminal"],
@@ -4649,7 +4651,7 @@ fn inject_capabilities_terminal_into_session_load() {
     let session_load = r#"{"jsonrpc":"2.0","method":"session/load","id":2,"params":{"sessionId":"sess-1","_meta":{}}}"#;
 
     let mut json = pv(session_load);
-    inject_session_request_context(&mut json, &caps, "grok-web", ClientId(1));
+    inject_session_request_context(&mut json, &caps, "xvora-web", ClientId(1));
 
     assert_eq!(
         json["params"]["_meta"]["clientTerminal"],

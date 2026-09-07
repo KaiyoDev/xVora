@@ -286,7 +286,7 @@ fn worktree_session_created_sets_session_and_cwd() {
         &mut app,
     );
     let id = AgentId(0);
-    let worktree_path = PathBuf::from("/tmp/grok-worktrees/pager-123");
+    let worktree_path = PathBuf::from("/tmp/xvora-worktrees/pager-123");
     let session_cwd = worktree_path.clone();
     let effects = dispatch(
         Action::TaskComplete(TaskResult::WorktreeSessionCreated {
@@ -349,7 +349,7 @@ fn worktree_session_created_clears_sticky_branch_from_main_repo() {
         agent.main_repo = Some("~/old-main".into());
         agent.is_worktree = false;
     }
-    let worktree_path = PathBuf::from("/tmp/grok-worktrees/pager-sticky");
+    let worktree_path = PathBuf::from("/tmp/xvora-worktrees/pager-sticky");
     let session_cwd = worktree_path.clone();
     dispatch(
         Action::TaskComplete(TaskResult::WorktreeSessionCreated {
@@ -386,7 +386,7 @@ fn worktree_session_preserves_subdirectory_offset() {
         &mut app,
     );
     let id = AgentId(0);
-    let worktree_root = PathBuf::from("/home/user/.grok/worktrees/repo/pager-123");
+    let worktree_root = PathBuf::from("/home/user/.xvora/worktrees/repo/pager-123");
     let session_cwd = worktree_root.join("crates/codegen/xvora-pager");
     let effects = dispatch(
         Action::TaskComplete(TaskResult::WorktreeSessionCreated {
@@ -516,13 +516,13 @@ fn worktree_session_created_drains_queued_prompts() {
     let effects = dispatch(Action::SendPrompt("hello".into()), &mut app);
     assert!(effects.is_empty(), "no session_id yet, can't drain");
     assert_eq!(app.agents[&id].session.queue_len(), 1);
-    let worktree_path = PathBuf::from("/tmp/grok-worktrees/pager-abc");
+    let worktree_path = PathBuf::from("/tmp/xvora-worktrees/pager-abc");
     let effects = dispatch(
         Action::TaskComplete(TaskResult::WorktreeSessionCreated {
             agent_id: id,
             session_id: acp::SessionId::new("wt-drain-1"),
             worktree_path,
-            session_cwd: PathBuf::from("/tmp/grok-worktrees/pager-abc"),
+            session_cwd: PathBuf::from("/tmp/xvora-worktrees/pager-abc"),
             models: None,
             scheduler_background_loops: None,
         }),
@@ -1278,7 +1278,7 @@ fn an_api_key_run_writes_no_answer_on_either_path() {
 fn a_consent_link_opens_the_url_its_label_stands_for() {
     use crate::app::consent::{ConsentSegment, ConsentState};
     let url_file =
-        std::env::temp_dir().join(format!("grok-consent-open-{}.txt", std::process::id()));
+        std::env::temp_dir().join(format!("xvora-consent-open-{}.txt", std::process::id()));
     let _ = std::fs::remove_file(&url_file);
     unsafe { std::env::set_var("GROK_TEST_OPEN_URL_FILE", &url_file) };
     let opened = || std::fs::read_to_string(&url_file).unwrap_or_default();
@@ -1342,13 +1342,13 @@ fn finish_trust_resolves_and_replays_startup() {
     );
 }
 /// Accepting the trust question persists the grant to the store and resolves trust.
-/// The test is GROK_HOME-isolated so the write hits a temp store, not the real one.
-#[serial_test::serial(GROK_HOME)]
+/// The test is xvora_home-isolated so the write hits a temp store, not the real one.
+#[serial_test::serial(xvora_home)]
 #[test]
 fn trust_folder_grants_and_resolves() {
     use workspace::trust::{TrustStore, workspace_key};
     let home = tempfile::tempdir().expect("home tempdir");
-    unsafe { std::env::set_var("GROK_HOME", home.path()) };
+    unsafe { std::env::set_var("xvora_home", home.path()) };
     simulate_release_build();
     let repo = tempfile::tempdir().expect("repo tempdir");
     let workspace = workspace_key(repo.path());
@@ -3037,7 +3037,7 @@ mod welcome_workspace_mode {
             crate::app::session_startup::GROK_CHAT_LOCAL_WORKSPACE_ACK_ENV,
         );
         let home = tempfile::tempdir().unwrap();
-        let _home = test_support::EnvGuard::set("GROK_HOME", home.path().to_str().unwrap());
+        let _home = test_support::EnvGuard::set("xvora_home", home.path().to_str().unwrap());
         set_active_local_workspace(None).unwrap();
         let tmp = tempfile::tempdir().unwrap();
         let mut app = test_app();
@@ -3149,7 +3149,7 @@ mod welcome_workspace_mode {
             crate::app::session_startup::GROK_CHAT_LOCAL_WORKSPACE_ACK_ENV,
         );
         let home = tempfile::tempdir().unwrap();
-        let _home = test_support::EnvGuard::set("GROK_HOME", home.path().to_str().unwrap());
+        let _home = test_support::EnvGuard::set("xvora_home", home.path().to_str().unwrap());
         set_active_local_workspace(None).unwrap();
         let tmp = tempfile::tempdir().unwrap();
         let mut app = test_app();

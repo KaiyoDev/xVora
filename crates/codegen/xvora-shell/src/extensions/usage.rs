@@ -76,7 +76,7 @@ mod tests {
     #[test]
     fn response_serializes_ledger_as_prompt_usage_wire_shape() {
         let mut ledger = UsageLedger::default();
-        ledger.record_main_loop_call("grok-build", &usage(100, 10), Some(50), Some(20_000_000));
+        ledger.record_main_loop_call("xvora-build", &usage(100, 10), Some(50), Some(20_000_000));
         let v = serde_json::to_value(&SessionUsageResponse {
             usage: PromptUsage::from(&ledger),
         })
@@ -85,7 +85,7 @@ mod tests {
         assert_eq!(v["usage"]["outputTokens"], 10);
         assert_eq!(v["usage"]["numTurns"], 1);
         assert_eq!(v["usage"]["costUsdTicks"], 20_000_000);
-        assert_eq!(v["usage"]["modelUsage"]["grok-build"]["inputTokens"], 100);
+        assert_eq!(v["usage"]["modelUsage"]["xvora-build"]["inputTokens"], 100);
         let rt: SessionUsageResponse = serde_json::from_value(v).unwrap();
         assert_eq!(rt.usage.totals.cost_usd_ticks, Some(20_000_000));
     }

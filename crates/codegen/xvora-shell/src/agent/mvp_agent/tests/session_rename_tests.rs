@@ -1,4 +1,4 @@
-//! `x.ai/session/rename` ext-handler coverage: resident `ManualTitleRenamed` enqueue, non-resident skip, and control-char stripping at the boundary.
+﻿//! `x.ai/session/rename` ext-handler coverage: resident `ManualTitleRenamed` enqueue, non-resident skip, and control-char stripping at the boundary.
 
 use agent_client_protocol as acp;
 use test_support::EnvGuard;
@@ -15,7 +15,7 @@ struct IsolatedHome {
 
 fn isolate_grok_home() -> IsolatedHome {
     let dir = tempfile::tempdir().unwrap();
-    let env = EnvGuard::set("GROK_HOME", dir.path());
+    let env = EnvGuard::set("xvora_home", dir.path());
     IsolatedHome {
         _dir: dir,
         _env: env,

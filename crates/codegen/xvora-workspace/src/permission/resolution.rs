@@ -1,4 +1,4 @@
-//! Merges native `.grok/config.toml`, managed/enterprise settings, and `.claude` settings into the effective `PermissionConfig`.
+//! Merges native `.xvora/config.toml`, managed/enterprise settings, and `.claude` settings into the effective `PermissionConfig`.
 //! Also holds the MCP-server and marketplace allowlists and the always-approve policy pin.
 
 use crate::permission::claude_settings::*;
@@ -68,7 +68,7 @@ fn synthetic_rules_for_default_mode(
     (rules, skipped, bypass_blocked)
 }
 
-/// Parse a defaultMode string; an unknown value fails safe to [`DefaultPermissionMode::Default`] with a warn and a skip record for `grok inspect`.
+/// Parse a defaultMode string; an unknown value fails safe to [`DefaultPermissionMode::Default`] with a warn and a skip record for `xvora inspect`.
 fn parse_default_mode_claiming_scope(
     raw: &str,
     path: &Path,
@@ -187,7 +187,7 @@ fn extract_toml_permissions(
 
 /// Load `[permission]` rules from requirements.toml layers. Trust keys on the
 /// `is_system` flag (set at load, never from `path`): system → `SystemRequirements`,
-/// user `~/.grok` → `Requirements`, so [`is_admin_source`] trusts only the root tier.
+/// user `~/.xvora` → `Requirements`, so [`is_admin_source`] trusts only the root tier.
 fn load_requirements_permissions() -> Vec<Sourced<PermissionRule>> {
     config::requirements_layers()
         .into_iter()
@@ -206,18 +206,18 @@ fn load_requirements_permissions() -> Vec<Sourced<PermissionRule>> {
         .collect()
 }
 
-/// Load `[permission]` rules from native Grok TOML config files:
+/// Load `[permission]` rules from native xvora TOML config files:
 ///
-///   * `~/.grok/config.toml` (lowest priority)
-///   * Each `.grok/config.toml` from the git repo root down to `cwd` (highest priority last).
+///   * `~/.xvora/config.toml` (lowest priority)
+///   * Each `.xvora/config.toml` from the git repo root down to `cwd` (highest priority last).
 ///     The walk matches folder-trust's [`crate::project_config::find_project_configs`], so detector and loader agree on which project configs exist.
 ///
 /// Returns the rules tagged with `RequirementSource::Config`, or empty if no config file contains a `[permission]` section.
 fn load_config_toml_permissions(cwd: &Path, project_trusted: bool) -> Vec<Sourced<PermissionRule>> {
     let mut rules = Vec::new();
 
-    // Global `~/.grok/config.toml` first (lowest priority within this layer).
-    // Gated on user_grok_home() so a project's .grok/config.toml is never read as global permissions when neither GROK_HOME nor a home dir resolves
+    // Global `~/.xvora/config.toml` first (lowest priority within this layer).
+    // Gated on user_grok_home() so a project's .xvora/config.toml is never read as global permissions when neither xvora_home nor a home dir resolves
     if let Some(global_path) = config::user_grok_home().map(|g| g.join("config.toml"))
         && global_path.is_file()
     {
@@ -234,7 +234,7 @@ fn load_config_toml_permissions(cwd: &Path, project_trusted: bool) -> Vec<Source
     }
 
     // Project-scoped configs walking from git root down to cwd, gated on trust.
-    // An untrusted clone must not contribute allow/deny/ask rules via `.grok/config.toml` (same gate as project `.claude/settings.json`)
+    // An untrusted clone must not contribute allow/deny/ask rules via `.xvora/config.toml` (same gate as project `.claude/settings.json`)
     if project_trusted {
         for path in crate::project_config::find_project_configs(cwd) {
             match config::load_config_file(&path) {
@@ -268,12 +268,12 @@ fn managed_config_permissions(
 // Fallback Resolver
 // ═════════════════════════════════════════════════════════════════════════════
 
-/// Resolve permission config, merging native Grok and Claude sources.
+/// Resolve permission config, merging native xvora and Claude sources.
 /// Evaluation is order-independent (deny > ask > allow); merge order affects provenance display only.
 ///
 /// `defaultMode: "acceptEdits"` in Claude settings generates a synthetic `Allow Edit` rule appended to the Claude rules.
 ///
-/// `project_trusted` gates project-tier `.claude/settings.json` and `.grok/config.toml` permission rules (mirrors [`load_claude_env_with_project`]).
+/// `project_trusted` gates project-tier `.claude/settings.json` and `.xvora/config.toml` permission rules (mirrors [`load_claude_env_with_project`]).
 /// Global/user/admin tiers always load.
 /// Callers pass the folder-trust bridge verdict for local sessions; hub/cloud defaults trusted.
 pub async fn resolve_permission_config_with_fallback(
@@ -433,7 +433,7 @@ fn is_admin_source(source: &RequirementSource) -> bool {
 }
 
 /// Under the pin, drop untrusted catch-all Allow rules (they substitute for the blocked `--yolo`); keep admin-tier ones.
-/// Records each drop for `grok inspect`.
+/// Records each drop for `xvora inspect`.
 fn drop_untrusted_catchall_allows(
     rules: Vec<Sourced<PermissionRule>>,
     policy_block: Option<&'static str>,
@@ -472,7 +472,7 @@ struct ResolveInputs<'a> {
     managed: &'a ManagedSettings,
     managed_config_rules: Vec<Sourced<PermissionRule>>,
     /// Folder-trust verdict for `cwd`.
-    /// When false, project-tier `.claude/settings.json` / `.grok/config.toml` permission rules are dropped (global/user/admin tiers still load).
+    /// When false, project-tier `.claude/settings.json` / `.xvora/config.toml` permission rules are dropped (global/user/admin tiers still load).
     project_trusted: bool,
 }
 
@@ -503,10 +503,10 @@ impl ResolveInputs<'static> {
 ///
 /// **Always-approve (yolo) is independent of defaultMode.**
 /// Session always-approve still auto-approves before [`PromptPolicy::Deny`] (`dontAsk`) is consulted, so it outranks `defaultMode`.
-/// The exception: bypass pinned off via grok `requirements.toml` (`[ui] disable_bypass_permissions_mode = true`).
+/// The exception: bypass pinned off via xvora `requirements.toml` (`[ui] disable_bypass_permissions_mode = true`).
 /// Pair managed `dontAsk` with that pin when org policy must not be bypassable by `--always-approve`.
 ///
-/// `project_trusted` gates project-tier Claude settings and `.grok/config.toml` permission rules just as [`load_claude_env_with_project`] gates env.
+/// `project_trusted` gates project-tier Claude settings and `.xvora/config.toml` permission rules just as [`load_claude_env_with_project`] gates env.
 /// An untrusted clone could otherwise ship `defaultMode: bypassPermissions` or broad allow rules and disable approval prompts.
 ///
 /// The outcome always carries the pin read the resolution used ([`ProvenanceResolution::yolo_lock`]), even when nothing resolves.
@@ -604,7 +604,7 @@ async fn resolve_permissions_with_provenance_inner(
     // CLI `--allow '*'` is filtered at its own merge site (acp_session)
     let all_rules = drop_untrusted_catchall_allows(all_rules, policy_block, &mut skipped);
 
-    // Keep skip-only resolutions alive so the drop reaches `grok inspect`
+    // Keep skip-only resolutions alive so the drop reaches `xvora inspect`
     // Zero rules with Ask is a no-op for the evaluator, identical to the `None` arm
     // A rule-less explicit defaultMode (`default` / `plan`) must also survive
     // Dropping it to `None` would erase `default_mode_configured` and let the alwaysAllow startup hint upgrade an explicitly configured mode
@@ -698,7 +698,7 @@ fn resolve_claude_settings_inner(
             for w in &warnings {
                 warn!(path = %path.display(), "{}", w);
             }
-            // Rules *or* skip-only parse failures still own provenance for `grok inspect`
+            // Rules *or* skip-only parse failures still own provenance for `xvora inspect`
             // All-invalid allow/deny/ask must not leave primary_source_path unset and panic below
             if (!cfg.rules.is_empty() || !warnings.is_empty()) && primary_source_path.is_none() {
                 primary_source_path = Some(path.clone());
@@ -735,7 +735,7 @@ fn resolve_claude_settings_inner(
     }
 
     // A blocked bypass, a claimed defaultMode (incl. a typo treated as default), or skip records still resolve (possibly zero rules).
-    // Provenance then reaches `grok inspect` via the outer resolver
+    // Provenance then reaches `xvora inspect` via the outer resolver
     if all_rules.is_empty()
         && prompt_policy == PromptPolicy::Ask
         && !bypass_blocked
@@ -900,9 +900,9 @@ fn parse_disable_bypass_permissions(json: &serde_json::Value) -> Option<bool> {
 
 /// Whether a loaded vendor `managed-settings.json` requests Claude's bypass
 /// lock (`permissions.disableBypassPermissionsMode`). The request is advisory
-/// for grok: the rule resolver deliberately ignores this field — grok must not
+/// for xvora: the rule resolver deliberately ignores this field — xvora must not
 /// inherit a host-wide Claude lockdown (see [`yolo_disabled_by_policy`]) — so
-/// it must only ever be rendered as an advisory (`grok inspect`'s
+/// it must only ever be rendered as an advisory (`xvora inspect`'s
 /// `claudeBypassLockAdvisory`), never as an enforced policy.
 pub fn claude_bypass_lock_request(features: &ManagedSettingsFeatures) -> bool {
     features.source_path.is_some() && features.disable_yolo == Some(true)
@@ -944,10 +944,10 @@ pub struct YoloPolicyLock {
 /// Hard-lock predicate (client gates, permission manager, vendor bypass gate).
 /// Returns `Some(reason)` iff a requirements layer sets `[ui] disable_bypass_permissions_mode = true` (or legacy `[ui] yolo = false`).
 /// Vendor `managed-settings.json` `disableBypassPermissionsMode` is deliberately not consulted.
-/// grok must not inherit a host-wide always-approve lockdown from that file.
-/// grok still honors that file's permission rules and MCP / marketplace allowlists.
+/// xvora must not inherit a host-wide always-approve lockdown from that file.
+/// xvora still honors that file's permission rules and MCP / marketplace allowlists.
 /// The user's own `--yolo` / `[ui] permission_mode` / runtime toggle drive always-approve.
-/// To disable it in grok, use a root-owned `requirements.toml`.
+/// To disable it in xvora, use a root-owned `requirements.toml`.
 /// Fails open on user-writable layers.
 ///
 /// Returns the pin as its display message; callers needing the typed reason or the pinning layer use [`yolo_policy_lock`].

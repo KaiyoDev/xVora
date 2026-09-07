@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-pub use xvora_dirs::{default_grok_home, grok_home, user_grok_home};
+pub use xvora_dirs::{default_grok_home, user_grok_home, xvora_home};
 
 #[cfg(target_os = "macos")]
 const CLAUDE_MANAGED_SETTINGS_PATH: &str =
@@ -8,21 +8,21 @@ const CLAUDE_MANAGED_SETTINGS_PATH: &str =
 #[cfg(target_os = "linux")]
 const CLAUDE_MANAGED_SETTINGS_PATH: &str = "/etc/claude-code/managed-settings.json";
 
-/// Canonical grok application path: `$GROK_HOME/bin/grok` (Unix) or `grok.exe` (Windows).
+/// Canonical xvora application path: `$xvora_home/bin/xvora` (Unix) or `xvora.exe` (Windows).
 pub fn grok_application() -> PathBuf {
-    grok_application_in(&grok_home())
+    grok_application_in(&xvora_home())
 }
 
-/// [`grok_application`] under an explicit home instead of `$GROK_HOME`.
+/// [`grok_application`] under an explicit home instead of `$xvora_home`.
 pub fn grok_application_in(home: &std::path::Path) -> PathBuf {
-    let name = if cfg!(windows) { "grok.exe" } else { "grok" };
+    let name = if cfg!(windows) { "xvora.exe" } else { "xvora" };
     home.join("bin").join(name)
 }
 
-/// System-wide config directory: `/etc/grok/` on Unix, `None` on Windows.
+/// System-wide config directory: `/etc/xvora/` on Unix, `None` on Windows.
 pub fn system_config_dir() -> Option<PathBuf> {
     if cfg!(unix) {
-        Some(PathBuf::from("/etc/grok"))
+        Some(PathBuf::from("/etc/xvora"))
     } else {
         None
     }
@@ -129,33 +129,33 @@ pub fn create_dir_all_owner_only(dir: &std::path::Path) -> std::io::Result<()> {
     Ok(())
 }
 
-/// Build the CWD-level session directory path: `grok_home()/sessions/{encode_cwd_dirname(cwd)}`.
+/// Build the CWD-level session directory path: `xvora_home()/sessions/{encode_cwd_dirname(cwd)}`.
 /// Does **not** create the directory on disk; use [`ensure_sessions_cwd_dir`] when the directory must exist.
 pub fn sessions_cwd_dir(cwd: &str) -> PathBuf {
-    sessions_cwd_dir_in(&grok_home(), cwd)
+    sessions_cwd_dir_in(&xvora_home(), cwd)
 }
 
-/// [`sessions_cwd_dir`] with an injectable grok home, the single source of truth for the `sessions/<encoded-cwd>` path shape.
-pub fn sessions_cwd_dir_in(grok_home: &std::path::Path, cwd: &str) -> PathBuf {
-    grok_home.join("sessions").join(encode_cwd_dirname(cwd))
+/// [`sessions_cwd_dir`] with an injectable xvora home, the single source of truth for the `sessions/<encoded-cwd>` path shape.
+pub fn sessions_cwd_dir_in(xvora_home: &std::path::Path, cwd: &str) -> PathBuf {
+    xvora_home.join("sessions").join(encode_cwd_dirname(cwd))
 }
 
 /// Create the CWD-level session directory and write a `.cwd` metadata file when hash-based encoding is used (long paths).
 /// For short paths the `.cwd` file is not written because the directory name itself is reversible via URL-decoding.
 pub fn ensure_sessions_cwd_dir(cwd: &str) -> std::io::Result<PathBuf> {
-    ensure_sessions_cwd_dir_in(&grok_home(), cwd)
+    ensure_sessions_cwd_dir_in(&xvora_home(), cwd)
 }
 
-/// [`ensure_sessions_cwd_dir`] with an injectable grok home.
+/// [`ensure_sessions_cwd_dir`] with an injectable xvora home.
 pub fn ensure_sessions_cwd_dir_in(
-    grok_home: &std::path::Path,
+    xvora_home: &std::path::Path,
     cwd: &str,
 ) -> std::io::Result<PathBuf> {
     let encoded_name = encode_cwd_dirname(cwd);
-    let dir = sessions_cwd_dir_in(grok_home, cwd);
+    let dir = sessions_cwd_dir_in(xvora_home, cwd);
     // The 0700 dir and root shield everything beneath (children with looser modes, cwd-path dirnames, the session search index)
     create_dir_all_owner_only(&dir)?;
-    set_dir_owner_only(&grok_home.join("sessions"));
+    set_dir_owner_only(&xvora_home.join("sessions"));
     // Hash-based encoding is in use when the dirname differs from the plain URL-encoded form
     // Write a `.cwd` file so decode can recover the original path
     // O_CREAT|O_EXCL via create_new avoids TOCTOU races with parallel session starts
@@ -337,7 +337,7 @@ mod tests {
         let home = TempDir::new().unwrap();
         let root = home.path().join("sessions");
         let dir = ensure_sessions_cwd_dir_in(home.path(), "/some/project").unwrap();
-        // Simulate dirs created by an older grok with umask-default perms.
+        // Simulate dirs created by an older xvora with umask-default perms.
         std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o755)).unwrap();
         std::fs::set_permissions(&root, std::fs::Permissions::from_mode(0o755)).unwrap();
 

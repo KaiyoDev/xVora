@@ -89,7 +89,7 @@ pub struct UiConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub voice_capture_mode: Option<String>,
     /// Speech-to-text language preference for voice dictation.
-    /// A Grok STT catalog code (`en`, `es`, `ja`, …; see xAI STT supported languages) or `auto` (system locale, resolved at connect).
+    /// A xvora STT catalog code (`en`, `es`, `ja`, …; see xAI STT supported languages) or `auto` (system locale, resolved at connect).
     /// Written by the settings modal; unset leaves `[voice].language` / default `en`.
     /// When set, overrides `[voice].language` for the session.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -205,7 +205,7 @@ pub struct ContextualHints {
     /// Export/copy tip after three nearby drag-copies.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub export_copy: Option<bool>,
-    /// SSH wrap session-load tip (recommend `grok wrap ssh` when the session runs over SSH without an OSC 52 sink).
+    /// SSH wrap session-load tip (recommend `xvora wrap ssh` when the session runs over SSH without an OSC 52 sink).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ssh_wrap: Option<bool>,
 }

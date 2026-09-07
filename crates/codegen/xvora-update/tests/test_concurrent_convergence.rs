@@ -4,8 +4,8 @@
 //!
 //! Production has three independent downloader paths that can race around a release:
 //!
-//! 1. TUI startup: `check_update_background` spawns a detached `grok update` (the Ctrl+U path adopts this child instead of spawning a second).
-//! 2. Explicit `grok update` (including the Ctrl+U fallback when there is no live child).
+//! 1. TUI startup: `check_update_background` spawns a detached `xvora update` (the Ctrl+U path adopts this child instead of spawning a second).
+//! 2. Explicit `xvora update` (including the Ctrl+U fallback when there is no live child).
 //! 3. Leader mode: the hourly checker runs `ensure_latest_on_disk` in-process.
 //!
 //! Two layers are exercised here:
@@ -14,7 +14,7 @@
 //!   The artifact server and fake `gh` count downloads so the skip is asserted, not assumed.
 //! - **Race integrity** (`install_internal_from_base` run concurrently): the same-instant race is accepted as rare.
 //!   These tests pin the property that makes it acceptable: concurrent installs (same or *different* versions) never corrupt the active binary.
-//!   Before per-attempt temp names, every `0.1.x` download shared one `grok-0.1.tmp` (`with_extension("tmp")` eats everything after the last dot).
+//!   Before per-attempt temp names, every `0.1.x` download shared one `xvora-0.1.tmp` (`with_extension("tmp")` eats everything after the last dot).
 //!   Racer A could atomically rename racer B's half-written file into place.
 
 #![cfg(unix)]
@@ -36,18 +36,18 @@ use update::auto_update::{
 };
 use update::version::installed_on_disk_version;
 
-/// Assert the active `~/.grok/bin/grok` resolves to the expected versioned
+/// Assert the active `~/.xvora/bin/xvora` resolves to the expected versioned
 /// binary, actually runs, and has exactly the expected content (the content
 /// check is what catches a cross-racer temp-file corruption).
 fn assert_active_binary(home: &Path, version: &str, platform: &str, expected_content: &[u8]) {
-    let link = home.join("bin").join("grok");
-    assert!(link.is_symlink(), "grok must be a symlink");
+    let link = home.join("bin").join("xvora");
+    assert!(link.is_symlink(), "xvora must be a symlink");
     let resolved = dunce::canonicalize(&link)
-        .unwrap_or_else(|e| panic!("active grok symlink does not resolve: {e}"));
+        .unwrap_or_else(|e| panic!("active xvora symlink does not resolve: {e}"));
     assert_eq!(
         resolved.file_name().unwrap().to_string_lossy(),
-        format!("grok-{version}-{platform}"),
-        "active grok must be the expected version"
+        format!("xvora-{version}-{platform}"),
+        "active xvora must be the expected version"
     );
     assert_eq!(
         std::fs::read(&resolved).unwrap(),
@@ -63,17 +63,17 @@ fn assert_active_binary(home: &Path, version: &str, platform: &str, expected_con
         .status()
         .map(|s| s.success())
         .unwrap_or(false);
-    assert!(ran_ok, "active grok must pass the smoke-test");
+    assert!(ran_ok, "active xvora must pass the smoke-test");
 }
 
-/// Lay down what `install_internal_from_base` produces in the test GROK_HOME: `bin/grok -> ../downloads/grok-<version>-<platform>`.
+/// Lay down what `install_internal_from_base` produces in the test xvora_home: `bin/xvora -> ../downloads/xvora-<version>-<platform>`.
 fn fake_managed_install(version: &str) {
     let home = test_home();
     let downloads = home.join("downloads");
     let bin = home.join("bin");
     std::fs::create_dir_all(&downloads).unwrap();
     std::fs::create_dir_all(&bin).unwrap();
-    let name = format!("grok-{version}-{}", host_platform());
+    let name = format!("xvora-{version}-{}", host_platform());
     std::fs::write(downloads.join(&name), small_good_artifact()).unwrap();
     std::fs::set_permissions(
         downloads.join(&name),
@@ -82,7 +82,7 @@ fn fake_managed_install(version: &str) {
     .unwrap();
     std::os::unix::fs::symlink(
         std::path::Path::new("../downloads").join(&name),
-        bin.join("grok"),
+        bin.join("xvora"),
     )
     .unwrap();
 }
@@ -170,7 +170,7 @@ async fn ensure_latest_downloads_once_then_converges_without_redownload() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Convergence: explicit `grok update` (the Ctrl+U fallback path) finds the binary another process already installed and skips the download
+// Convergence: explicit `xvora update` (the Ctrl+U fallback path) finds the binary another process already installed and skips the download
 // It still returns the target version so stale leaders get signalled
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -230,7 +230,7 @@ async fn run_update_force_still_redownloads_when_disk_current() {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Installer gating: the disk-version probe must only be trusted for
-// installers that actually maintain the managed `~/.grok/bin/grok` symlink
+// installers that actually maintain the managed `~/.xvora/bin/xvora` symlink
 // (internal, gh-release). For npm, a symlink left over from a previous internal install LIES about the npm install's version.
 // In the worst direction (leftover "newer" than the registry) it would silently suppress npm updates forever
 // ─────────────────────────────────────────────────────────────────────────────
@@ -322,7 +322,7 @@ async fn disk_probe_preserves_prerelease_versions() {
 #[serial]
 async fn disk_probe_rejects_dangling_symlink() {
     // If the symlink survives but its target binary was deleted (manual
-    // ~/.grok/downloads cleanup), the probe must report None — otherwise
+    // ~/.xvora/downloads cleanup), the probe must report None — otherwise
     // every updater would claim "already up to date" forever while no
     // runnable binary exists, and nothing would ever repair the install.
     let home = test_home();
@@ -333,7 +333,7 @@ async fn disk_probe_rejects_dangling_symlink() {
 
     std::fs::remove_file(
         home.join("downloads")
-            .join(format!("grok-0.2.7-{platform}")),
+            .join(format!("xvora-0.2.7-{platform}")),
     )
     .unwrap();
 
@@ -360,7 +360,7 @@ async fn ensure_latest_repairs_dangling_symlink_by_downloading() {
     fake_managed_install("0.2.7");
     std::fs::remove_file(
         home.join("downloads")
-            .join(format!("grok-0.2.7-{platform}")),
+            .join(format!("xvora-0.2.7-{platform}")),
     )
     .unwrap();
     let cfg = make_update_config("stable");
@@ -383,7 +383,7 @@ async fn ensure_latest_repairs_dangling_symlink_by_downloading() {
 // ─────────────────────────────────────────────────────────────────────────────
 // Race integrity: the accepted same-instant race must stay harmless
 // Two (or three) installers running concurrently, even for DIFFERENT versions, must never leave a corrupt active binary
-// Pre-fix, all 0.1.x downloads shared one `grok-0.1.tmp`, so a concurrent racer could atomically rename a half-written file into place
+// Pre-fix, all 0.1.x downloads shared one `xvora-0.1.tmp`, so a concurrent racer could atomically rename a half-written file into place
 // ─────────────────────────────────────────────────────────────────────────────
 
 async fn run_concurrent_installs(
@@ -446,7 +446,7 @@ async fn concurrent_different_version_installs_do_not_corrupt_each_other() {
     let server = ArtifactServer::start(artifact.clone());
     server.set_slow(true);
 
-    // Pre-fix, BOTH of these wrote to downloads/grok-0.1.tmp concurrently (with_extension("tmp") truncates at the last dot)
+    // Pre-fix, BOTH of these wrote to downloads/xvora-0.1.tmp concurrently (with_extension("tmp") truncates at the last dot)
     // One racer could rename the other's partial file into its own versioned path
     let results = run_concurrent_installs(&server, &["0.1.181", "0.1.182"]).await;
     for r in results {
@@ -457,7 +457,7 @@ async fn concurrent_different_version_installs_do_not_corrupt_each_other() {
     for version in ["0.1.181", "0.1.182"] {
         let path = home
             .join("downloads")
-            .join(format!("grok-{version}-{platform}"));
+            .join(format!("xvora-{version}-{platform}"));
         assert_eq!(
             std::fs::read(&path).unwrap(),
             artifact,
@@ -466,16 +466,16 @@ async fn concurrent_different_version_installs_do_not_corrupt_each_other() {
     }
 
     // The active symlink points at whichever racer swapped last; it must resolve and run regardless
-    let resolved = dunce::canonicalize(home.join("bin").join("grok")).unwrap();
+    let resolved = dunce::canonicalize(home.join("bin").join("xvora")).unwrap();
     assert_eq!(std::fs::read(&resolved).unwrap(), artifact);
     let name = resolved.file_name().unwrap().to_string_lossy().to_string();
     assert!(
         !name.contains(".tmp"),
-        "active grok must never be a temp file: {name}"
+        "active xvora must never be a temp file: {name}"
     );
 
     assert!(
-        !home.join("downloads").join("grok-0.1.tmp").exists(),
+        !home.join("downloads").join("xvora-0.1.tmp").exists(),
         "the pre-fix shared temp name must not exist"
     );
 }

@@ -74,7 +74,7 @@ pub struct WorktreeAutoGcLayer {
     pub dry_run: Option<bool>,
     pub include_orphan_snapshots: Option<bool>,
     pub max_age_by_kind: BTreeMap<WorktreeKind, Option<u64>>,
-    /// Optional discovery rebuild + grok-scoped stale `.git/worktrees/` scrub (default off).
+    /// Optional discovery rebuild + xvora-scoped stale `.git/worktrees/` scrub (default off).
     pub include_rebuild: Option<bool>,
     /// Independent rebuild throttle; absent ⇒ 24h.
     pub rebuild_min_interval_secs: Option<u64>,
@@ -586,7 +586,7 @@ fn maybe_run_rebuild(
     let home = match resolve_grok_home() {
         Ok(h) => h,
         Err(e) => {
-            tracing::warn!(error = %e, "auto worktree rebuild skipped: grok home unresolved");
+            tracing::warn!(error = %e, "auto worktree rebuild skipped: xvora home unresolved");
             return (None, false);
         }
     };
@@ -625,19 +625,19 @@ fn collect_source_repos_for_prune(db: &WorktreeDb) -> BTreeSet<PathBuf> {
         .collect()
 }
 
-/// Scrub stale grok-owned registrations from each known source repo,
-/// scoped to worktrees under the grok home to prove ownership (see
+/// Scrub stale xvora-owned registrations from each known source repo,
+/// scoped to worktrees under the xvora home to prove ownership (see
 /// [`crate::git::remove_stale_worktree_registrations_under`] for why a blanket
 /// `git worktree prune` is unsafe here).
 fn prune_stale_git_worktree_registrations(repos: &BTreeSet<PathBuf>) -> u64 {
-    let Ok(grok_home) = resolve_grok_home() else {
-        tracing::warn!("auto worktree registration scrub skipped: grok home unresolved");
+    let Ok(xvora_home) = resolve_grok_home() else {
+        tracing::warn!("auto worktree registration scrub skipped: xvora home unresolved");
         return 0;
     };
     let cleaned: u64 = repos
         .iter()
         .filter(|repo| repo.is_dir())
-        .map(|repo| crate::git::remove_stale_worktree_registrations_under(repo, &grok_home))
+        .map(|repo| crate::git::remove_stale_worktree_registrations_under(repo, &xvora_home))
         .fold(0u64, u64::saturating_add);
     if cleaned > 0 {
         tracing::info!(
@@ -1420,7 +1420,7 @@ mod tests {
         );
         assert!(
             db.get(&wt.to_string_lossy()).unwrap().is_some(),
-            "untracked dir under grok_home/worktrees must be registered"
+            "untracked dir under xvora_home/worktrees must be registered"
         );
     }
 
@@ -1571,7 +1571,7 @@ mod tests {
         assert!(report.stamped, "GC Ok must still stamp last_auto_gc_at");
     }
 
-    /// A real rebuild pass prunes a stale grok-owned git registration. The
+    /// A real rebuild pass prunes a stale xvora-owned git registration. The
     /// source repo is discovered from the tracked row's snapshot, which holds
     /// even when that row is the sole record and is *dead* (GC unregisters it
     /// only after the prune snapshot is taken).

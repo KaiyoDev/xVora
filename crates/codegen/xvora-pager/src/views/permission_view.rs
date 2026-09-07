@@ -1888,7 +1888,7 @@ mod tests {
         state.description = vec![
             "{".to_string(),
             "  \"issue\": \"ABC-123\",".to_string(),
-            "  \"body\": \"hello from grok\"".to_string(),
+            "  \"body\": \"hello from xvora\"".to_string(),
             "}".to_string(),
         ];
         state.options = vec![acp::PermissionOption::new(
@@ -1914,7 +1914,7 @@ mod tests {
             "args JSON not rendered:\n{text}"
         );
         assert!(
-            text.contains("\"body\": \"hello from grok\""),
+            text.contains("\"body\": \"hello from xvora\""),
             "args JSON not rendered:\n{text}"
         );
         assert!(text.contains("Yes"), "options row missing:\n{text}");

@@ -817,28 +817,28 @@ pub fn resolve_label_collision(base_dir: &Path, label: &str) -> String {
 // Worktree Base Directory Resolution
 // ============================================================================
 
-/// Grok home for worktree paths: the same resolver as `worktrees.db`, with a `temp_dir()/.grok` last resort.
-/// This is not grok-config's cwd-relative `.grok`: worktree paths need an absolute, always-writable anchor that does not move with the process cwd.
-fn grok_home() -> std::path::PathBuf {
-    fast_worktree::resolve_grok_home().unwrap_or_else(|_| std::env::temp_dir().join(".grok"))
+/// xvora home for worktree paths: the same resolver as `worktrees.db`, with a `temp_dir()/.xvora` last resort.
+/// This is not xvora-config's cwd-relative `.xvora`: worktree paths need an absolute, always-writable anchor that does not move with the process cwd.
+fn xvora_home() -> std::path::PathBuf {
+    fast_worktree::resolve_grok_home().unwrap_or_else(|_| std::env::temp_dir().join(".xvora"))
 }
 
-/// Returns `~/.grok/worktrees/<repo_slug>` for the given git root.
+/// Returns `~/.xvora/worktrees/<repo_slug>` for the given git root.
 pub fn worktree_base_dir(git_root: &Path) -> std::path::PathBuf {
     let slug = repo_slug(git_root);
-    grok_home().join("worktrees").join(slug)
+    xvora_home().join("worktrees").join(slug)
 }
 
-/// Resolves the worktree base directory (`~/.grok/worktrees/<repo_name>`)
-/// for a given source path, correctly handling grok-managed worktrees.
+/// Resolves the worktree base directory (`~/.xvora/worktrees/<repo_name>`)
+/// for a given source path, correctly handling xvora-managed worktrees.
 ///
-/// When `source_path` is already under `~/.grok/worktrees/<repo>/...`, the
+/// When `source_path` is already under `~/.xvora/worktrees/<repo>/...`, the
 /// repo name is derived from the directory structure directly.
 /// This avoids `find_main_repo_root_from_path`, which misidentifies standalone worktrees as the main repo root.
 ///
-/// For paths outside the grok worktree directory, falls back to `find_main_repo_root_from_path` then `worktree_base_dir`.
+/// For paths outside the xvora worktree directory, falls back to `find_main_repo_root_from_path` then `worktree_base_dir`.
 pub fn worktree_base_dir_for_source(source_path: &Path) -> Result<std::path::PathBuf> {
-    let worktrees_dir = grok_home().join("worktrees");
+    let worktrees_dir = xvora_home().join("worktrees");
 
     if let Ok(suffix) = source_path.strip_prefix(&worktrees_dir) {
         if let Some(component) = suffix.components().next() {
@@ -879,14 +879,14 @@ pub fn label_from_path(worktree_path: &str) -> String {
         .unwrap_or_default()
 }
 
-/// Walk up from `cwd` (staying within `~/.grok/worktrees/`) to its registered
+/// Walk up from `cwd` (staying within `~/.xvora/worktrees/`) to its registered
 /// worktree record.
 ///
 /// Shared resolver for [`lookup_worktree_label`] and [`touch_worktree_for_cwd`].
 /// Returns the open DB alongside the record so callers can issue follow-up queries.
 /// Returns `None` for non-worktree paths (without opening the DB) or when the DB is unavailable.
 fn worktree_record_for_cwd(cwd: &str) -> Option<(WorktreeDb, WorktreeRecord)> {
-    let worktrees_dir = grok_home().join("worktrees");
+    let worktrees_dir = xvora_home().join("worktrees");
     let mut path = Path::new(cwd);
     if !path.starts_with(&worktrees_dir) {
         return None;
@@ -908,10 +908,10 @@ fn worktree_record_for_cwd(cwd: &str) -> Option<(WorktreeDb, WorktreeRecord)> {
     None
 }
 
-/// The recorded source repo of the grok-managed worktree containing `cwd`, if any.
+/// The recorded source repo of the xvora-managed worktree containing `cwd`, if any.
 ///
 /// Thin wrapper over [`worktree_record_for_cwd`] that drops the DB handle;
-/// returns `None` (without DB I/O) for paths outside `~/.grok/worktrees/`.
+/// returns `None` (without DB I/O) for paths outside `~/.xvora/worktrees/`.
 pub(crate) fn source_repo_for_cwd(cwd: &str) -> Option<std::path::PathBuf> {
     worktree_record_for_cwd(cwd).map(|(_db, rec)| rec.source_repo)
 }
@@ -1583,7 +1583,7 @@ impl From<CreateWorktreeFromWorktreeRequestWire> for CreateWorktreeFromWorktreeR
 
 /// Resolve the target worktree path for a fork operation.
 ///
-/// When the source path is already inside `~/.grok/worktrees/<repo>/`, the
+/// When the source path is already inside `~/.xvora/worktrees/<repo>/`, the
 /// repo name is derived from the directory structure rather than calling `find_main_repo_root_from_path`
 /// (which would return the standalone worktree root itself, causing nested paths).
 fn resolve_fork_worktree_path(
@@ -2428,7 +2428,7 @@ pub async fn remove_jj_workspace(workspace_path: &str) -> Result<()> {
 
 /// Request to resume an existing session in a fresh worktree.
 ///
-/// ACP equivalent of `grok -w -r <session_id>` (optionally with `--ref`).
+/// ACP equivalent of `xvora -w -r <session_id>` (optionally with `--ref`).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ResumeSessionInWorktreeRequest {
@@ -2665,7 +2665,7 @@ pub fn worktree_auto_gc_layer_from_settings(
     }
 }
 
-/// Parse `[worktree.auto_gc]` out of the workspace's `$GROK_HOME/config.toml`.
+/// Parse `[worktree.auto_gc]` out of the workspace's `$xvora_home/config.toml`.
 ///
 /// Returns `None` when the table is absent or fails to deserialize.
 fn worktree_auto_gc_settings_from_toml(
@@ -2677,7 +2677,7 @@ fn worktree_auto_gc_settings_from_toml(
         .and_then(|v| xvora_config_types::WorktreeAutoGcSettings::deserialize(v.clone()).ok())
 }
 
-/// Remote-blind (env and `$GROK_HOME/config.toml` only): opts in only when local `[worktree.auto_gc] enabled = true`, else returns `None`.
+/// Remote-blind (env and `$xvora_home/config.toml` only): opts in only when local `[worktree.auto_gc] enabled = true`, else returns `None`.
 /// A forced dry-run would stamp the shared throttle and block the shell agent's remote-aware pass over the same DB, so skip instead.
 fn resolve_worktree_auto_gc_local() -> Option<fast_worktree::ResolvedWorktreeAutoGc> {
     let local = if let Ok(home) = resolve_grok_home() {
@@ -2696,7 +2696,7 @@ fn resolve_worktree_auto_gc_local() -> Option<fast_worktree::ResolvedWorktreeAut
 }
 
 /// Pure opt-in decision (no IO): `None` unless local config explicitly enables the pass.
-/// Split out of `resolve_worktree_auto_gc_local` so the fail-safe is testable without touching `$GROK_HOME`.
+/// Split out of `resolve_worktree_auto_gc_local` so the fail-safe is testable without touching `$xvora_home`.
 fn local_auto_gc_policy(
     local: Option<&xvora_config_types::WorktreeAutoGcSettings>,
 ) -> Option<fast_worktree::ResolvedWorktreeAutoGc> {
@@ -2772,7 +2772,7 @@ pub fn candidate_worktree_cwds_for_same_repo(current_cwd: &std::path::Path) -> R
     ))
 }
 
-/// Scan `~/.grok/worktrees/<repo_name>/` for subdirectories not tracked
+/// Scan `~/.xvora/worktrees/<repo_name>/` for subdirectories not tracked
 /// in the DB. Returns a sorted list of absolute directory paths.
 fn scan_worktree_dirs_on_disk(main_repo_root: &std::path::Path) -> Vec<String> {
     let base = worktree_base_dir(main_repo_root);
@@ -2916,7 +2916,7 @@ mod tests {
         std::fs::write(wt.join("tracked.txt"), "edited").unwrap();
         std::fs::write(wt.join("untracked.txt"), "brand new").unwrap();
 
-        let ref_name = "refs/grok/subagents/dispose-1";
+        let ref_name = "refs/xvora/subagents/dispose-1";
         let returned = snapshot_and_remove_subagent_worktree(&wt, &repo, ref_name)
             .await
             .unwrap();
@@ -2940,7 +2940,7 @@ mod tests {
         std::fs::write(wt.join("tracked.txt"), "edited").unwrap();
         std::fs::write(wt.join("untracked.txt"), "brand new").unwrap();
 
-        let ref_name = "refs/grok/subagents/dispose-2";
+        let ref_name = "refs/xvora/subagents/dispose-2";
         snapshot_and_remove_subagent_worktree(&wt, &repo, ref_name)
             .await
             .unwrap();
@@ -2986,7 +2986,7 @@ mod tests {
         std::fs::write(wt.join("tracked.txt"), "edited").unwrap();
         std::fs::write(wt.join("untracked.txt"), "brand new").unwrap();
 
-        let ref_name = "refs/grok/subagents/standalone-1";
+        let ref_name = "refs/xvora/subagents/standalone-1";
         let returned = snapshot_subagent_worktree(&wt, &repo, ref_name)
             .await
             .unwrap();
@@ -3034,7 +3034,7 @@ mod tests {
         let result = snapshot_and_remove_subagent_worktree(
             &not_a_worktree,
             &not_a_worktree,
-            "refs/grok/subagents/dispose-3",
+            "refs/xvora/subagents/dispose-3",
         )
         .await;
 
@@ -3049,21 +3049,21 @@ mod tests {
     // Struct field order (see lib.rs) restores the env before the lock releases, regardless of how the caller binds the fixture's return
     use crate::LockedTestEnv;
 
-    /// Point `GROK_HOME` at an isolated tempdir (`resolve_grok_home` re-reads the env per call by design).
+    /// Point `xvora_home` at an isolated tempdir (`resolve_grok_home` re-reads the env per call by design).
     /// Register one worktree record at `<home>/worktrees/repo/wt` with no `last_accessed_at`.
     ///
     /// Returns `(env, home, worktree dir)`.
-    /// The [`LockedTestEnv`] holds the lock and restores `GROK_HOME` on drop (before releasing the lock), so the caller may bind it any way.
+    /// The [`LockedTestEnv`] holds the lock and restores `xvora_home` on drop (before releasing the lock), so the caller may bind it any way.
     fn worktree_db_fixture(
         temp: &tempfile::TempDir,
     ) -> (LockedTestEnv, std::path::PathBuf, std::path::PathBuf) {
         // Canonicalize so the stored record path and `db.get`'s canonicalized query path agree on macOS, where /var resolves to /private/var
         let root = dunce::canonicalize(temp.path()).unwrap();
-        let home = root.join("grok-home");
+        let home = root.join("xvora-home");
         let wt = home.join("worktrees").join("repo").join("wt");
         std::fs::create_dir_all(&wt).unwrap();
         // Acquire the lock, then set the env under it (LockedTestEnv restores the env before releasing the lock on drop)
-        let env = LockedTestEnv::lock().set("GROK_HOME", &home);
+        let env = LockedTestEnv::lock().set("xvora_home", &home);
 
         let db = WorktreeDb::open(&home).unwrap();
         let record = WorktreeRecord {

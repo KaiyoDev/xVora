@@ -1,7 +1,7 @@
-//! Hub [`AuthProvider`] from `~/.grok/auth.json` for the standalone
+//! Hub [`AuthProvider`] from `~/.xvora/auth.json` for the standalone
 //! `workspace_server` binary: loopback `ws://` uses a plain bearer, otherwise an auto-refreshing OIDC provider that persists rotated tokens.
 //!
-//! The in-leader `grok workspace` exposure does NOT use this path.
+//! The in-leader `xvora workspace` exposure does NOT use this path.
 //! It gets an in-memory provider from the leader's `AuthManager` (see `LeaderAuthProvider`) so it never races the leader's own auth.json writer.
 
 use std::collections::BTreeMap;
@@ -79,9 +79,9 @@ struct AuthEntry {
 }
 
 pub fn default_auth_path() -> anyhow::Result<PathBuf> {
-    let grok = config::user_grok_home()
-        .ok_or_else(|| anyhow::anyhow!("no user grok home (set $GROK_HOME or $HOME)"))?;
-    Ok(grok.join("auth.json"))
+    let xvora = config::user_grok_home()
+        .ok_or_else(|| anyhow::anyhow!("no user xvora home (set $xvora_home or $HOME)"))?;
+    Ok(xvora.join("auth.json"))
 }
 
 /// Read the active OIDC entry and its scope key.
@@ -92,7 +92,7 @@ pub fn default_auth_path() -> anyhow::Result<PathBuf> {
 fn read_auth_entry(path: &Path) -> anyhow::Result<(String, AuthEntry)> {
     if !path.exists() {
         anyhow::bail!(
-            "No auth credentials found at {}. Run `grok login` first.",
+            "No auth credentials found at {}. Run `xvora login` first.",
             path.display()
         );
     }
@@ -112,7 +112,7 @@ fn read_auth_entry(path: &Path) -> anyhow::Result<(String, AuthEntry)> {
         })
         .ok_or_else(|| {
             anyhow::anyhow!(
-                "no OIDC auth entry found in {}. Run `grok login` first.",
+                "no OIDC auth entry found in {}. Run `xvora login` first.",
                 path.display()
             )
         })
@@ -201,7 +201,7 @@ fn build_oidc_provider(
 /// Losing one persist is recoverable (see [`write_refreshed_token`]); stalling the persist thread for a minute is not worth it.
 const AUTH_LOCK_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(15);
 
-/// RAII flock on the sibling `auth.json.lock`, the same advisory lock every grok-shell `auth.json` writer takes.
+/// RAII flock on the sibling `auth.json.lock`, the same advisory lock every xvora-shell `auth.json` writer takes.
 /// Polls `try_lock` rather than a blocking `flock` to bound the wait.
 /// Never breaks a held lock: a stale holder here would be the shell mid-refresh, exactly the writer we must not race.
 struct AuthFileLockGuard {
@@ -353,7 +353,7 @@ fn write_json_atomic(path: &Path, value: &serde_json::Value) -> anyhow::Result<(
 }
 
 /// Build a hub auth provider for `hub_url`. `auth_config` overrides
-/// the default credential path (`~/.grok/auth.json`).
+/// the default credential path (`~/.xvora/auth.json`).
 ///
 /// `refresh_cfg.enabled` selects the workspace-owned proactive refresher (the default).
 /// The SDK `OidcAuthProvider` is the explicit kill-switch path (`GROK_WORKSPACE_OIDC_PROACTIVE_REFRESH_ENABLED=false`).
@@ -595,7 +595,7 @@ mod tests {
         assert_eq!(updated["legacy"]["key"], "xvora-old");
     }
 
-    /// With several OIDC entries (personal and enterprise login), the latest `expires_at` wins; the user's grok sessions refresh that entry.
+    /// With several OIDC entries (personal and enterprise login), the latest `expires_at` wins; the user's xvora sessions refresh that entry.
     /// Alphabetical selection could adopt a different principal's refresh token and rotate it out from under the shell.
     #[test]
     fn read_auth_entry_prefers_latest_expiry() {

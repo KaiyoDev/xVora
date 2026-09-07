@@ -277,7 +277,7 @@ fn every_setting_has_action_for_bool_arm() {
         }
         assert!(
             action_for_bool(meta.key, true).is_some(),
-            "Bool setting `{}` has no action_for_bool arm — \
+            "Bool setting `{}` has no action_for_bool arm â€” \
              modal would toggle silently. Add an arm in views/settings_modal.rs::action_for_bool.",
             meta.key,
         );
@@ -314,7 +314,7 @@ fn every_preview_enum_setting_has_action_for_enum_arm() {
         for c in *choices {
             assert!(
                 action_for_enum(meta.key, c.canonical).is_some(),
-                "Preview-enabled Enum setting `{}` choice `{}` has no action_for_enum arm — \
+                "Preview-enabled Enum setting `{}` choice `{}` has no action_for_enum arm â€” \
                  picker would silently degrade (no preview/revert Action emitted). \
                  Add an arm in views/settings_modal.rs::action_for_enum.",
                 meta.key,
@@ -341,7 +341,7 @@ fn every_string_setting_has_action_for_string_arm() {
         assert!(
             action_for_string(meta.key, String::new(), &snapshot).is_some(),
             "If you just added a String setting, it has no \
-             action_for_string arm for empty input — editor would \
+             action_for_string arm for empty input â€” editor would \
              silently degrade on the user's first Enter. Add an arm \
              in views/settings_modal.rs::action_for_string for `{}`.",
             meta.key,
@@ -400,7 +400,7 @@ fn every_dynamic_enum_setting_has_action_for_string_arm() {
                 );
             }
             other => panic!(
-                "Unknown DynamicEnum key `{other}` — add a discriminating arm in \
+                "Unknown DynamicEnum key `{other}` â€” add a discriminating arm in \
                  every_dynamic_enum_setting_has_action_for_string_arm so future \
                  additions can't silently rely on the generic is_some() check.",
             ),
@@ -419,7 +419,7 @@ fn every_int_setting_has_action_for_int_arm() {
         }
         assert!(
             action_for_int(meta.key, 0).is_some(),
-            "Int setting `{}` has no action_for_int arm — \
+            "Int setting `{}` has no action_for_int arm â€” \
              editor would silently degrade. Add an arm in \
              views/settings_modal.rs::action_for_int.",
             meta.key,
@@ -440,7 +440,7 @@ fn every_enum_setting_has_action_for_enum_commit_arm() {
         for c in *choices {
             assert!(
                 action_for_enum_commit(meta.key, c.canonical).is_some(),
-                "Enum setting `{}` choice `{}` has no action_for_enum_commit arm — \
+                "Enum setting `{}` choice `{}` has no action_for_enum_commit arm â€” \
                  Enter on the picker would no-op silently. Add an arm in \
                  views/settings_modal.rs::action_for_enum_commit.",
                 meta.key,
@@ -1154,7 +1154,7 @@ fn mode_transition_browse_to_picking_enum_clears_hover_row() {
     );
     assert_eq!(
         s.hover_row, None,
-        "Browse → PickingEnum transition must clear hover_row",
+        "Browse â†’ PickingEnum transition must clear hover_row",
     );
 }
 
@@ -1173,7 +1173,7 @@ fn mode_transition_browse_to_editing_value_clears_hover_row() {
     );
     assert_eq!(
         s.hover_row, None,
-        "Browse → EditingValue transition must clear hover_row",
+        "Browse â†’ EditingValue transition must clear hover_row",
     );
 }
 
@@ -1193,7 +1193,7 @@ fn mode_transition_picking_enum_to_browse_clears_hover_row() {
     );
     assert_eq!(
         s.hover_row, None,
-        "PickingEnum → Browse transition must clear hover_row",
+        "PickingEnum â†’ Browse transition must clear hover_row",
     );
 }
 
@@ -1428,8 +1428,8 @@ fn editor_render_fixture(buffer: &str, cursor_byte: usize) -> SettingsModalState
     let registry = SettingsRegistry::from_entries(vec![synthetic_meta]);
     let snapshot = PagerLocalSnapshot {
         available_models: vec![(
-            "Grok Test".to_string(),
-            acp::ModelId::new(Arc::from("grok-test")),
+            "xvora Test".to_string(),
+            acp::ModelId::new(Arc::from("xvora-test")),
         )],
         ..PagerLocalSnapshot::default()
     };
@@ -1454,7 +1454,7 @@ fn editor_render_fixture(buffer: &str, cursor_byte: usize) -> SettingsModalState
 /// Cursor lands at the visual column matching `cursor_byte` for buffers that fit entirely within the visible window.
 #[test]
 fn render_editing_value_cursor_at_logical_position_when_buffer_fits() {
-    let mut s = editor_render_fixture("Grok Test", 4); // cursor between "Grok" and " Test"
+    let mut s = editor_render_fixture("xvora Test", 4); // cursor between "xvora" and " Test"
     let area = Rect {
         x: 0,
         y: 0,
@@ -1465,7 +1465,7 @@ fn render_editing_value_cursor_at_logical_position_when_buffer_fits() {
     let theme = Theme::current();
     render_editing_value(&mut buf, area, &mut s, &theme);
 
-    // The input row is at y = header_rows = 3 (title + desc + gap). Cursor glyph is ▏ (left one-eighth block).
+    // The input row is at y = header_rows = 3 (title + desc + gap). Cursor glyph is â– (left one-eighth block).
     let row_y = 3u16;
     let mut found_cursor_col: Option<u16> = None;
     for x in 0..area.width {
@@ -1563,7 +1563,7 @@ fn render_editing_value_cursor_pans_to_right_on_overflow_at_end() {
 
 #[test]
 fn render_string_editor_keeps_narrow_graphemes_and_cursor_aligned() {
-    let grapheme = "👩🏽\u{200d}💻";
+    let grapheme = "ðŸ‘©ðŸ½\u{200d}ðŸ’»";
     let combining = "e\u{301}";
     let text = format!("a{grapheme}{combining}");
     let mut state = editor_render_fixture(&text, text.len());
@@ -1639,7 +1639,7 @@ fn render_editing_value_paints_validation_error_row_and_buffer_red() {
 }
 
 /// Empty buffer renders a low-contrast placeholder hint.
-/// The cursor block (`▏`) lands at col 0 and overdraws the placeholder's leading `<`.
+/// The cursor block (`â–`) lands at col 0 and overdraws the placeholder's leading `<`.
 /// So the assertion targets the unique "empty: uses shell default" substring that survives the cursor overdraw.
 #[test]
 fn render_editing_value_empty_buffer_shows_placeholder() {
@@ -1667,7 +1667,7 @@ fn render_editing_value_empty_buffer_shows_placeholder() {
     );
 }
 
-/// Rendering an Int stepper wide enough for the `‹` / `›` arrow glyphs populates `editor_adornment_rects`.
+/// Rendering an Int stepper wide enough for the `â€¹` / `â€º` arrow glyphs populates `editor_adornment_rects`.
 /// `handle_settings_mouse` uses those rects to hit-test arrow clicks.
 /// The arrows flank a centered value, NOT the old `[-]` / `[+]` adornments flush against the area edges.
 #[test]
@@ -1736,7 +1736,7 @@ fn int_stepper_fixture_for(key: &'static str, value: i64) -> SettingsModalState 
     s
 }
 
-/// Wide-range Int fixture (`max_thoughts_width`, steps ±5/±10).
+/// Wide-range Int fixture (`max_thoughts_width`, steps Â±5/Â±10).
 fn int_stepper_fixture(value: i64) -> SettingsModalState {
     int_stepper_fixture_for("max_thoughts_width", value)
 }
@@ -1778,7 +1778,7 @@ fn int_editing_value_up_arrow_increments_by_small_step() {
     assert_eq!(int_stepper_buffer(&s), "55");
 }
 
-/// Down arrow steps the wide-range Int by small step (−5).
+/// Down arrow steps the wide-range Int by small step (âˆ’5).
 #[test]
 fn int_editing_value_down_arrow_decrements_by_small_step() {
     let mut s = int_stepper_fixture(50);
@@ -1796,7 +1796,7 @@ fn int_editing_value_right_arrow_increments_by_large_step() {
     assert_eq!(int_stepper_buffer(&s), "60");
 }
 
-/// Left arrow steps the wide-range Int by large step (−10).
+/// Left arrow steps the wide-range Int by large step (âˆ’10).
 #[test]
 fn int_editing_value_left_arrow_decrements_by_large_step() {
     let mut s = int_stepper_fixture(50);
@@ -1823,7 +1823,7 @@ fn scroll_lines_int_stepper_uses_unit_steps() {
     assert_eq!(int_stepper_buffer(&s), "3");
 }
 
-/// Mid-range Int (`scroll_speed` 1..=100): Up/Down ±1, Left/Right ±5.
+/// Mid-range Int (`scroll_speed` 1..=100): Up/Down Â±1, Left/Right Â±5.
 #[test]
 fn scroll_speed_int_stepper_uses_unit_fine_and_five_coarse() {
     let mut s = int_stepper_fixture_for("scroll_speed", 50);
@@ -1937,7 +1937,7 @@ fn int_editing_value_ignores_other_text_input_keys() {
     }
 }
 
-/// Render the stepper and assert the `‹` / `›` arrow glyphs AND the value text are present on the input row.
+/// Render the stepper and assert the `â€¹` / `â€º` arrow glyphs AND the value text are present on the input row.
 #[test]
 fn int_editing_value_renders_stepper_ui() {
     let mut s = int_stepper_fixture(125);
@@ -1969,11 +1969,11 @@ fn int_editing_value_renders_stepper_ui() {
     let row = stepper_row.expect("must find the stepper row");
     assert!(
         row.contains('\u{2039}'),
-        "stepper row must contain `‹` glyph, got {row:?}"
+        "stepper row must contain `â€¹` glyph, got {row:?}"
     );
     assert!(
         row.contains('\u{203A}'),
-        "stepper row must contain `›` glyph, got {row:?}"
+        "stepper row must contain `â€º` glyph, got {row:?}"
     );
     assert!(
         row.contains("125"),
@@ -2015,7 +2015,7 @@ fn int_editing_value_esc_reverts() {
     );
     assert!(
         !matches!(outcome, SettingsKeyOutcome::Action(_)),
-        "Esc must NOT emit any Action — the underlying value was \
+        "Esc must NOT emit any Action â€” the underlying value was \
          never live-previewed",
     );
     assert!(
@@ -2024,7 +2024,7 @@ fn int_editing_value_esc_reverts() {
     );
 }
 
-/// Mouse click on the `‹` left-arrow rect synthesizes a Down step (small step down).
+/// Mouse click on the `â€¹` left-arrow rect synthesizes a Down step (small step down).
 /// The click maps to small steps to match the spinner convention; repeated clicks let the user fine-tune.
 #[test]
 fn int_editing_value_left_arrow_click_decrements_by_small_step() {
@@ -2052,7 +2052,7 @@ fn int_editing_value_left_arrow_click_decrements_by_small_step() {
     assert_eq!(int_stepper_buffer(&s), "115");
 }
 
-/// Mouse click on the `›` right-arrow rect synthesizes an Up step. Mirror of the left-arrow test.
+/// Mouse click on the `â€º` right-arrow rect synthesizes an Up step. Mirror of the left-arrow test.
 #[test]
 fn int_editing_value_right_arrow_click_increments_by_small_step() {
     let mut s = int_stepper_fixture(120);
@@ -2114,9 +2114,9 @@ fn int_editing_value_click_on_value_text_is_noop() {
 #[test]
 fn picking_enum_esc_dispatches_preview_revert_for_each_key() {
     let cases: &[(&str, &str)] = &[
-        ("theme", "groknight"),
-        ("auto_dark_theme", "groknight"),
-        ("auto_light_theme", "grokday"),
+        ("theme", "XvoNight"),
+        ("auto_dark_theme", "XvoNight"),
+        ("auto_light_theme", "XvoDay"),
     ];
     for &(key, original) in cases {
         let mut s = make_state();
@@ -2152,16 +2152,16 @@ fn picking_enum_esc_dispatches_preview_revert_for_each_key() {
 #[test]
 fn picking_enum_esc_returns_to_browse() {
     let mut s = make_state();
-    s.transition_to_picking_enum("theme", 0, SettingValue::Enum("groknight"), true);
+    s.transition_to_picking_enum("theme", 0, SettingValue::Enum("XvoNight"), true);
     let outcome = handle_settings_key(&mut s, &KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
     match outcome {
         SettingsKeyOutcome::Action(Action::PreviewTheme(name)) => {
             assert_eq!(
-                name, "groknight",
+                name, "XvoNight",
                 "Esc revert must dispatch the original canonical"
             );
         }
-        other => panic!("expected Action::PreviewTheme(\"groknight\") on Esc, got {other:?}"),
+        other => panic!("expected Action::PreviewTheme(\"XvoNight\") on Esc, got {other:?}"),
     }
     assert!(matches!(s.mode(), SettingsModalMode::Browse));
 }
@@ -2431,7 +2431,7 @@ fn browse_path_enter_commit_returns_to_browse() {
 #[test]
 fn deep_link_theme_commit_closes_with_set() {
     let mut s = make_state();
-    s.transition_to_picking_enum("theme", 0, SettingValue::Enum("groknight"), true);
+    s.transition_to_picking_enum("theme", 0, SettingValue::Enum("XvoNight"), true);
     s.close_on_picker_exit = true;
 
     let outcome = handle_settings_key(&mut s, &KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
@@ -2448,13 +2448,13 @@ fn deep_link_theme_commit_closes_with_set() {
 #[test]
 fn deep_link_picker_esc_reverts_preview_and_closes() {
     let mut s = make_state();
-    s.transition_to_picking_enum("theme", 0, SettingValue::Enum("groknight"), true);
+    s.transition_to_picking_enum("theme", 0, SettingValue::Enum("XvoNight"), true);
     s.close_on_picker_exit = true;
 
     let outcome = handle_settings_key(&mut s, &KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
     match outcome {
         SettingsKeyOutcome::ActionThenClose(Action::PreviewTheme(name)) => {
-            assert_eq!(name, "groknight");
+            assert_eq!(name, "XvoNight");
         }
         other => panic!("expected ActionThenClose(PreviewTheme), got {other:?}"),
     }
@@ -2506,7 +2506,7 @@ fn picker_renders_choices_in_order() {
         row_text(2)
     );
     // Rows 3..6: choices. Use full rendered layout for precise pinning (tighten substring match).
-    // " ○  First Option · First option description."
+    // " â—‹  First Option Â· First option description."
     let r3 = row_text(3);
     assert!(
         r3.contains("First Option") && r3.contains("First option description"),
@@ -2554,14 +2554,14 @@ fn picker_separates_focus_highlight_from_committed_marker() {
     assert_eq!(
         marker_at(3),
         "\u{25CF}",
-        "row 3 (committed, unfocused) should be ●"
+        "row 3 (committed, unfocused) should be â—"
     );
     assert_eq!(
         marker_at(4),
         "\u{25CB}",
-        "row 4 (focused, not committed) should be ○"
+        "row 4 (focused, not committed) should be â—‹"
     );
-    assert_eq!(marker_at(5), "\u{25CB}", "row 5 (neither) should be ○");
+    assert_eq!(marker_at(5), "\u{25CB}", "row 5 (neither) should be â—‹");
 
     // Marker accent follows committed state, not focus.
     if theme.accent_user != theme.gray {
@@ -2624,12 +2624,12 @@ fn picker_separates_focus_highlight_from_committed_marker() {
     assert_eq!(
         marker_at2(3),
         "\u{25CF}",
-        "committed+focused row should be ●"
+        "committed+focused row should be â—"
     );
     assert_eq!(
         marker_at2(4),
         "\u{25CB}",
-        "uncommitted unfocused row should be ○"
+        "uncommitted unfocused row should be â—‹"
     );
     let bg_at2 = |y: u16| -> Option<ratatui::style::Color> {
         buf2.cell((area.x + area.width - 1, y))
@@ -2870,9 +2870,12 @@ fn fork_secondary_model_picker_opens_on_persisted_model() {
     assert_ne!(slug, shell::models::default_model());
     let snapshot = PagerLocalSnapshot {
         available_models: vec![
-            ("Grok 3".to_string(), acp::ModelId::new(Arc::from("grok-3"))),
             (
-                "Grok 4.5 Fast".to_string(),
+                "xvora 3".to_string(),
+                acp::ModelId::new(Arc::from("grok-3")),
+            ),
+            (
+                "xvora 4.5 Fast".to_string(),
                 acp::ModelId::new(Arc::from(slug)),
             ),
         ],
@@ -2887,7 +2890,7 @@ fn fork_secondary_model_picker_opens_on_persisted_model() {
     // Row value shows the display name, matching the default_model row.
     assert_eq!(
         s.value_for("fork_secondary_model"),
-        Some(SettingValue::String("Grok 4.5 Fast".to_string())),
+        Some(SettingValue::String("xvora 4.5 Fast".to_string())),
     );
 
     assert!(s.focus_key("fork_secondary_model"));
@@ -2900,14 +2903,14 @@ fn fork_secondary_model_picker_opens_on_persisted_model() {
             ..
         } => {
             assert_eq!(key, "fork_secondary_model");
-            // Choices: [(no override), Grok 3, Grok 4.5 Fast], so idx 2
+            // Choices: [(no override), xvora 3, xvora 4.5 Fast], so idx 2
             assert_eq!(
                 choices_idx, 2,
                 "picker must open on the persisted model, not the stale fallback",
             );
             assert_eq!(
                 original_value,
-                &SettingValue::String("Grok 4.5 Fast".to_string()),
+                &SettingValue::String("xvora 4.5 Fast".to_string()),
                 "original_value must carry the display name so Esc-revert round-trips",
             );
         }
@@ -2991,7 +2994,7 @@ fn render_picker_at_height_2_renders_title_no_choices() {
 }
 
 /// Narrow-viewport edge case for the word-wrap path.
-/// When a fully-wrapped description would exceed the picker's height, the `has_description = … >= 2 + desc_rows` gate skips the description.
+/// When a fully-wrapped description would exceed the picker's height, the `has_description = â€¦ >= 2 + desc_rows` gate skips the description.
 /// The choices then stay renderable.
 /// This test pins that fallback at an intermediate height.
 #[test]
@@ -3043,7 +3046,7 @@ fn render_picker_drops_description_when_wrap_block_exceeds_height() {
         all_text.contains('X'),
         "title `X` must render at narrow height: {all_text:?}",
     );
-    // The fallback dropped the description, freeing space for the choice marker `\u{25CB}` or `\u{25CF}` (`○`/`●`)
+    // The fallback dropped the description, freeing space for the choice marker `\u{25CB}` or `\u{25CF}` (`â—‹`/`â—`)
     let has_choice_marker = all_text.contains('\u{25CB}') || all_text.contains('\u{25CF}');
     assert!(
         has_choice_marker,
@@ -3052,7 +3055,7 @@ fn render_picker_drops_description_when_wrap_block_exceeds_height() {
 }
 
 /// Long descriptions WRAP across multiple lines in the picker, so choice copy stays readable at typical terminal widths.
-/// `…` must NOT appear and the full description text must be in the buffer.
+/// `â€¦` must NOT appear and the full description text must be in the buffer.
 #[test]
 fn render_picker_long_description_wraps_no_ellipsis() {
     let entries = vec![SettingMeta {
@@ -3090,7 +3093,7 @@ fn render_picker_long_description_wraps_no_ellipsis() {
     let theme = Theme::current();
     render_picking_enum(&mut buf, area, &s, &theme);
 
-    // Concatenate ALL rendered rows. The full description must be present (no `…` ellipsis anywhere on the choice rows).
+    // Concatenate ALL rendered rows. The full description must be present (no `â€¦` ellipsis anywhere on the choice rows).
     let mut all_choice_text = String::new();
     for y in 3..area.height {
         for x in 0..area.width {
@@ -3102,7 +3105,7 @@ fn render_picker_long_description_wraps_no_ellipsis() {
     }
     assert!(
         !all_choice_text.contains('\u{2026}'),
-        "wrapped description must NOT contain `…`, got:\n{all_choice_text}"
+        "wrapped description must NOT contain `â€¦`, got:\n{all_choice_text}"
     );
     // Words appear across wrapped lines (with trailing-padding whitespace between them), so we check word-presence rather than substring contiguity
     for word in [
@@ -3120,7 +3123,7 @@ fn render_picker_long_description_wraps_no_ellipsis() {
     }
 }
 
-/// Long enum-choice descriptions wrap across lines instead of clipping with `…`.
+/// Long enum-choice descriptions wrap across lines instead of clipping with `â€¦`.
 /// Pins the wrap-at-width=60 catalog case from the user-feedback screenshot.
 #[test]
 fn picker_long_description_wraps_to_multiple_lines() {
@@ -3129,7 +3132,7 @@ fn picker_long_description_wraps_to_multiple_lines() {
         category: SettingCategory::Privacy,
         owner: SettingOwner::Shared,
         label: "Coding data sharing",
-        description: "Controls whether SpaceXAI may retain and train on coding data.",
+        description: "Controls whether xVora may retain and train on coding data.",
         keywords: &["test"],
         kind: SettingKind::Enum {
             default: "opt-out",
@@ -3137,7 +3140,7 @@ fn picker_long_description_wraps_to_multiple_lines() {
                 EnumChoice {
                     canonical: "opt-in",
                     display: "Opt in",
-                    description: "Allow SpaceXAI to retain and use coding session data for training and product improvement.",
+                    description: "Allow xVora to retain and use coding session data for training and product improvement.",
                 },
                 EnumChoice {
                     canonical: "opt-out",
@@ -3189,10 +3192,10 @@ fn picker_long_description_wraps_to_multiple_lines() {
     );
     assert!(
         r3.contains('\u{00B7}'),
-        "choice 0 line 1 must contain the `·` separator, got: {r3:?}"
+        "choice 0 line 1 must contain the `Â·` separator, got: {r3:?}"
     );
     assert!(
-        r3.contains("Allow SpaceXAI"),
+        r3.contains("Allow xVora"),
         "choice 0 line 1 must start the description, got: {r3:?}"
     );
 
@@ -3212,7 +3215,7 @@ fn picker_long_description_wraps_to_multiple_lines() {
         "continuation row col 1 (where marker would sit on line 1) must be whitespace, got row: {r4:?}"
     );
 
-    // The full Opt-in description must appear across the wrapped rows; no `…` truncation
+    // The full Opt-in description must appear across the wrapped rows; no `â€¦` truncation
     let mut opt_in_full = String::new();
     for y in opt_in_row..area.height {
         let line = row_text(y);
@@ -3225,11 +3228,11 @@ fn picker_long_description_wraps_to_multiple_lines() {
     }
     assert!(
         !opt_in_full.contains('\u{2026}'),
-        "wrapped Opt-in description must NOT contain `…`, got:\n{opt_in_full}"
+        "wrapped Opt-in description must NOT contain `â€¦`, got:\n{opt_in_full}"
     );
     for word in [
         "Allow",
-        "SpaceXAI",
+        "xVora",
         "retain",
         "session",
         "training",
@@ -3311,7 +3314,7 @@ fn picker_short_description_stays_one_line() {
     );
 }
 
-/// Choices with an empty description render the symbol and display ONLY; no `·` separator, no trailing stray cells.
+/// Choices with an empty description render the symbol and display ONLY; no `Â·` separator, no trailing stray cells.
 #[test]
 fn picker_no_description_renders_symbol_and_display_only() {
     let entries = vec![SettingMeta {
@@ -3373,7 +3376,7 @@ fn picker_no_description_renders_symbol_and_display_only() {
     );
     assert!(
         !r3.contains('\u{00B7}'),
-        "choice 0 with empty description must NOT render the `·` separator, got: {r3:?}"
+        "choice 0 with empty description must NOT render the `Â·` separator, got: {r3:?}"
     );
 }
 
@@ -3388,7 +3391,7 @@ fn picker_multi_line_choice_hit_rect_spans_all_lines() {
         category: SettingCategory::Privacy,
         owner: SettingOwner::Shared,
         label: "Coding data sharing",
-        description: "Controls whether SpaceXAI may retain coding data.",
+        description: "Controls whether xVora may retain coding data.",
         keywords: &["test"],
         kind: SettingKind::Enum {
             default: "opt-in",
@@ -3396,7 +3399,7 @@ fn picker_multi_line_choice_hit_rect_spans_all_lines() {
                 EnumChoice {
                     canonical: "opt-in",
                     display: "Opt in",
-                    description: "Allow SpaceXAI to retain and use coding session data for training and product improvement.",
+                    description: "Allow xVora to retain and use coding session data for training and product improvement.",
                 },
                 EnumChoice {
                     canonical: "opt-out",
@@ -3439,11 +3442,11 @@ fn picker_multi_line_choice_hit_rect_spans_all_lines() {
     let rect1 = s.picker_choice_rects[1];
     assert!(
         rect0.height >= 2,
-        "choice 0 should span ≥ 2 lines (wrapped description), got rect {rect0:?}"
+        "choice 0 should span â‰¥ 2 lines (wrapped description), got rect {rect0:?}"
     );
     assert!(
         rect1.height >= 2,
-        "choice 1 should span ≥ 2 lines (wrapped description), got rect {rect1:?}"
+        "choice 1 should span â‰¥ 2 lines (wrapped description), got rect {rect1:?}"
     );
     // Rects must NOT overlap vertically.
     assert!(
@@ -3532,7 +3535,7 @@ fn picker_scroll_offset_accounts_for_variable_height() {
     );
     s.transition_to_picking_enum("many_wrap", 4, SettingValue::Enum("c4"), true);
     // Viewport: title + desc + gap = 3 rows of chrome + 8 rows of choices = 11 total
-    // With 5 choices × 3 lines = 15 total wrap-rows of content, only ~2 choices can fit per page
+    // With 5 choices Ã— 3 lines = 15 total wrap-rows of content, only ~2 choices can fit per page
     let area = Rect {
         x: 0,
         y: 0,
@@ -3564,7 +3567,7 @@ fn picker_scroll_offset_accounts_for_variable_height() {
     );
 }
 
-/// Long choice display names get truncated with `…`.
+/// Long choice display names get truncated with `â€¦`.
 /// The bug was that `display` rendered via raw `set_span` without `truncate_str`, producing mid-character clips.
 /// Same shape as the description test above.
 #[test]
@@ -3612,11 +3615,11 @@ fn render_picker_truncates_long_display_with_ellipsis() {
     }
     assert!(
         row_text.contains('\u{2026}'),
-        "long display must truncate with `…`, got: {row_text:?}"
+        "long display must truncate with `â€¦`, got: {row_text:?}"
     );
 }
 
-/// Long setting label in the title row truncates with `…`.
+/// Long setting label in the title row truncates with `â€¦`.
 #[test]
 fn render_picker_truncates_long_title_with_ellipsis() {
     let entries = vec![SettingMeta {
@@ -3662,11 +3665,11 @@ fn render_picker_truncates_long_title_with_ellipsis() {
     }
     assert!(
         title_text.contains('\u{2026}'),
-        "long title must truncate with `…`, got: {title_text:?}"
+        "long title must truncate with `â€¦`, got: {title_text:?}"
     );
 }
 
-/// When choices > visible_h, the picker renders an overflow indicator `… N more` on the last visible row.
+/// When choices > visible_h, the picker renders an overflow indicator `â€¦ N more` on the last visible row.
 #[test]
 fn render_picker_shows_more_indicator_when_choices_overflow() {
     // Build a registry with 8 choices (exceeds 4-row viewport at height=8)
@@ -3724,7 +3727,7 @@ fn render_picker_shows_more_indicator_when_choices_overflow() {
     s.transition_to_picking_enum("long_enum", 0, SettingValue::Enum("c0"), true);
     // Total height 7 gives header_rows=3 (title+desc+gap) + 4 choice rows
     // With 6 choices, 4 fit in the viewport minus 1 row reserved for overflow
-    // So 3 visible, 3 hidden, and the indicator reads "… 3 more"
+    // So 3 visible, 3 hidden, and the indicator reads "â€¦ 3 more"
     let area = Rect {
         x: 0,
         y: 0,
@@ -3747,7 +3750,7 @@ fn render_picker_shows_more_indicator_when_choices_overflow() {
     }
     assert!(
         all_text.contains('\u{2026}') && all_text.contains("more"),
-        "overflow indicator '… N more' must render, got:\n{all_text}"
+        "overflow indicator 'â€¦ N more' must render, got:\n{all_text}"
     );
 }
 
@@ -3888,10 +3891,10 @@ fn editing_value_chars_mutate_buffer_and_invalid_enter_is_noop() {
     assert!(
         s.editing_validation_error().is_some(),
         "validation_error must be Some for unknown model 'a' \
-         (catalog has 'Grok 4 Fast' only)",
+         (catalog has 'xvora 4 Fast' only)",
     );
 
-    // Enter on a buffer that fails the KnownModel validator (catalog has 'Grok 4 Fast'; "a" doesn't match) is Unchanged; commit refused
+    // Enter on a buffer that fails the KnownModel validator (catalog has 'xvora 4 Fast'; "a" doesn't match) is Unchanged; commit refused
     let outcome = handle_settings_key(&mut s, &KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
     assert!(
         matches!(outcome, SettingsKeyOutcome::Unchanged),
@@ -3913,7 +3916,7 @@ fn string_editor_uses_canonical_edits_policy_and_live_validation() {
     assert!(matches!(outcome, SettingsKeyOutcome::Changed));
     assert_eq!(state.editing_buffer(), Some("alpha-"));
 
-    let mut state = editor_render_fixture("Grok Tes", "Grok Tes".len());
+    let mut state = editor_render_fixture("xvora Tes", "xvora Tes".len());
     assert!(state.editing_validation_error().is_some());
     let _ = handle_settings_key(
         &mut state,
@@ -3928,7 +3931,7 @@ fn string_editor_uses_canonical_edits_policy_and_live_validation() {
         &mut state,
         &KeyEvent::new(KeyCode::Char('t'), KeyModifiers::NONE),
     );
-    assert_eq!(state.editing_buffer(), Some("Grok Test"));
+    assert_eq!(state.editing_buffer(), Some("xvora Test"));
     assert!(state.editing_validation_error().is_none());
 
     let cursor = state.editing_cursor_byte();
@@ -3937,7 +3940,7 @@ fn string_editor_uses_canonical_edits_policy_and_live_validation() {
         &KeyEvent::new(KeyCode::Char('\u{202e}'), KeyModifiers::NONE),
     );
     assert!(matches!(outcome, SettingsKeyOutcome::Changed));
-    assert_eq!(state.editing_buffer(), Some("Grok Test"));
+    assert_eq!(state.editing_buffer(), Some("xvora Test"));
     assert_eq!(state.editing_cursor_byte(), cursor);
 
     let outcome = handle_settings_key(
@@ -4222,7 +4225,7 @@ fn section_headers_have_blank_line_above_except_first() {
     }
     assert!(
         header_ys.len() >= 2,
-        "this test requires ≥2 rendered headers, got: {header_ys:?}"
+        "this test requires â‰¥2 rendered headers, got: {header_ys:?}"
     );
     // First header has NO blank line above it; it hugs the top
     let (first_y, _) = header_ys[0];
@@ -4329,7 +4332,7 @@ fn wrap_description_single_line_when_fits() {
 fn wrap_description_splits_long_text_at_word_boundaries() {
     let long = "alpha beta gamma delta epsilon zeta eta theta iota";
     let wrapped = wrap_description(long, 15);
-    // Total visible chars (no `…`) reassembles the original.
+    // Total visible chars (no `â€¦`) reassembles the original.
     assert!(wrapped.len() >= 2, "must wrap at narrow width: {wrapped:?}");
     let joined: String = wrapped.join(" ");
     for word in long.split_whitespace() {
@@ -4338,11 +4341,11 @@ fn wrap_description_splits_long_text_at_word_boundaries() {
             "wrap must preserve word `{word}` (no mid-word truncation): {joined:?}",
         );
     }
-    // No `…` truncation marker in any line.
+    // No `â€¦` truncation marker in any line.
     for line in &wrapped {
         assert!(
             !line.contains('\u{2026}'),
-            "wrap line must not contain `…`: {line:?}",
+            "wrap line must not contain `â€¦`: {line:?}",
         );
     }
 }
@@ -4369,7 +4372,7 @@ fn synthetic_enum_chevron_meta() -> SettingMeta {
         category: SettingCategory::Privacy,
         owner: SettingOwner::Shared,
         label: "Coding data sharing",
-        description: "Enum row that opens a picker — chevron suffix applies.",
+        description: "Enum row that opens a picker â€” chevron suffix applies.",
         keywords: &["test"],
         kind: SettingKind::Enum {
             default: "opt-out",
@@ -4417,7 +4420,7 @@ fn narrow_terminal_drops_value_to_second_line() {
     );
     assert!(
         !line1.contains("off"),
-        "value `off` must NOT render on line 1 — it should drop to line 2. line1={line1:?}"
+        "value `off` must NOT render on line 1 â€” it should drop to line 2. line1={line1:?}"
     );
     assert!(
         line2.contains("off"),
@@ -4483,7 +4486,7 @@ fn wide_terminal_keeps_value_on_first_line() {
     );
 }
 
-/// `row_layout`'s pathological-truncation branch: when even the label alone exceeds the row width, the label truncates with `…` on line 1.
+/// `row_layout`'s pathological-truncation branch: when even the label alone exceeds the row width, the label truncates with `â€¦` on line 1.
 /// The value still drops to line 2.
 #[test]
 fn pathologically_narrow_truncates_label_with_ellipsis() {
@@ -4512,7 +4515,7 @@ fn pathologically_narrow_truncates_label_with_ellipsis() {
     let line2 = buf_row_text(&buf, 1, area.x, area.width);
     assert!(
         line1.contains('\u{2026}'),
-        "line 1 must contain the `…` ellipsis when label is too wide: {line1:?}"
+        "line 1 must contain the `â€¦` ellipsis when label is too wide: {line1:?}"
     );
     assert!(
         line2.contains("off"),
@@ -4547,7 +4550,7 @@ fn two_line_row_hit_rect_spans_both_lines() {
     let rect = s.row_rects[row_idx];
     assert!(
         rect.height >= 2,
-        "two-line row hit-rect must span ≥2 lines, got height={}",
+        "two-line row hit-rect must span â‰¥2 lines, got height={}",
         rect.height
     );
 
@@ -4606,7 +4609,7 @@ fn two_line_row_with_expansion_renders_three_segments() {
     let rect = s.row_rects[row_idx];
     assert!(
         rect.height >= 2,
-        "expanded two-line row must allocate ≥2 lines for the row itself, got height={}",
+        "expanded two-line row must allocate â‰¥2 lines for the row itself, got height={}",
         rect.height
     );
     // The row label is on line 1. A 28-col row truncates a long label, so match the head of the live copy rather than the whole string.
@@ -4708,9 +4711,9 @@ fn row_layout_threshold_is_exact() {
     assert_eq!(row_layout(31, label, value, false), RowLayout::TwoLine);
 }
 
-/// Sanity: `row_layout` handles bool-without-chevron rows (Bool kind, no `›` suffix).
+/// Sanity: `row_layout` handles bool-without-chevron rows (Bool kind, no `â€º` suffix).
 /// The chevron column is reserved even for Bool rows, so the chrome cost is the same with and without the glyph.
-/// The renderer's Bool / Enum distinction is purely whether to paint the `›` glyph in that column.
+/// The renderer's Bool / Enum distinction is purely whether to paint the `â€º` glyph in that column.
 #[test]
 fn row_layout_bool_without_chevron() {
     let label = "Disable vim mode (experimental)"; // 31 cells
@@ -4722,7 +4725,7 @@ fn row_layout_bool_without_chevron() {
 }
 
 // -- User-feedback follow-up: always reserve a blank line between
-//    the "Tip · Ask Grok…" docs footer and the keybindings hints.
+//    the "Tip Â· Ask xvoraâ€¦" docs footer and the keybindings hints.
 //
 // The chrome sets `footer_lines` to `predicted_hint_rows + 1`, so a blank row always separates the tip from the first hint line
 // This holds even when the hints wrap to 2 rows at narrow modal widths
@@ -4742,7 +4745,7 @@ fn find_row_y(buf: &Buffer, area: Rect, needle: &str) -> Option<u16> {
 }
 
 /// Return true if every cell strictly INSIDE the modal popup's vertical borders on the given row is whitespace.
-/// The modal borders (`│` at popup_area.x and at popup_area.x + width - 1) are excluded from the check.
+/// The modal borders (`â”‚` at popup_area.x and at popup_area.x + width - 1) are excluded from the check.
 /// We test the gap-line interior, not the chrome glyphs.
 fn modal_interior_row_is_blank(buf: &Buffer, popup_area: Rect, y: u16) -> bool {
     let left = popup_area.x.saturating_add(1);
@@ -4760,12 +4763,12 @@ fn modal_interior_row_is_blank(buf: &Buffer, popup_area: Rect, y: u16) -> bool {
     true
 }
 
-/// Narrow modal: the Browse-mode hint string `↑/↓/j/k nav | g/G top/btm | …` wraps to 2+ lines.
+/// Narrow modal: the Browse-mode hint string `â†‘/â†“/j/k nav | g/G top/btm | â€¦` wraps to 2+ lines.
 /// Without the fix the tip would sit directly above the first hint line; with the fix there's exactly one blank row between them.
 #[test]
 fn footer_has_blank_line_between_tip_and_hints_when_hints_wrap() {
     let mut s = make_state();
-    // 70-col viewport caps modal_width at max(70*0.70, 44) = 49, so footer_width ≈ 45
+    // 70-col viewport caps modal_width at max(70*0.70, 44) = 49, so footer_width â‰ˆ 45
     // Browse-mode hints are ~114 cells so they wrap to at least 2 rows
     let area = Rect {
         x: 0,
@@ -4786,15 +4789,15 @@ fn footer_has_blank_line_between_tip_and_hints_when_hints_wrap() {
     let last_hint_y = find_row_y(&buf, area, "F2/Esc").expect("close hint must render");
     assert!(
         last_hint_y > first_hint_y,
-        "this test requires the hints to wrap to ≥2 lines; got first_hint_y={first_hint_y} \
-         last_hint_y={last_hint_y} — pick a narrower width if the hint string shrank"
+        "this test requires the hints to wrap to â‰¥2 lines; got first_hint_y={first_hint_y} \
+         last_hint_y={last_hint_y} â€” pick a narrower width if the hint string shrank"
     );
 
     // Tip, blank gap, first hint stacked contiguously at the bottom of the modal
     assert_eq!(
         first_hint_y,
         tip_y + 2,
-        "tip → gap → hints must stack with exactly one blank line between tip and the \
+        "tip â†’ gap â†’ hints must stack with exactly one blank line between tip and the \
          first hint line; tip_y={tip_y} first_hint_y={first_hint_y}"
     );
     let gap_y = tip_y + 1;
@@ -4827,7 +4830,7 @@ fn footer_has_blank_line_between_tip_and_hints_when_hints_dont_wrap() {
     let popup_area = s.window.popup_area.expect("modal must have rendered");
 
     let tip_y = find_row_y(&buf, area, "Tip").expect("tip row must render");
-    // FilterFocused-mode hints: `type to filter | ↑/↓ nav | Backspace edit | Enter commit | Esc clear`
+    // FilterFocused-mode hints: `type to filter | â†‘/â†“ nav | Backspace edit | Enter commit | Esc clear`
     // Verify both ends land on the SAME row (proves no wrap)
     let first_hint_y = find_row_y(&buf, area, "type to filter").expect("first hint must render");
     let last_hint_y = find_row_y(&buf, area, "Esc clear").expect("last hint must render");
@@ -4841,7 +4844,7 @@ fn footer_has_blank_line_between_tip_and_hints_when_hints_dont_wrap() {
     assert_eq!(
         first_hint_y,
         tip_y + 2,
-        "tip → gap → hints must stack with exactly one blank line between tip and the \
+        "tip â†’ gap â†’ hints must stack with exactly one blank line between tip and the \
          hint line; tip_y={tip_y} first_hint_y={first_hint_y}"
     );
     let gap_y = tip_y + 1;
@@ -4921,9 +4924,9 @@ fn footer_total_height_grows_when_hints_wrap() {
 
 // -- palette consistency --
 
-/// Section headers render in the palette's style: ` {label} ` in `gray + BOLD` followed by `─` separator cells in `gray_dim`.
+/// Section headers render in the palette's style: ` {label} ` in `gray + BOLD` followed by `â”€` separator cells in `gray_dim`.
 /// Asserts that (a) the header label cell carries the gray foreground and BOLD modifier matching the palette's `render_picker_entry` Header arm.
-/// Also asserts that (b) at least one trailing cell renders a `─` glyph.
+/// Also asserts that (b) at least one trailing cell renders a `â”€` glyph.
 #[test]
 fn section_header_style_matches_palette() {
     let mut s = make_state();
@@ -4960,15 +4963,15 @@ fn section_header_style_matches_palette() {
         "section header label must be BOLD (palette parity)"
     );
 
-    // At least one trailing `─` separator cell must render after the label; find the first `─` in the row after the label
+    // At least one trailing `â”€` separator cell must render after the label; find the first `â”€` in the row after the label
     let row_text = buf_row_text(&buf, header_y, area.x, area.width);
     assert!(
         row_text.contains('\u{2500}'),
-        "section header row must contain `─` separator cells: {row_text:?}"
+        "section header row must contain `â”€` separator cells: {row_text:?}"
     );
 
     // The separator cells must render in `theme.gray_dim` for palette parity
-    // Walk the row and find the first `─` cell; assert its fg color
+    // Walk the row and find the first `â”€` cell; assert its fg color
     // Mirrors the `search_bar_renders_divider_below` pattern.
     let mut sep_cell_fg = None;
     for x in area.x..area.x + area.width {
@@ -4979,10 +4982,10 @@ fn section_header_style_matches_palette() {
             break;
         }
     }
-    let sep_fg = sep_cell_fg.expect("must find at least one `─` separator cell");
+    let sep_fg = sep_cell_fg.expect("must find at least one `â”€` separator cell");
     assert_eq!(
         sep_fg, theme.gray_dim,
-        "section header `─` separator must render in theme.gray_dim \
+        "section header `â”€` separator must render in theme.gray_dim \
          (palette parity)",
     );
 }
@@ -5079,7 +5082,7 @@ fn search_bar_placeholder_matches_palette() {
     let last_cell = buf.cell((last_col, area.y)).expect("last hint cell");
     assert_eq!(
         last_cell.fg, theme.gray_dim,
-        "LAST hint cell ({last_col}) must also be theme.gray_dim — \
+        "LAST hint cell ({last_col}) must also be theme.gray_dim â€” \
          a regression that styled only the prefix would slip past a \
          single-cell sample",
     );
@@ -5103,21 +5106,21 @@ fn ctrl_u_clears_the_entire_filter_from_mid_query() {
 
 #[test]
 fn string_editor_paste_sanitizes_validates_and_consumes_rejected_text() {
-    let mut state = editor_render_fixture("Grok Tst", "Grok T".len());
+    let mut state = editor_render_fixture("xvora Tst", "xvora T".len());
     let outcome = handle_settings_paste(&mut state, "e\r\n");
     assert!(matches!(outcome, SettingsKeyOutcome::Changed));
-    assert_eq!(state.editing_buffer(), Some("Grok Test"));
+    assert_eq!(state.editing_buffer(), Some("xvora Test"));
     assert!(state.editing_validation_error().is_none());
 
     let outcome = handle_settings_paste(&mut state, "\u{202e}\r\n");
     assert!(matches!(outcome, SettingsKeyOutcome::Changed));
-    assert_eq!(state.editing_buffer(), Some("Grok Test"));
+    assert_eq!(state.editing_buffer(), Some("xvora Test"));
     assert!(state.editing_validation_error().is_none());
 }
 
 #[test]
 fn filter_search_bar_keeps_narrow_graphemes_and_cursor_aligned() {
-    let grapheme = "👩🏽\u{200d}💻";
+    let grapheme = "ðŸ‘©ðŸ½\u{200d}ðŸ’»";
     let combining = "e\u{301}";
     let mut state = make_state();
     state.focus_filter();
@@ -5232,7 +5235,7 @@ fn bool_off_value_renders_in_dim_color() {
 }
 
 /// The chevron column is at the same right offset for ALL row kinds.
-/// Bool rows leave it empty, Enum/String rows fill it with `" ›"`, but the column position (and therefore the value's right edge) is constant.
+/// Bool rows leave it empty, Enum/String rows fill it with `" â€º"`, but the column position (and therefore the value's right edge) is constant.
 #[test]
 fn chevron_column_is_at_constant_right_offset() {
     let bool_meta = SettingMeta {
@@ -5255,7 +5258,7 @@ fn chevron_column_is_at_constant_right_offset() {
     };
     let theme = Theme::current();
 
-    // Bool row; chevron column is empty (no `›` glyph)
+    // Bool row; chevron column is empty (no `â€º` glyph)
     let mut buf_bool = Buffer::empty(area);
     let bool_rect = render_setting_row(
         &mut buf_bool,
@@ -5270,7 +5273,7 @@ fn chevron_column_is_at_constant_right_offset() {
         None,
     );
 
-    // Enum row; chevron column contains the `›` glyph
+    // Enum row; chevron column contains the `â€º` glyph
     let mut buf_enum = Buffer::empty(area);
     let enum_rect = render_setting_row(
         &mut buf_enum,
@@ -5286,14 +5289,14 @@ fn chevron_column_is_at_constant_right_offset() {
     );
 
     // The chevron column is a 2-cell block at `area.right - ROW_RIGHT_PAD_W - ROW_CHEVRON_COL_W` (i.e. `area.right - 3` in this fixture).
-    // The `›` glyph occupies the SECOND cell of the column (the first cell is a leading space that doubles as gap from the value)
+    // The `â€º` glyph occupies the SECOND cell of the column (the first cell is a leading space that doubles as gap from the value)
     // For Bool rows the column stays empty
     let glyph_x = area.x + area.width - ROW_RIGHT_PAD_W - 1;
     let bool_cell = buf_bool.cell((glyph_x, 0)).expect("bool col cell");
     assert_eq!(
         bool_cell.symbol().trim(),
         "",
-        "Bool row's chevron column must be empty (no `›` glyph): \
+        "Bool row's chevron column must be empty (no `â€º` glyph): \
          cell symbol = {:?}",
         bool_cell.symbol(),
     );
@@ -5301,7 +5304,7 @@ fn chevron_column_is_at_constant_right_offset() {
     assert_eq!(
         enum_cell.symbol(),
         "\u{203A}",
-        "Enum row's chevron column must contain the `›` glyph at \
+        "Enum row's chevron column must contain the `â€º` glyph at \
          area.right - {} (constant right offset across rows), got: {:?}",
         ROW_RIGHT_PAD_W + 1,
         enum_cell.symbol(),
@@ -5359,7 +5362,7 @@ fn chevron_column_is_at_constant_right_offset() {
         false,
         None,
     );
-    // Bool row's `off` ends at column N; Enum row's `›` glyph lands at column M
+    // Bool row's `off` ends at column N; Enum row's `â€º` glyph lands at column M
     // The contract: N == M's column minus 1 (the gap between value and chevron column)
     // Equivalently, the chevron-column glyph position is the same on both rows
     let glyph_x_multi = multi_area.x + multi_area.width - ROW_RIGHT_PAD_W - 1;
@@ -5428,8 +5431,8 @@ fn chevron_column_aligns_across_one_and_two_line_layouts() {
         false,
         None,
     );
-    // The column offset from the area's right edge is constant: `area.right - ROW_RIGHT_PAD_W - 1` is the `›` glyph position
-    // The chevron span " ›" is 2 cells; the second cell holds the glyph
+    // The column offset from the area's right edge is constant: `area.right - ROW_RIGHT_PAD_W - 1` is the `â€º` glyph position
+    // The chevron span " â€º" is 2 cells; the second cell holds the glyph
     // Computed independently for each area so the offset semantics is what we're testing
     let glyph_x_two = area_two.x + area_two.width - ROW_RIGHT_PAD_W - 1;
     let glyph_x_one = area_one.x + area_one.width - ROW_RIGHT_PAD_W - 1;
@@ -5495,15 +5498,15 @@ fn docs_footer_tip_is_centered() {
     );
 
     // SHORT path: width that fits SHORT but not LONG.
-    // SHORT is "Tip · Ask Grok to change a setting" (34 cells); LONG is ~73 cells. width=40 lands in the SHORT band.
+    // SHORT is "Tip Â· Ask xvora to change a setting" (34 cells); LONG is ~73 cells. width=40 lands in the SHORT band.
     let (row_short, tip_start_short, trailing_short) = render(40);
     assert!(
         row_short.contains("change a setting"),
         "width=40 must render SHORT path (contains `change a setting`): {row_short:?}",
     );
     assert!(
-        !row_short.contains("grokday"),
-        "width=40 must NOT render LONG path (no `grokday`): {row_short:?}",
+        !row_short.contains("XvoDay"),
+        "width=40 must NOT render LONG path (no `XvoDay`): {row_short:?}",
     );
     assert!(
         tip_start_short.abs_diff(trailing_short) <= 1,
@@ -5512,7 +5515,7 @@ fn docs_footer_tip_is_centered() {
     );
 
     // Truncated path: width too narrow even for SHORT
-    // The truncation prefix `Tip · …` should still render; the centering math operates on the truncated SHORT
+    // The truncation prefix `Tip Â· â€¦` should still render; the centering math operates on the truncated SHORT
     let (row_tiny, tip_start_tiny, _trailing_tiny) = render(15);
     assert!(
         row_tiny.contains("Tip"),
@@ -5543,14 +5546,14 @@ fn tip_line_has_blank_row_above() {
     let mut tip_y: Option<u16> = None;
     for y in 0..area.height {
         let txt = buf_row_text(&buf, y, area.x, area.width);
-        if txt.contains("Tip") && txt.contains("Ask Grok") {
+        if txt.contains("Tip") && txt.contains("Ask xvora") {
             tip_y = Some(y);
             break;
         }
     }
     let tip_y = tip_y.expect("must find tip row");
     // The row immediately above the tip must be blank inside the modal's content area
-    // Modal borders (`│`) at the left/right edges are expected
+    // Modal borders (`â”‚`) at the left/right edges are expected
     // We strip leading/trailing border characters before checking that the interior is all spaces
     assert!(
         tip_y > 0,
@@ -5582,15 +5585,15 @@ fn enter_picker_for(key: &'static str) -> SettingsModalState {
     assert!(s.select_at(row_idx), "select_at({row_idx})");
     assert!(
         s.try_enter_picking_enum(),
-        "try_enter_picking_enum failed for {key} — non-enum?",
+        "try_enter_picking_enum failed for {key} â€” non-enum?",
     );
     s
 }
 
-/// Long enum description word-wraps across multiple buffer rows in the picker sub-pane; no `…` truncation.
+/// Long enum description word-wraps across multiple buffer rows in the picker sub-pane; no `â€¦` truncation.
 /// The synthetic registry carries a description long enough to force the wrap.
 /// The live `theme` description fits one line at width=30 and never engages it.
-/// Asserts at least 2 description rows, that the LAST word renders (the wrap reached the end), and that no `…` appears anywhere.
+/// Asserts at least 2 description rows, that the LAST word renders (the wrap reached the end), and that no `â€¦` appears anywhere.
 #[test]
 fn picker_description_word_wraps_no_ellipsis() {
     // Synthetic enum setting with a description forced to wrap.
@@ -5679,7 +5682,7 @@ fn picker_description_word_wraps_no_ellipsis() {
         .expect("must find title row");
     let mut desc_row_count = 0usize;
     for (i, row) in rows.iter().enumerate().skip(title_y + 1) {
-        // Choice markers are `\u{25CB}` (○) or `\u{25CF}` (●).
+        // Choice markers are `\u{25CB}` (â—‹) or `\u{25CF}` (â—).
         if row.contains('\u{25CB}') || row.contains('\u{25CF}') {
             break;
         }
@@ -5695,13 +5698,13 @@ fn picker_description_word_wraps_no_ellipsis() {
     }
     assert!(
         desc_row_count >= 2,
-        "wrapped description must span ≥ 2 buffer rows; got {desc_row_count}\n{all_text}",
+        "wrapped description must span â‰¥ 2 buffer rows; got {desc_row_count}\n{all_text}",
     );
 
-    // 4. No `…` truncation marker anywhere in the buffer.
+    // 4. No `â€¦` truncation marker anywhere in the buffer.
     assert!(
         !all_text.contains('\u{2026}'),
-        "picker description must not contain any `…` truncation \
+        "picker description must not contain any `â€¦` truncation \
          marker (Misha/Kevin Fix 6a): {all_text}",
     );
 }
@@ -5711,7 +5714,7 @@ fn picker_description_word_wraps_no_ellipsis() {
 /// Exercises both `PickingEnum` AND `EditingValue` since the field name says "sub_pane_modes" (plural).
 /// Also pins the rect's x and y.
 /// A future modal-chrome refactor that shifts the title origin then trips a test rather than silently breaking the breadcrumb.
-/// The hit-rect spans the FULL breadcrumb (`Settings › <label>`) so any click on the breadcrumb routes back to Browse.
+/// The hit-rect spans the FULL breadcrumb (`Settings â€º <label>`) so any click on the breadcrumb routes back to Browse.
 #[test]
 fn settings_breadcrumb_rect_set_in_sub_pane_modes() {
     let area = Rect {
@@ -5740,25 +5743,25 @@ fn settings_breadcrumb_rect_set_in_sub_pane_modes() {
         rect.height, 1,
         "breadcrumb rect must be 1 row tall (sits on the chrome's top border)",
     );
-    // Width is the full breadcrumb `Settings › <label>`
+    // Width is the full breadcrumb `Settings â€º <label>`
     // The leaf label varies by setting
-    // Assert it's strictly wider than `Settings` alone (proof that the rect extends past the prefix) AND at least MODAL_TITLE + " › "
-    let prefix_w = MODAL_TITLE.width() + " \u{203A} ".width();
+    // Assert it's strictly wider than `Settings` alone (proof that the rect extends past the prefix) AND at least modal_title() + " â€º "
+    let prefix_w = super::state::modal_title().width() + " \u{203A} ".width();
     assert!(
-        (rect.width as usize) > MODAL_TITLE.width(),
+        (rect.width as usize) > super::state::modal_title().width(),
         "rect width must extend past `Settings` alone for theme picker, got {}",
         rect.width,
     );
     assert!(
         (rect.width as usize) >= prefix_w,
-        "rect width must include the `Settings › ` prefix at minimum, got {}",
+        "rect width must include the `Settings â€º ` prefix at minimum, got {}",
         rect.width,
     );
-    // Pin x/y so a chrome refactor that shifts the title origin trips a test. Origin is `popup.x + 1 (left border) + 2 ("─ " title decoration)`.
+    // Pin x/y so a chrome refactor that shifts the title origin trips a test. Origin is `popup.x + 1 (left border) + 2 ("â”€ " title decoration)`.
     assert_eq!(
         rect.x,
         popup.x + 3,
-        "breadcrumb x = popup.x + 1 (border) + 2 (`─ ` title decoration)",
+        "breadcrumb x = popup.x + 1 (border) + 2 (`â”€ ` title decoration)",
     );
     assert_eq!(rect.y, popup.y, "breadcrumb sits on the top border row",);
 
@@ -5771,7 +5774,7 @@ fn settings_breadcrumb_rect_set_in_sub_pane_modes() {
         .expect("EditingValue must populate settings_breadcrumb_rect");
     assert_eq!(rect2.height, 1, "EditingValue rect height must be 1");
     assert!(
-        (rect2.width as usize) > MODAL_TITLE.width(),
+        (rect2.width as usize) > super::state::modal_title().width(),
         "EditingValue rect must extend past `Settings` alone, got {}",
         rect2.width,
     );
@@ -5806,17 +5809,17 @@ fn click_settings_breadcrumb_collapses_picker_to_browse() {
         click_y,
     );
     // For preview-supporting enums (theme), the breadcrumb-click revert dispatches `Action::PreviewTheme(original)`
-    // The default theme's original canonical is `"groknight"`
+    // The default theme's original canonical is `"XvoNight"`
     match outcome {
         SettingsKeyOutcome::Action(Action::PreviewTheme(orig)) => {
             assert_eq!(
-                orig, "groknight",
+                orig, "XvoNight",
                 "breadcrumb-click revert must carry the original canonical",
             );
         }
         other => panic!(
-            "expected Action(PreviewTheme(\"groknight\")) — the keyboard \
-             Esc-equivalent revert — got {other:?}",
+            "expected Action(PreviewTheme(\"XvoNight\")) â€” the keyboard \
+             Esc-equivalent revert â€” got {other:?}",
         ),
     }
     assert!(
@@ -5858,7 +5861,7 @@ fn click_settings_breadcrumb_ignores_close_on_picker_exit() {
     );
     match outcome {
         SettingsKeyOutcome::Action(Action::PreviewTheme(orig)) => {
-            assert_eq!(orig, "groknight");
+            assert_eq!(orig, "XvoNight");
         }
         other => panic!("expected preview revert Action, got {other:?}"),
     }
@@ -5899,7 +5902,7 @@ fn click_settings_breadcrumb_after_nav_reverts_to_original() {
         other => panic!("expected PickingEnum, got {other:?}"),
     };
     // Pick a different index
-    // The default theme is `groknight` (index 1 per the registry); advance to index 0 to ensure we're navigating to a different value
+    // The default theme is `XvoNight` (index 1 per the registry); advance to index 0 to ensure we're navigating to a different value
     let target_idx = if advanced_idx == 0 { 1 } else { 0 };
     match s.mode() {
         SettingsModalMode::PickingEnum {
@@ -5955,10 +5958,10 @@ fn d_key_in_picking_enum_dispatches_open_reset_confirm() {
                 key, "theme",
                 "OpenResetConfirm key must be the active picker setting",
             );
-            // Default theme is `groknight`
-            // Entering the picker captures `original_value = current value = groknight`, so the revert dispatches with that canonical
+            // Default theme is `XvoNight`
+            // Entering the picker captures `original_value = current value = XvoNight`, so the revert dispatches with that canonical
             assert_eq!(
-                orig, "groknight",
+                orig, "XvoNight",
                 "PreviewTheme revert must carry the original canonical",
             );
         }
@@ -6057,7 +6060,7 @@ fn d_key_in_string_editor_inserts_into_buffer() {
     );
 }
 
-/// Clicks OUTSIDE the breadcrumb rect (left of the leading `─ ` decoration, or past the right edge) must be no-ops.
+/// Clicks OUTSIDE the breadcrumb rect (left of the leading `â”€ ` decoration, or past the right edge) must be no-ops.
 /// The rect spans the FULL breadcrumb, so "outside" starts past either end.
 #[test]
 fn click_outside_settings_breadcrumb_is_noop() {
@@ -6073,7 +6076,7 @@ fn click_outside_settings_breadcrumb_is_noop() {
     let rect = s
         .settings_breadcrumb_rect
         .expect("PickingEnum must populate breadcrumb rect");
-    // Click 1 cell PAST the rect's right edge; on the trailing ` ─` decoration or the empty modal interior
+    // Click 1 cell PAST the rect's right edge; on the trailing ` â”€` decoration or the empty modal interior
     let past_right_x = rect.x + rect.width + 2;
     let outcome = handle_settings_mouse(
         &mut s,
@@ -6092,7 +6095,7 @@ fn click_outside_settings_breadcrumb_is_noop() {
          got {:?}",
         s.mode(),
     );
-    // Click 1 cell BEFORE the rect's left edge; on the leading `─ ` decoration
+    // Click 1 cell BEFORE the rect's left edge; on the leading `â”€ ` decoration
     let before_left_x = rect.x.saturating_sub(1);
     let outcome2 = handle_settings_mouse(
         &mut s,
@@ -6166,7 +6169,7 @@ fn consent_chooser_drops_tip_and_reset() {
     let mut consent = enter_picker_for("coding_data_sharing");
     let text = screen(&mut consent);
     assert!(
-        !text.contains("Ask Grok"),
+        !text.contains("Ask xvora"),
         "consent chooser must not render the docs tip:\n{text}"
     );
     assert!(
@@ -6195,7 +6198,7 @@ fn consent_chooser_drops_tip_and_reset() {
     let mut ordinary = enter_picker_for("theme");
     let text = screen(&mut ordinary);
     assert!(
-        text.contains("d reset") && text.contains("Ask Grok"),
+        text.contains("d reset") && text.contains("Ask xvora"),
         "ordinary pickers keep the tip and the reset hint:\n{text}"
     );
     assert!(
@@ -6204,7 +6207,7 @@ fn consent_chooser_drops_tip_and_reset() {
     );
 }
 
-/// The row-list-with-search-bar layout reserves row 1 (below the search bar) for a `─` divider in `gray_dim`; palette parity.
+/// The row-list-with-search-bar layout reserves row 1 (below the search bar) for a `â”€` divider in `gray_dim`; palette parity.
 #[test]
 fn search_bar_renders_divider_below() {
     let mut s = make_state();
@@ -6232,7 +6235,7 @@ fn search_bar_renders_divider_below() {
     let divider_y = search_y + 1;
 
     // The divider must span the full row width, not just the first cell
-    // Count `─` cells across the row's interior (excluding the modal borders) and assert at least half the width is `─`
+    // Count `â”€` cells across the row's interior (excluding the modal borders) and assert at least half the width is `â”€`
     // Also pin the color across multiple cells, not just the first
     let mut box_count = 0usize;
     let mut wrong_color_cells = 0usize;
@@ -6254,22 +6257,22 @@ fn search_bar_renders_divider_below() {
     }
     assert!(
         box_count > 0,
-        "row immediately below search bar must contain `─` divider cells"
+        "row immediately below search bar must contain `â”€` divider cells"
     );
     // The divider spans the inner area between the modal borders; expect a substantial fraction of the row
-    // A regression that only painted the first 5 cells as `─` would fail this; palette parity is "full-width divider"
+    // A regression that only painted the first 5 cells as `â”€` would fail this; palette parity is "full-width divider"
     assert!(
         box_count >= (area.width as usize) / 4,
-        "divider must span ≥ 1/4 of the row width, got {box_count} cells \
+        "divider must span â‰¥ 1/4 of the row width, got {box_count} cells \
          of width {}",
         area.width,
     );
     assert_eq!(
         wrong_color_cells, 0,
-        "ALL `─` cells in divider must use theme.gray_dim (palette parity); \
+        "ALL `â”€` cells in divider must use theme.gray_dim (palette parity); \
          {wrong_color_cells} cells diverged",
     );
-    // First and last `─` cells share the same fg; defensive
+    // First and last `â”€` cells share the same fg; defensive
     assert_eq!(
         first_box_cell_fg, last_box_cell_fg,
         "divider color must be consistent across the row",
@@ -6320,7 +6323,7 @@ fn max_thoughts_width_preview_renders_below_stepper() {
     };
     let (buf, s) = render_max_thoughts_width_at(85, area);
 
-    // Locate the stepper row (the row containing the `‹` arrow).
+    // Locate the stepper row (the row containing the `â€¹` arrow).
     let stepper_y =
         find_text_row(&buf, area, int_stepper_left_glyph()).expect("stepper row must render");
     // Locate the preview title row.
@@ -6427,7 +6430,7 @@ fn max_thoughts_width_preview_content_is_italic() {
 /// Test 4: the title row distinguishes itself from the content rows via two independent signals.
 /// One signal is a different `bg` token (`bg_visual` vs `bg_highlight`).
 /// The other is `Modifier::UNDERLINED`, which keeps the visual weight when the bg luma delta is small (TokyoNight).
-/// "Darker" is not the contract; on the dark themes `bg_visual` is lighter than `bg_highlight`, and only GrokDay renders the title darker.
+/// "Darker" is not the contract; on the dark themes `bg_visual` is lighter than `bg_highlight`, and only XvoDay renders the title darker.
 #[test]
 fn max_thoughts_width_preview_title_styling_distinguishes_from_content() {
     let area = Rect {
@@ -6473,13 +6476,13 @@ fn max_thoughts_width_preview_title_styling_distinguishes_from_content() {
     // Contrast assertion: regardless of the active palette, the raw / un-quantized theme tokens differ
     // We use the raw theme directly so this assertion survives `NO_COLOR` / 256-color quantization
     let raw_theme = match crate::theme::Theme::current_kind() {
-        crate::theme::ThemeKind::GrokNight => crate::theme::Theme::groknight(),
+        crate::theme::ThemeKind::XvoNight => crate::theme::Theme::XvoNight(),
         crate::theme::ThemeKind::TokyoNight => crate::theme::Theme::tokyonight(),
-        crate::theme::ThemeKind::GrokDay => crate::theme::Theme::grokday(),
+        crate::theme::ThemeKind::XvoDay => crate::theme::Theme::XvoDay(),
         crate::theme::ThemeKind::RosePineMoon => crate::theme::Theme::rosepine_moon(),
         // Resolved via `Theme::current()` rather than a constructor because `theme::oscura` is a private module
         crate::theme::ThemeKind::OscuraMidnight => crate::theme::Theme::current(),
-        crate::theme::ThemeKind::Auto => crate::theme::Theme::groknight(),
+        crate::theme::ThemeKind::Auto => crate::theme::Theme::XvoNight(),
     };
     assert_ne!(
         raw_theme.bg_visual, raw_theme.bg_highlight,
@@ -6548,12 +6551,12 @@ fn max_thoughts_width_preview_clamps_when_terminal_narrower_than_value() {
     // Title must NOT carry the legacy `clamped to N cols` suffix; that signal lives in the note row now
     assert!(
         !title_row.contains("clamped"),
-        "title row must NOT contain the `clamped` suffix anymore — the clamp \
+        "title row must NOT contain the `clamped` suffix anymore â€” the clamp \
          indicator moved to a note row below the content; title_row={title_row:?}",
     );
     // No content line may exceed area.width = 60 cols
     // Also assert at least 2 content rows to guard against a regression that swapped wrap for truncation
-    // We stop scanning at the first non-content line, either a blank gap or the new `note: clamped at …` row
+    // We stop scanning at the first non-content line, either a blank gap or the new `note: clamped at â€¦` row
     let mut clamped_lines: Vec<String> = Vec::new();
     for y in (preview_y + 1)..area.height {
         let row = buf_row_text(&buf, y, area.x, area.width);
@@ -6573,7 +6576,7 @@ fn max_thoughts_width_preview_clamps_when_terminal_narrower_than_value() {
     }
     assert!(
         clamped_lines.len() >= 2,
-        "clamped wrap must produce ≥ 2 content rows at width=60; got {} rows: \
+        "clamped wrap must produce â‰¥ 2 content rows at width=60; got {} rows: \
          {clamped_lines:?}",
         clamped_lines.len(),
     );
@@ -6635,7 +6638,7 @@ fn clamped_preview_renders_note_below_content() {
     }
     let note_y = note_y.expect("clamped preview must render a `note:` row below content");
     let last_content_y =
-        last_content_y.expect("clamped preview must render ≥ 1 content row before the note");
+        last_content_y.expect("clamped preview must render â‰¥ 1 content row before the note");
     assert_eq!(
         note_y,
         last_content_y + 2,
@@ -6720,7 +6723,7 @@ fn clamped_note_omitted_when_insufficient_height() {
     // At the tightest such height verify the note really IS absent (a final explicit assertion in case the sweep's discovery logic silently breaks)
     let tight = tight_height.expect(
         "the height sweep must find at least one short-but-rendered-preview height \
-         at which the note is omitted — adjust the sweep range if the fixture changes",
+         at which the note is omitted â€” adjust the sweep range if the fixture changes",
     );
     let area = Rect {
         x: 0,
@@ -6913,12 +6916,12 @@ fn max_thoughts_width_preview_updates_when_stepper_changes() {
     // It would skip the wrap mechanism entirely
     assert!(
         wrap_50.len() >= 2,
-        "pending=50 wrap must produce ≥ 2 rows; got {}: {wrap_50:?}",
+        "pending=50 wrap must produce â‰¥ 2 rows; got {}: {wrap_50:?}",
         wrap_50.len(),
     );
     assert!(
         wrap_55.len() >= 2,
-        "pending=55 wrap must produce ≥ 2 rows; got {}: {wrap_55:?}",
+        "pending=55 wrap must produce â‰¥ 2 rows; got {}: {wrap_55:?}",
         wrap_55.len(),
     );
 }
@@ -6987,9 +6990,9 @@ fn max_thoughts_width_preview_renders_at_just_fits_width() {
     );
 }
 
-// ──────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Auto-widen tests for max_thoughts_width EditingValue mode.
-// ──────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// At a wide terminal (200 cols), entering EditingValue mode for `max_thoughts_width` widens the rendered modal.
 /// The popup width becomes `terminal_width - MAX_THOUGHTS_WIDTH_WIDENED_MARGIN` (i.e. 192).
@@ -7096,14 +7099,14 @@ fn modal_widening_respects_terminal_width_minimum() {
     assert_eq!(
         edit_w, browse_w,
         "at narrow terminal width ({}) the EditingValue modal must match the Browse \
-         modal width — widening is disabled when it would shrink below the standard \
+         modal width â€” widening is disabled when it would shrink below the standard \
          sizing; got edit={edit_w} browse={browse_w}",
         area.width,
     );
 }
 
 /// At a wide terminal (180 cols) with a small pending value (85), the widened modal accommodates the full pending value without clamping.
-/// The preview renders at `pending_value` cells AND the `note: clamped at …` row is absent.
+/// The preview renders at `pending_value` cells AND the `note: clamped at â€¦` row is absent.
 #[test]
 fn preview_renders_at_full_width_when_modal_widened() {
     let area = Rect {
@@ -7274,7 +7277,7 @@ fn locked_coding_data_sharing_row_refuses_reset() {
     );
 }
 
-/// `→ expand` stays on a locked row; that is how the lock reason is read.
+/// `â†’ expand` stays on a locked row; that is how the lock reason is read.
 #[test]
 fn locked_row_footer_drops_the_keys_it_refuses() {
     let area = Rect {
@@ -7303,7 +7306,7 @@ fn locked_row_footer_drops_the_keys_it_refuses() {
     }
     assert!(
         text.contains("expand"),
-        "`→ expand` reads the lock reason and must survive:\n{text}"
+        "`â†’ expand` reads the lock reason and must survive:\n{text}"
     );
 
     let mut unlocked = make_state();
@@ -7315,8 +7318,8 @@ fn locked_row_footer_drops_the_keys_it_refuses() {
     );
 }
 
-/// Locked rows drop the `›` enter-affordance and render a per-variant value: ZDR replaces opt-in/out with "ZDR".
-/// Team-managed keeps the value with an " · Admin Managed" suffix.
+/// Locked rows drop the `â€º` enter-affordance and render a per-variant value: ZDR replaces opt-in/out with "ZDR".
+/// Team-managed keeps the value with an " Â· Admin Managed" suffix.
 /// Unlocked rows keep the plain value and chevron.
 #[test]
 fn locked_coding_data_sharing_row_renders_locked_value_without_chevron() {
@@ -7353,7 +7356,7 @@ fn locked_coding_data_sharing_row_renders_locked_value_without_chevron() {
     let line = buf_row_text(&buf, rect.y, area.x, area.width);
     assert!(
         line.contains("Opt out \u{00B7} Admin Managed"),
-        "team-managed lock must append ` · Admin Managed`: {line:?}"
+        "team-managed lock must append ` Â· Admin Managed`: {line:?}"
     );
     assert!(
         !line.contains(chevron),

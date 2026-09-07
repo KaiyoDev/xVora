@@ -1,5 +1,5 @@
 //! A dedicated tracing target for hooks and plugins subsystems with an optional
-//! file logger that writes to `~/.grok/logs/hooks.log`.
+//! file logger that writes to `~/.xvora/logs/hooks.log`.
 //!
 //! ## When to use
 //!
@@ -9,10 +9,10 @@
 //! ## Enabling
 //!
 //! ```bash
-//! GROK_HOOKS_LOG=1 grok              # enable, write to ~/.grok/logs/hooks.log
-//! GROK_HOOKS_LOG=/tmp/h.log grok     # write to custom path
-//! GROK_HOOKS_LOG=0 grok              # explicitly disable
-//! tail -f ~/.grok/logs/hooks.log     # watch in another terminal
+//! GROK_HOOKS_LOG=1 xvora              # enable, write to ~/.xvora/logs/hooks.log
+//! GROK_HOOKS_LOG=/tmp/h.log xvora     # write to custom path
+//! GROK_HOOKS_LOG=0 xvora              # explicitly disable
+//! tail -f ~/.xvora/logs/hooks.log     # watch in another terminal
 //! ```
 
 use std::fmt;
@@ -27,7 +27,7 @@ use tracing_subscriber::fmt::writer::BoxMakeWriter;
 use tracing_subscriber::layer::Layer;
 use tracing_subscriber::registry::LookupSpan;
 
-use config::grok_home;
+use config::xvora_home;
 
 const ENV_HOOKS_LOG: &str = "GROK_HOOKS_LOG";
 
@@ -54,7 +54,7 @@ impl FormatTime for UptimeTimer {
     }
 }
 
-/// Writes to `~/.grok/logs/hooks.log` (or custom path via `GROK_HOOKS_LOG`).
+/// Writes to `~/.xvora/logs/hooks.log` (or custom path via `GROK_HOOKS_LOG`).
 /// Filters to hooks (`xvora_hooks`) and plugins (`agent::plugins`) targets.
 /// Set `GROK_HOOKS_LOG=0` to disable, `GROK_HOOKS_LOG=/path` to redirect.
 pub fn layer<S>() -> Option<impl Layer<S>>
@@ -103,7 +103,7 @@ where
 }
 
 fn resolve_log_path() -> Option<PathBuf> {
-    let default_path = || grok_home().join("logs").join("hooks.log");
+    let default_path = || xvora_home().join("logs").join("hooks.log");
     let raw = match std::env::var(ENV_HOOKS_LOG) {
         Ok(val) => val,
         Err(_) => return None, // opt-in only

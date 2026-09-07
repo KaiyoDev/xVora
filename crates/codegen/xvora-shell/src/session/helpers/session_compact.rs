@@ -19,7 +19,7 @@ pub use chat_state::compaction_utils::{
 /// Frames the call as "summarize for a successor assistant who only sees the user's original query plus this summary."
 /// Wrapped in `<summary_request>` only; the surrounding `<user_query>` is implicit because we push this as a `ConversationItem::user`.
 ///
-/// All other agents (grok-build, etc.) continue to use the detailed structured prompt built inline in `generate_session_compact`.
+/// All other agents (xvora-build, etc.) continue to use the detailed structured prompt built inline in `generate_session_compact`.
 pub(crate) const SELF_SUMMARIZATION_PROMPT: &str = r#"<summary_request>
 Please summarize the conversation so far. This summary (everything after your
 thinking) will be provided to another AI assistant to continue working on the
@@ -212,7 +212,7 @@ pub(crate) fn build_compaction_prompt(
             None => SELF_SUMMARIZATION_PROMPT.to_string(),
         }
     } else {
-        // Default (grok-build, codex, ...): the concise summarize prompt the grok-build models are RL-trained on
+        // Default (xvora-build, codex, ...): the concise summarize prompt the xvora-build models are RL-trained on
         // `/compact <text>` is spliced into the `{user_context_section}` slot
         let user_context_section = match user_context {
             Some(context) => format!(

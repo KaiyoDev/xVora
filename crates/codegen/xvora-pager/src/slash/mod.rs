@@ -102,7 +102,7 @@ impl MenuKey {
 /// A single row in the slash suggestion dropdown.
 #[derive(Debug, Clone)]
 pub struct SuggestionRow {
-    /// Display text (e.g., "/model" or "Grok 4 Fast").
+    /// Display text (e.g., "/model" or "xvora 4 Fast").
     pub display: String,
     /// Description text (e.g., "Switch the active model").
     pub description: String,
@@ -1364,7 +1364,7 @@ fn analyze_input(text: &str, cursor: usize) -> Option<SlashInput> {
 
 /// Parsed slash command invocation.
 pub struct SlashInvocation<'a> {
-    /// Command token (e.g., "model" for "/model grok-4").
+    /// Command token (e.g., "model" for "/model xvora-4").
     pub token: &'a str,
     /// Everything after the command token, trimmed on the left.
     pub args: &'a str,
@@ -1655,9 +1655,9 @@ mod tests {
 
     #[test]
     fn parses_invocation_with_args() {
-        let inv = parse_invocation("/model grok-code-fast-1").expect("parsed");
+        let inv = parse_invocation("/model xvora-code-fast-1").expect("parsed");
         assert_eq!(inv.token, "model");
-        assert_eq!(inv.args, "grok-code-fast-1");
+        assert_eq!(inv.args, "xvora-code-fast-1");
     }
 
     #[test]
@@ -1711,7 +1711,7 @@ mod tests {
         // /model has takes_args=true, args_required=true.
         assert!(!is_command_complete("/model", &reg));
         assert!(!is_command_complete("/model ", &reg));
-        assert!(is_command_complete("/model grok-4", &reg));
+        assert!(is_command_complete("/model xvora-4", &reg));
     }
 
     #[test]
@@ -1954,8 +1954,8 @@ mod tests {
         let state = SlashState::default();
         let models = ModelState::default();
 
-        // Cursor 3 in "/mod grok-4" clamps the query to "mo".
-        ctrl.refresh(&state, "/mod grok-4", 3, &models);
+        // Cursor 3 in "/mod xvora-4" clamps the query to "mo".
+        ctrl.refresh(&state, "/mod xvora-4", 3, &models);
         let snapshot = state.snapshot();
         assert!(snapshot.open);
         assert_eq!(snapshot.query, "mo");
@@ -1973,7 +1973,7 @@ mod tests {
         let state = SlashState::default();
         let models = ModelState::default();
 
-        ctrl.refresh(&state, "/model grok-4", 3, &models);
+        ctrl.refresh(&state, "/model xvora-4", 3, &models);
         let snapshot = state.snapshot();
         assert!(snapshot.open);
         assert!(snapshot.command_recognized);
@@ -3042,7 +3042,7 @@ mod tests {
         // A skill arrives as an ACP command carrying skill meta (scope and path)
         let skill_meta = serde_json::json!({
             "scope": "local",
-            "path": "/home/user/.grok/skills/skill-cmd/SKILL.md",
+            "path": "/home/user/.xvora/skills/skill-cmd/SKILL.md",
         })
         .as_object()
         .cloned()

@@ -4,7 +4,7 @@
 //! This module adds system-reminder rendering that requires dependencies not available in `xvora-chat-state`.
 //!
 //! The **common** active-agent section (Running Background Tasks: commands, loops, workflows, subagents) plus TODO is formatted by [`compaction::reminder`].
-//! That keeps grok-chat and grok-build in lockstep.
+//! That keeps xvora-chat and xvora-build in lockstep.
 //! Harness-only sections (edited files, AGENTS.md, skills, catalog workflows, MCP, memory) stay here.
 
 use std::path::PathBuf;

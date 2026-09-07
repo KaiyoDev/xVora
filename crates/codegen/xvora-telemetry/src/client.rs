@@ -331,7 +331,7 @@ pub async fn track(event_name: &str, request_id: &str, ctx: &UserContext, mut me
                     "locale": "English",
                 },
                 "device_attributes": {
-                    "app_name": "Grok Code",
+                    "app_name": "xvora Code",
                 },
             },
             "api_key": api_key,
@@ -362,7 +362,7 @@ pub async fn track(event_name: &str, request_id: &str, ctx: &UserContext, mut me
         props.insert("distinct_id".into(), json!(user_id));
         props.insert("time".into(), json!(time_secs));
         props.insert("$insert_id".into(), json!(insert_id));
-        props.insert("app_name".into(), json!("Grok Code"));
+        props.insert("app_name".into(), json!("xvora Code"));
         props.insert("user_type".into(), json!("LoggedIn"));
         props.insert("country".into(), json!(ctx.country));
         props.insert("language".into(), json!(ctx.language));
@@ -418,7 +418,7 @@ pub fn sync_profile() {
         let mut props = std::collections::HashMap::new();
         props.insert("agent_id".into(), json!(agent_id));
         props.insert("shell_version".into(), json!(client.shell_version));
-        props.insert("app_name".into(), json!("Grok Code"));
+        props.insert("app_name".into(), json!("xvora Code"));
         if let Some(ref client_type) = client.client_type {
             props.insert("client_type".into(), json!(client_type));
         }
@@ -518,12 +518,12 @@ pub fn init_if_needed(
 mod tests {
     use super::*;
 
-    /// Shell events must still strip to their bare suffix, byte-for-byte identical to the previous `strip_prefix("grok-shell-")` behavior.
+    /// Shell events must still strip to their bare suffix, byte-for-byte identical to the previous `strip_prefix("xvora-shell-")` behavior.
     #[test]
     fn event_value_strips_shell_prefix() {
-        assert_eq!(event_value("grok-shell-turn"), "turn");
+        assert_eq!(event_value("xvora-shell-turn"), "turn");
         assert_eq!(
-            event_value("grok-shell-trace_upload_attempted"),
+            event_value("xvora-shell-trace_upload_attempted"),
             "trace_upload_attempted"
         );
     }
@@ -531,7 +531,7 @@ mod tests {
     /// Workspace events strip their own prefix to the same bare suffix.
     #[test]
     fn event_value_strips_workspace_prefix() {
-        assert_eq!(event_value("grok-workspace-turn"), "turn");
+        assert_eq!(event_value("xvora-workspace-turn"), "turn");
     }
 
     /// SessionMetrics must not attempt Mixpanel profile engage; sync_profile is a no-op unless mode is fully Enabled.
@@ -591,7 +591,7 @@ mod tests {
     /// Only the leading emitter prefix is stripped; a suffix that itself looks like another prefix is left intact.
     #[test]
     fn event_value_strips_only_leading_prefix() {
-        assert_eq!(event_value("grok-shell-workspace-x"), "workspace-x");
+        assert_eq!(event_value("xvora-shell-workspace-x"), "workspace-x");
     }
 
     /// The stripper recovers the bare suffix for every origin the emitter can produce, tying `event_value` to `EmitterOrigin::event_prefix`.
@@ -681,7 +681,7 @@ mod tests {
     }
 
     /// `event_value`'s first-match-wins over `EmitterOrigin::ALL` is only correct because no origin's `event_prefix()` is a prefix of another's.
-    /// A future origin like `"grok-shell-ext-"` would let an earlier `ALL` entry strip the shorter prefix first and yield the wrong `event_value`.
+    /// A future origin like `"xvora-shell-ext-"` would let an earlier `ALL` entry strip the shorter prefix first and yield the wrong `event_value`.
     /// Pin the invariant so adding such a variant fails the suite rather than silently corrupting analytics.
     #[test]
     fn emitter_prefixes_are_mutually_exclusive() {

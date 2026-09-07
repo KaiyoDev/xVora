@@ -375,7 +375,7 @@ pub enum SessionCommand {
     /// Unlike `SetSessionModel` (which requires a fully resolved `ModelEntry`), this also calls `set_primary_model()`.
     /// Signals then report the override model rather than the agent-level default (e.g. `grok-4.5`).
     /// `SetSessionModel` does NOT update `primaryModelId` in signals; the resolved model is already tracked via inference responses.
-    /// Keeps the existing base_url, api_key, and other config; only the `model` field in the `x-grok-model-override` header changes.
+    /// Keeps the existing base_url, api_key, and other config; only the `model` field in the `x-xvora-model-override` header changes.
     /// Any additional headers are merged in (e.g. `x-openrouter-api-key` for BYOK).
     /// Used to set model IDs (e.g. opaque third-party routing names) that are routing hints for the backend.
     /// Those IDs need not exist in the agent's local model registry.
@@ -408,7 +408,7 @@ pub enum SessionCommand {
     ReloadPlugins {
         registry: Option<std::sync::Arc<agent::plugins::PluginRegistry>>,
     },
-    /// Re-discover the session's own project hooks (`.grok/hooks`, `.cursor/hooks.json`, …) mid-session, re-evaluating folder trust.
+    /// Re-discover the session's own project hooks (`.xvora/hooks`, `.cursor/hooks.json`, …) mid-session, re-evaluating folder trust.
     /// Used by the interactive folder-trust grant so a granted folder's repo-local hooks start without a session restart.
     /// Plugin-contributed hooks are handled by `ReloadPlugins`; this covers the non-plugin project hook registry.
     ReloadHooks,

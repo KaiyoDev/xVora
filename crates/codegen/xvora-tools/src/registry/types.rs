@@ -2484,12 +2484,12 @@ mod tests {
         }
     }
     /// Bash mode resolves the toolset's execute tool by kind, not a hardcoded
-    /// name: `run_terminal_cmd` (grok).
+    /// name: `run_terminal_cmd` (xvora).
     #[tokio::test]
     async fn tool_name_for_kind_resolves_execute() {
         use crate::types::tool::ToolKind;
         let tmp = TempDir::new().unwrap();
-        let grok = ToolRegistryBuilder::new()
+        let xvora = ToolRegistryBuilder::new()
             .finalize(
                 ToolServerConfig {
                     tools: vec![
@@ -2501,9 +2501,9 @@ mod tests {
                 },
                 test_session_context(&tmp),
             )
-            .expect("grok toolset should finalize");
+            .expect("xvora toolset should finalize");
         assert_eq!(
-            grok.tool_name_for_kind(ToolKind::Execute).as_deref(),
+            xvora.tool_name_for_kind(ToolKind::Execute).as_deref(),
             Some("run_terminal_cmd")
         );
     }
@@ -3808,7 +3808,7 @@ mod tests {
         assert!(task_def.is_some(), "task tool should be in definitions");
     }
     /// Verify that the task tool description renders correctly with the default
-    /// grok-build agent config (all tools present) and that the new examples
+    /// xvora-build agent config (all tools present) and that the new examples
     /// section is included with no unresolved template placeholders.
     #[tokio::test]
     async fn bash_definition_hides_is_background_when_disabled() {
@@ -4363,7 +4363,7 @@ mod tests {
         let ctx = test_session_context(&tmp);
         let toolset = builder
             .finalize(config, ctx)
-            .expect("finalize should succeed with default grok-build tools");
+            .expect("finalize should succeed with default xvora-build tools");
         let defs = toolset.tool_definitions();
         let task_def = defs
             .iter()

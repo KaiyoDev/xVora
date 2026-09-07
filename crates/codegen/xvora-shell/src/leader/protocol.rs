@@ -105,9 +105,9 @@ impl Default for ClientId {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ClientMode {
-    /// Headless mode (grok agent, grok agent headless): the leader connects to the websocket relay once and forwards messages.
+    /// Headless mode (xvora agent, xvora agent headless): the leader connects to the websocket relay once and forwards messages.
     Headless,
-    /// Stdio mode (grok agent stdio, grok -p): the client sends and receives ACP messages directly via local IPC.
+    /// Stdio mode (xvora agent stdio, xvora -p): the client sends and receives ACP messages directly via local IPC.
     Stdio,
 }
 
@@ -176,7 +176,7 @@ pub struct LeaderCapabilities {
     pub profile_formats: Vec<ProfileArtifactFormat>,
     #[serde(default)]
     pub workspace_exposure: bool,
-    /// Whether the leader supports [`ControlCommand::RelaunchForUpdate`], a disruptive relaunch onto a freshly-installed binary driven by `grok update`.
+    /// Whether the leader supports [`ControlCommand::RelaunchForUpdate`], a disruptive relaunch onto a freshly-installed binary driven by `xvora update`.
     /// Old leaders default to `false`, so a new client falls back to advising a manual restart.
     #[serde(default)]
     pub relaunch_v1: bool,
@@ -203,11 +203,11 @@ pub enum ControlCommand {
     WorkspaceResume,
     WorkspaceStop,
     WorkspaceStatus,
-    /// Ask the leader to relaunch onto a freshly-installed binary (driven by `grok update`).
+    /// Ask the leader to relaunch onto a freshly-installed binary (driven by `xvora update`).
     /// The leader stops admitting new turns, waits a bounded grace period for in-flight turns, and flushes session state.
     /// It then exits with [`ShutdownReason::AutoUpdate`] so connected clients reconnect onto the new binary and restore sessions via `session/load`.
     ///
-    /// `to_version` is the version `grok update` just installed; the leader declines if it already runs that version or newer.
+    /// `to_version` is the version `xvora update` just installed; the leader declines if it already runs that version or newer.
     RelaunchForUpdate {
         to_version: String,
     },
@@ -699,7 +699,7 @@ mod tests {
             cwd: Some("/home/u/proj".into()),
             uptime_ms: 4200,
             active_tool_calls: 2,
-            sessions: vec!["grok-a".into(), "grok-b".into()],
+            sessions: vec!["xvora-a".into(), "xvora-b".into()],
             pid: 4242,
         };
         let json = serde_json::to_string(&payload).unwrap();

@@ -11,7 +11,7 @@ use crate::db::{
 pub const WORKTREES_DIR: &str = "worktrees";
 pub const WORKTREE_POOL_DIR: &str = "worktree_pool";
 /// Depth of a worktree below its managed root: `<root>/<repo>/<worktree>`.
-/// [`scan_two_level_dir`] and `grok du`'s bucketing have to agree on it.
+/// [`scan_two_level_dir`] and `xvora du`'s bucketing have to agree on it.
 pub const WORKTREE_DEPTH: usize = 2;
 
 #[derive(Debug)]
@@ -114,20 +114,20 @@ fn scan_two_level_dir(
     }
 }
 
-pub fn discover_worktrees(grok_home: &Path) -> DiscoveryReport {
-    discover_worktrees_skipping(grok_home, &[])
+pub fn discover_worktrees(xvora_home: &Path) -> DiscoveryReport {
+    discover_worktrees_skipping(xvora_home, &[])
 }
 
-fn discover_worktrees_skipping(grok_home: &Path, skip_dests: &[PathBuf]) -> DiscoveryReport {
+fn discover_worktrees_skipping(xvora_home: &Path, skip_dests: &[PathBuf]) -> DiscoveryReport {
     let mut report = DiscoveryReport::default();
     scan_two_level_dir(
-        &grok_home.join(WORKTREES_DIR),
+        &xvora_home.join(WORKTREES_DIR),
         WorktreeKind::Session,
         &mut report,
         skip_dests,
     );
     scan_two_level_dir(
-        &grok_home.join(WORKTREE_POOL_DIR),
+        &xvora_home.join(WORKTREE_POOL_DIR),
         WorktreeKind::Pool,
         &mut report,
         skip_dests,
@@ -182,18 +182,18 @@ pub struct RebuildReport {
     pub already_tracked: u64,
 }
 
-pub fn managed_worktree_roots(grok_home: &Path) -> [PathBuf; 2] {
+pub fn managed_worktree_roots(xvora_home: &Path) -> [PathBuf; 2] {
     [
-        grok_home.join(WORKTREES_DIR),
-        grok_home.join(WORKTREE_POOL_DIR),
+        xvora_home.join(WORKTREES_DIR),
+        xvora_home.join(WORKTREE_POOL_DIR),
     ]
     .map(|root| dunce::canonicalize(&root).unwrap_or(root))
 }
 
 /// True when `path` is under a managed root (`worktrees/` or `worktree_pool/`).
 /// Prefer an already-canonical `path`; the roots are canonicalized inside.
-pub fn path_under_managed_worktree_roots(path: &Path, grok_home: &Path) -> bool {
-    path_under_worktree_roots(path, &managed_worktree_roots(grok_home))
+pub fn path_under_managed_worktree_roots(path: &Path, xvora_home: &Path) -> bool {
+    path_under_worktree_roots(path, &managed_worktree_roots(xvora_home))
 }
 
 /// True when `path` is under (or is) one of `roots`, both already canonical.
@@ -203,33 +203,33 @@ pub fn path_under_worktree_roots(path: &Path, roots: &[PathBuf]) -> bool {
 
 pub fn rebuild_worktree_db(
     db: &crate::db::WorktreeDb,
-    grok_home: &Path,
+    xvora_home: &Path,
 ) -> anyhow::Result<RebuildReport> {
     // Same XDG/HOME candidates as pin-GC / marker lookup : not env-only.
-    rebuild_worktree_db_from_grove_dirs(db, grok_home, &crate::nfs::candidate_data_dirs())
+    rebuild_worktree_db_from_grove_dirs(db, xvora_home, &crate::nfs::candidate_data_dirs())
 }
 
 /// Rebuild with an explicit grove data dir (daemon.db / mounts.toml / markers).
 /// `None` skips the NFS union pass (tests).
 pub fn rebuild_worktree_db_with_grove_data(
     db: &crate::db::WorktreeDb,
-    grok_home: &Path,
+    xvora_home: &Path,
     grove_data_dir: Option<&Path>,
 ) -> anyhow::Result<RebuildReport> {
     match grove_data_dir {
-        Some(dir) => rebuild_worktree_db_from_grove_dirs(db, grok_home, &[dir.to_path_buf()]),
-        None => rebuild_worktree_db_from_grove_dirs(db, grok_home, &[]),
+        Some(dir) => rebuild_worktree_db_from_grove_dirs(db, xvora_home, &[dir.to_path_buf()]),
+        None => rebuild_worktree_db_from_grove_dirs(db, xvora_home, &[]),
     }
 }
 
 fn rebuild_worktree_db_from_grove_dirs(
     db: &crate::db::WorktreeDb,
-    grok_home: &Path,
+    xvora_home: &Path,
     grove_data_dirs: &[PathBuf],
 ) -> anyhow::Result<RebuildReport> {
     let mut report = RebuildReport::default();
     let now = now_epoch_secs();
-    let roots = managed_worktree_roots(grok_home);
+    let roots = managed_worktree_roots(xvora_home);
 
     // Union grove identities before any managed-root walk. The dests we
     // learn here are skipped in discover_worktrees_skipping so is_dir /
@@ -245,7 +245,7 @@ fn rebuild_worktree_db_from_grove_dirs(
     let existing: Vec<crate::nfs::NfsIdentity> =
         crate::nfs::identities_from_worktree_records(&recs);
     // Union every grove data dir before writing metadata. A leftover
-    // ~/.grok/grove marker must not rewrite backing/source_pin alone and
+    // ~/.xvora/grove marker must not rewrite backing/source_pin alone and
     // outrank the live XDG identity (pin-GC already unions first).
     let mut by_id: HashMap<String, crate::nfs::NfsIdentity> = HashMap::new();
     for data_dir in grove_data_dirs {
@@ -259,7 +259,7 @@ fn rebuild_worktree_db_from_grove_dirs(
     }
     let skip_dests = register_nfs_from_union(db, by_id, now, &mut report, &mut counted_nfs, &recs)?;
 
-    let discovery = discover_worktrees_skipping(grok_home, &skip_dests);
+    let discovery = discover_worktrees_skipping(xvora_home, &skip_dests);
     report.discovered += discovery.found.len() as u64;
     for wt in discovery.found {
         let path = dunce::canonicalize(&wt.path).unwrap_or_else(|_| wt.path.clone());
@@ -267,7 +267,7 @@ fn rebuild_worktree_db_from_grove_dirs(
         if !path_under_worktree_roots(&path, &roots) {
             tracing::warn!(
                 path = %path.display(),
-                "rebuild skipped path outside grok worktrees/worktree_pool"
+                "rebuild skipped path outside xvora worktrees/worktree_pool"
             );
             continue;
         }
@@ -496,7 +496,7 @@ fn grove_metadata_from_identity(idn: &crate::nfs::NfsIdentity) -> serde_json::Va
             "mount_id": idn.mount_id,
             "backing": idn.backing.as_ref().map(|p| p.display().to_string()).unwrap_or_default(),
             "source_pin": idn.pin_ref.clone().unwrap_or_else(|| {
-                format!("refs/grok/worktrees/{}", idn.worktree_id)
+                format!("refs/xvora/worktrees/{}", idn.worktree_id)
             }),
         }
     })
@@ -536,12 +536,12 @@ mod tests {
     #[test]
     fn discover_session_worktrees() {
         let tmp = tempfile::TempDir::new().unwrap();
-        let grok_home = tmp.path();
+        let xvora_home = tmp.path();
 
-        let wt = grok_home.join("worktrees/myrepo/worktree-abc123");
+        let wt = xvora_home.join("worktrees/myrepo/worktree-abc123");
         make_fake_linked_worktree(&wt, "/repo/.git/worktrees/abc123");
 
-        let report = discover_worktrees(grok_home);
+        let report = discover_worktrees(xvora_home);
         assert_eq!(report.found.len(), 1);
         assert_eq!(report.found[0].kind, WorktreeKind::Session);
         assert_eq!(report.found[0].creation_mode, "linked");
@@ -551,12 +551,12 @@ mod tests {
     #[test]
     fn discover_pool_worktrees() {
         let tmp = tempfile::TempDir::new().unwrap();
-        let grok_home = tmp.path();
+        let xvora_home = tmp.path();
 
-        let wt = grok_home.join("worktree_pool/inst-1/pool-a");
+        let wt = xvora_home.join("worktree_pool/inst-1/pool-a");
         make_fake_standalone_worktree(&wt);
 
-        let report = discover_worktrees(grok_home);
+        let report = discover_worktrees(xvora_home);
         assert_eq!(report.found.len(), 1);
         assert_eq!(report.found[0].kind, WorktreeKind::Pool);
         assert_eq!(report.found[0].creation_mode, "standalone");
@@ -565,9 +565,9 @@ mod tests {
     #[test]
     fn skips_dot_prefixed_and_markers() {
         let tmp = tempfile::TempDir::new().unwrap();
-        let grok_home = tmp.path();
+        let xvora_home = tmp.path();
 
-        let base = grok_home.join("worktrees/myrepo");
+        let base = xvora_home.join("worktrees/myrepo");
         std::fs::create_dir_all(&base).unwrap();
 
         std::fs::create_dir_all(base.join(".tmp_creating")).unwrap();
@@ -577,7 +577,7 @@ mod tests {
 
         make_fake_standalone_worktree(&base.join("real-session"));
 
-        let report = discover_worktrees(grok_home);
+        let report = discover_worktrees(xvora_home);
         assert_eq!(report.found.len(), 1);
         assert_eq!(report.found[0].path, base.join("real-session"));
         assert!(report.skipped > 0);
@@ -594,19 +594,19 @@ mod tests {
     #[test]
     fn rebuild_registers_and_skips_duplicates() {
         let tmp = tempfile::TempDir::new().unwrap();
-        let grok_home = tmp.path();
+        let xvora_home = tmp.path();
 
-        let wt = grok_home.join("worktrees/repo/worktree-sess1");
+        let wt = xvora_home.join("worktrees/repo/worktree-sess1");
         make_fake_standalone_worktree(&wt);
 
         let db = crate::db::WorktreeDb::open_in_memory().unwrap();
 
-        let r1 = rebuild_worktree_db_with_grove_data(&db, grok_home, None).unwrap();
+        let r1 = rebuild_worktree_db_with_grove_data(&db, xvora_home, None).unwrap();
         assert_eq!(r1.discovered, 1);
         assert_eq!(r1.registered, 1);
         assert_eq!(r1.already_tracked, 0);
 
-        let r2 = rebuild_worktree_db_with_grove_data(&db, grok_home, None).unwrap();
+        let r2 = rebuild_worktree_db_with_grove_data(&db, xvora_home, None).unwrap();
         assert_eq!(r2.discovered, 1);
         assert_eq!(r2.registered, 0);
         assert_eq!(r2.already_tracked, 1);
@@ -618,15 +618,15 @@ mod tests {
         // worktree. Discovery + rebuild must register BOTH (distinct ids), not
         // collapse them into one and then permanently skip the other.
         let tmp = tempfile::TempDir::new().unwrap();
-        let grok_home = tmp.path();
+        let xvora_home = tmp.path();
 
-        let wt_a = grok_home.join("worktrees/repo-a/wt-abc");
-        let wt_b = grok_home.join("worktrees/repo-b/wt-abc");
+        let wt_a = xvora_home.join("worktrees/repo-a/wt-abc");
+        let wt_b = xvora_home.join("worktrees/repo-b/wt-abc");
         make_fake_standalone_worktree(&wt_a);
         make_fake_standalone_worktree(&wt_b);
 
         let db = crate::db::WorktreeDb::open_in_memory().unwrap();
-        let report = rebuild_worktree_db_with_grove_data(&db, grok_home, None).unwrap();
+        let report = rebuild_worktree_db_with_grove_data(&db, xvora_home, None).unwrap();
         assert_eq!(report.discovered, 2);
         assert_eq!(
             report.registered, 2,
@@ -639,7 +639,7 @@ mod tests {
         assert!(db.get(&wt_b.to_string_lossy()).unwrap().is_some());
 
         // Idempotent: a second rebuild finds both already tracked, skips neither.
-        let report2 = rebuild_worktree_db_with_grove_data(&db, grok_home, None).unwrap();
+        let report2 = rebuild_worktree_db_with_grove_data(&db, xvora_home, None).unwrap();
         assert_eq!(report2.registered, 0);
         assert_eq!(report2.already_tracked, 2);
     }
@@ -658,10 +658,10 @@ mod tests {
     #[test]
     fn rebuild_nfs_under_managed_roots_is_not_labeled_linked() {
         let tmp = tempfile::TempDir::new().unwrap();
-        let grok_home = tmp.path().join("grok");
+        let xvora_home = tmp.path().join("xvora");
         let data = tmp.path().join("grove");
-        let dest = grok_home.join("worktrees/repo/nfs-sess");
-        let local = grok_home.join("worktrees/repo/local-sess");
+        let dest = xvora_home.join("worktrees/repo/nfs-sess");
+        let local = xvora_home.join("worktrees/repo/local-sess");
         make_fake_standalone_worktree(&dest);
         make_fake_standalone_worktree(&local);
         let id = "nfs-wt-under-roots";
@@ -672,18 +672,18 @@ mod tests {
             "worktree_id": id,
             "dest": dest,
             "source_repo": tmp.path().join("src-repo"),
-            "pin_ref": format!("refs/grok/worktrees/{id}"),
+            "pin_ref": format!("refs/xvora/worktrees/{id}"),
             "mount_id": 3,
             "created_at": 9,
         });
         std::fs::write(
-            backing.join("grok-nfs-worktree.json"),
+            backing.join("xvora-nfs-worktree.json"),
             serde_json::to_vec(&marker).unwrap(),
         )
         .unwrap();
 
         let db = crate::db::WorktreeDb::open_in_memory().unwrap();
-        let report = rebuild_worktree_db_with_grove_data(&db, &grok_home, Some(&data)).unwrap();
+        let report = rebuild_worktree_db_with_grove_data(&db, &xvora_home, Some(&data)).unwrap();
         assert_eq!(
             report.discovered, 2,
             "nfs identity + local fs row; must not also count the nfs dest via is_dir/.git"
@@ -715,11 +715,11 @@ mod tests {
     #[test]
     fn discover_skips_known_nfs_dests_without_statting() {
         let tmp = tempfile::TempDir::new().unwrap();
-        let grok_home = tmp.path();
-        let dest = grok_home.join("worktrees/repo/nfs-sess");
+        let xvora_home = tmp.path();
+        let dest = xvora_home.join("worktrees/repo/nfs-sess");
         make_fake_standalone_worktree(&dest);
-        assert_eq!(discover_worktrees(grok_home).found.len(), 1);
-        let skipped = discover_worktrees_skipping(grok_home, std::slice::from_ref(&dest));
+        assert_eq!(discover_worktrees(xvora_home).found.len(), 1);
+        let skipped = discover_worktrees_skipping(xvora_home, std::slice::from_ref(&dest));
         assert!(
             skipped.found.is_empty(),
             "skip must be lexical, before is_dir"
@@ -730,9 +730,9 @@ mod tests {
     #[test]
     fn rebuild_registers_nfs_from_backing_marker() {
         let tmp = tempfile::TempDir::new().unwrap();
-        let grok_home = tmp.path().join("grok");
+        let xvora_home = tmp.path().join("xvora");
         let data = tmp.path().join("grove");
-        std::fs::create_dir_all(grok_home.join("worktrees")).unwrap();
+        std::fs::create_dir_all(xvora_home.join("worktrees")).unwrap();
         // Dest is outside managed roots so FS discovery does not register a
         // competing linked/unknown row under a different id.
         let dest = tmp.path().join("nfs-dest");
@@ -745,18 +745,18 @@ mod tests {
             "worktree_id": id,
             "dest": dest,
             "source_repo": tmp.path().join("src-repo"),
-            "pin_ref": format!("refs/grok/worktrees/{id}"),
+            "pin_ref": format!("refs/xvora/worktrees/{id}"),
             "mount_id": 42,
             "created_at": 9,
         });
         std::fs::write(
-            backing.join("grok-nfs-worktree.json"),
+            backing.join("xvora-nfs-worktree.json"),
             serde_json::to_vec(&marker).unwrap(),
         )
         .unwrap();
 
         let db = crate::db::WorktreeDb::open_in_memory().unwrap();
-        let report = rebuild_worktree_db_with_grove_data(&db, &grok_home, Some(&data)).unwrap();
+        let report = rebuild_worktree_db_with_grove_data(&db, &xvora_home, Some(&data)).unwrap();
         assert!(report.registered >= 1);
         let rec = db.get_by_id(id).unwrap().expect("nfs row");
         assert_eq!(rec.creation_mode, crate::nfs::default_grove_creation_mode());
@@ -776,9 +776,9 @@ mod tests {
     #[test]
     fn rebuild_dest_equivalent_does_not_overwrite_live_nfs_metadata() {
         let tmp = tempfile::TempDir::new().unwrap();
-        let grok_home = tmp.path().join("grok");
+        let xvora_home = tmp.path().join("xvora");
         let data = tmp.path().join("grove");
-        std::fs::create_dir_all(grok_home.join("worktrees")).unwrap();
+        std::fs::create_dir_all(xvora_home.join("worktrees")).unwrap();
         let dest = tmp.path().join("shared-dest");
         std::fs::create_dir_all(&dest).unwrap();
         let live_id = "live-nfs";
@@ -788,13 +788,13 @@ mod tests {
         std::fs::create_dir_all(&live_backing).unwrap();
         std::fs::create_dir_all(&stale_backing).unwrap();
         std::fs::write(
-            stale_backing.join("grok-nfs-worktree.json"),
+            stale_backing.join("xvora-nfs-worktree.json"),
             serde_json::to_vec(&serde_json::json!({
                 "schema": 1,
                 "worktree_id": stale_id,
                 "dest": dest,
                 "source_repo": tmp.path().join("src-repo"),
-                "pin_ref": format!("refs/grok/worktrees/{stale_id}"),
+                "pin_ref": format!("refs/xvora/worktrees/{stale_id}"),
                 "mount_id": 99,
                 "created_at": 1,
             }))
@@ -821,13 +821,13 @@ mod tests {
                 "nfs": {
                     "mount_id": 1,
                     "backing": live_backing.display().to_string(),
-                    "source_pin": format!("refs/grok/worktrees/{live_id}"),
+                    "source_pin": format!("refs/xvora/worktrees/{live_id}"),
                 }
             })),
         };
         db.register(&rec).unwrap();
 
-        rebuild_worktree_db_with_grove_data(&db, &grok_home, Some(&data)).unwrap();
+        rebuild_worktree_db_with_grove_data(&db, &xvora_home, Some(&data)).unwrap();
         let kept = db.get_by_id(live_id).unwrap().expect("live row");
         let nfs = kept.metadata.as_ref().unwrap().get("nfs").unwrap();
         assert_eq!(
@@ -837,7 +837,7 @@ mod tests {
         );
         assert_eq!(
             nfs.get("source_pin").and_then(|b| b.as_str()),
-            Some(format!("refs/grok/worktrees/{live_id}")).as_deref()
+            Some(format!("refs/xvora/worktrees/{live_id}")).as_deref()
         );
         assert!(
             db.get_by_id(stale_id).unwrap().is_none(),
@@ -848,11 +848,11 @@ mod tests {
     #[test]
     fn rebuild_sets_last_accessed_at() {
         let tmp = tempfile::TempDir::new().unwrap();
-        let grok_home = tmp.path();
-        let wt = grok_home.join("worktrees/repo/sess");
+        let xvora_home = tmp.path();
+        let wt = xvora_home.join("worktrees/repo/sess");
         make_fake_standalone_worktree(&wt);
         let db = crate::db::WorktreeDb::open_in_memory().unwrap();
-        rebuild_worktree_db_with_grove_data(&db, grok_home, None).unwrap();
+        rebuild_worktree_db_with_grove_data(&db, xvora_home, None).unwrap();
         let rec = db.get(&wt.to_string_lossy()).unwrap().expect("registered");
         assert!(
             rec.last_accessed_at.is_some(),
@@ -864,15 +864,15 @@ mod tests {
     #[test]
     fn rebuild_skips_symlink_escape_outside_managed_roots() {
         let tmp = tempfile::TempDir::new().unwrap();
-        let grok_home = tmp.path().join("grok");
+        let xvora_home = tmp.path().join("xvora");
         let outside = tmp.path().join("outside-real");
         make_fake_standalone_worktree(&outside);
-        let link_parent = grok_home.join("worktrees/repo");
+        let link_parent = xvora_home.join("worktrees/repo");
         std::fs::create_dir_all(&link_parent).unwrap();
         std::os::unix::fs::symlink(&outside, link_parent.join("escaped")).unwrap();
 
         let db = crate::db::WorktreeDb::open_in_memory().unwrap();
-        let report = rebuild_worktree_db_with_grove_data(&db, &grok_home, None).unwrap();
+        let report = rebuild_worktree_db_with_grove_data(&db, &xvora_home, None).unwrap();
         assert_eq!(report.discovered, 1);
         assert_eq!(report.registered, 0, "symlink escape must not register");
         assert!(
@@ -882,7 +882,7 @@ mod tests {
         );
         assert!(!path_under_managed_worktree_roots(
             &dunce::canonicalize(&outside).unwrap(),
-            &grok_home
+            &xvora_home
         ));
     }
 
@@ -894,9 +894,9 @@ mod tests {
             std::env::var_os("GROVE_DATA_DIR").is_none(),
             "production path must not rely on GROVE_DATA_DIR"
         );
-        let grok_home = fx.home.clone();
-        std::fs::create_dir_all(grok_home.join("worktrees")).unwrap();
-        let dest = grok_home.parent().unwrap().join("nfs-xdg-dest");
+        let xvora_home = fx.home.clone();
+        std::fs::create_dir_all(xvora_home.join("worktrees")).unwrap();
+        let dest = xvora_home.parent().unwrap().join("nfs-xdg-dest");
         std::fs::create_dir_all(&dest).unwrap();
         let id = "nfs-wt-xdg";
         let backing = grove.join(crate::nfs::WORKTREE_BACKING_DIR).join(id);
@@ -905,19 +905,19 @@ mod tests {
             "schema": 1,
             "worktree_id": id,
             "dest": dest,
-            "source_repo": grok_home.join("src"),
-            "pin_ref": format!("refs/grok/worktrees/{id}"),
+            "source_repo": xvora_home.join("src"),
+            "pin_ref": format!("refs/xvora/worktrees/{id}"),
             "mount_id": 7,
             "created_at": 1,
         });
         std::fs::write(
-            backing.join("grok-nfs-worktree.json"),
+            backing.join("xvora-nfs-worktree.json"),
             serde_json::to_vec(&marker).unwrap(),
         )
         .unwrap();
 
         let db = crate::db::WorktreeDb::open_in_memory().unwrap();
-        let report = rebuild_worktree_db(&db, &grok_home).unwrap();
+        let report = rebuild_worktree_db(&db, &xvora_home).unwrap();
         assert!(report.registered >= 1, "{report:?}");
         let rec = db.get_by_id(id).unwrap().expect("xdg nfs row");
         assert_eq!(rec.creation_mode, crate::nfs::default_grove_creation_mode());
@@ -926,18 +926,18 @@ mod tests {
     #[test]
     fn rebuild_skips_destless_nfs_identity() {
         let tmp = tempfile::TempDir::new().unwrap();
-        let grok_home = tmp.path().join("grok");
-        std::fs::create_dir_all(grok_home.join("worktrees")).unwrap();
+        let xvora_home = tmp.path().join("xvora");
+        std::fs::create_dir_all(xvora_home.join("worktrees")).unwrap();
         let data = tmp.path().join("grove");
         std::fs::create_dir_all(&data).unwrap();
         // mounts.toml worktree row with pin_ref id but no mountpoint.
         std::fs::write(
             data.join("mounts.toml"),
-            "[[mounts]]\nkind = \"worktree\"\npin_ref = \"refs/grok/worktrees/no-dest\"\nbacking = \"/unused/worktree-backing/no-dest\"\n",
+            "[[mounts]]\nkind = \"worktree\"\npin_ref = \"refs/xvora/worktrees/no-dest\"\nbacking = \"/unused/worktree-backing/no-dest\"\n",
         )
         .unwrap();
         let db = crate::db::WorktreeDb::open_in_memory().unwrap();
-        let report = rebuild_worktree_db_with_grove_data(&db, &grok_home, Some(&data)).unwrap();
+        let report = rebuild_worktree_db_with_grove_data(&db, &xvora_home, Some(&data)).unwrap();
         assert!(
             db.get_by_id("no-dest").unwrap().is_none(),
             "dest-less identity must not register"

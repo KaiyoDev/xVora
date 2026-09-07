@@ -41,7 +41,7 @@ fn web_search_call(id: &str) -> ToolCallEvent {
     }
 }
 
-/// A terminal backend `web_search` `ToolCallUpdate` carrying Grok's nested `WebSearchCall` `raw_output` (`action.query` and `action.sources[].url`).
+/// A terminal backend `web_search` `ToolCallUpdate` carrying xvora's nested `WebSearchCall` `raw_output` (`action.query` and `action.sources[].url`).
 fn web_search_done(id: &str) -> ToolCallUpdateEvent {
     ToolCallUpdateEvent {
         tool_call_id: id.into(),
@@ -78,7 +78,7 @@ fn messages(partials: bool) -> MessagesReducer {
     let mut r = MessagesReducer::new();
     r.begin(SessionContext {
         session_id: "sess-1".into(),
-        model: Some("grok-4".into()),
+        model: Some("xvora-4".into()),
         cwd: "/repo".into(),
         permission_mode: Some("bypassPermissions".into()),
         mcp_servers: vec![McpServer {

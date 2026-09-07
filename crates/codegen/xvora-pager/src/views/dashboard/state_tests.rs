@@ -156,8 +156,8 @@ fn group_priority_ordering() {
 
 #[test]
 fn compact_cwd_strips_home() {
-    let p = Path::new("/Users/alice/projects/grok");
-    assert_eq!(compact_cwd(p, Some("/Users/alice")), "~/projects/grok");
+    let p = Path::new("/Users/alice/projects/xvora");
+    assert_eq!(compact_cwd(p, Some("/Users/alice")), "~/projects/xvora");
 }
 
 #[test]

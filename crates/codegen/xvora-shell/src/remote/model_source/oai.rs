@@ -55,7 +55,7 @@ impl ModelSource for OaiModelSource {
                     .header("Authorization", format!("Bearer {}", &auth.key))
                     .header("X-XAI-Token-Auth", "xvora-cli")
                     .header("x-userid", &auth.user_id)
-                    .header("x-grok-client-version", version::VERSION)
+                    .header("x-xvora-client-version", version::VERSION)
                     .header(
                         crate::http::CLIENT_MODE_HEADER,
                         crate::http::process_client_mode(),
@@ -150,10 +150,10 @@ mod tests {
             .unwrap(),
         );
         let session = ListModelsEndpoint::from_endpoints(&cfg, ModelFetchAuth::Session);
-        assert_eq!(session.url, "https://cli-chat-proxy.grok.com/v1/models");
+        assert_eq!(session.url, "https://cli-chat-proxy.xvora.com/v1/models");
         assert_eq!(session.auth, EndpointAuth::Session);
         let deployment = ListModelsEndpoint::from_endpoints(&cfg, ModelFetchAuth::Deployment);
-        assert_eq!(deployment.url, "https://cli-chat-proxy.grok.com/v1/models");
+        assert_eq!(deployment.url, "https://cli-chat-proxy.xvora.com/v1/models");
         assert_eq!(deployment.auth, EndpointAuth::Session);
         let api = ListModelsEndpoint::from_endpoints(&cfg, ModelFetchAuth::ApiKey);
         assert_eq!(

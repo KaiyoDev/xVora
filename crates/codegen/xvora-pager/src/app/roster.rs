@@ -96,7 +96,7 @@ mod tests {
             title: Some("Fix the roster".to_string()),
             cwd: "/repo/worktree".to_string(),
             is_worktree: true,
-            model_id: Some("grok-4".to_string()),
+            model_id: Some("xvora-4".to_string()),
             reasoning_effort: None,
             yolo: true,
             activity: agent::RosterActivity::Working,
@@ -150,7 +150,7 @@ mod tests {
         assert_eq!(e.title.as_deref(), Some("Fix the roster"));
         assert_eq!(e.cwd, "/repo/worktree");
         assert!(e.is_worktree);
-        assert_eq!(e.model_id.as_deref(), Some("grok-4"));
+        assert_eq!(e.model_id.as_deref(), Some("xvora-4"));
         assert!(e.yolo);
         assert_eq!(e.activity, RosterActivity::Working);
         assert_eq!(

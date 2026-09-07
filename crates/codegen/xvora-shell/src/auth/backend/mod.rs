@@ -8,7 +8,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::Arc;
 use tokio::sync::{mpsc, oneshot};
-mod grok;
+mod xvora;
 /// The inputs of one login attempt.
 pub(crate) struct LoginRequest<'a> {
     pub(crate) auth_manager: &'a Arc<AuthManager>,
@@ -47,7 +47,7 @@ pub(crate) trait AuthBackend {
         diagnostic_uploader: Option<DiagnosticUploader>,
     ) -> Arc<dyn TokenRefresher>;
 }
-pub(crate) type ActiveAuthBackend = grok::GrokAuthBackend;
+pub(crate) type ActiveAuthBackend = xvora::GrokAuthBackend;
 /// Reports a URL the way a user says it, without the scheme.
 pub(crate) fn host_of(url: &str) -> String {
     url.strip_prefix("https://")
@@ -62,6 +62,6 @@ mod tests {
     fn host_of_drops_the_scheme_and_leaves_the_rest_alone() {
         assert_eq!(host_of("https://example.test"), "example.test");
         assert_eq!(host_of("http://localhost:8080"), "localhost:8080");
-        assert_eq!(host_of("grok.com"), "grok.com");
+        assert_eq!(host_of("xvora.com"), "xvora.com");
     }
 }

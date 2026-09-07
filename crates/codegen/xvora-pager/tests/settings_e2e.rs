@@ -2020,9 +2020,9 @@ fn defaults_round_trip_through_registry() {
             "remember_tool_approvals" => SettingValue::Bool(true),
             "toolset.ask_user_question.timeout_enabled" => SettingValue::Bool(true),
             "keep_text_selection" => SettingValue::Enum("flash"),
-            "theme" => SettingValue::Enum("groknight"),
-            "auto_dark_theme" => SettingValue::Enum("groknight"),
-            "auto_light_theme" => SettingValue::Enum("grokday"),
+            "theme" => SettingValue::Enum("XvoNight"),
+            "auto_dark_theme" => SettingValue::Enum("XvoNight"),
+            "auto_light_theme" => SettingValue::Enum("XvoDay"),
             "render_mermaid" => SettingValue::Enum("auto"),
             "multiline_mode" => SettingValue::Bool(false),
             "permission_mode" => SettingValue::Enum("ask"),
@@ -3790,7 +3790,7 @@ fn reset_overlay_dims_all_rows_except_target() {
     }
 }
 
-/// The settings modal renders a 1-line "Ask Grok" tip footer at the bottom of the content area.
+/// The settings modal renders a 1-line "Ask xvora" tip footer at the bottom of the content area.
 /// It shows in Browse, FilterFocused, and PickingEnum modes (always-on tip).
 /// The footer is suppressed in `EditingValue` because the editor needs every line for input and validation.
 /// This pins the discoverability contract.
@@ -3825,12 +3825,12 @@ fn docs_footer_renders_for_browse_and_picker() {
             all_text.push('\n');
         }
         assert!(
-            all_text.contains("Ask Grok"),
-            "[{fixture_label}] docs footer (`Ask Grok`) must appear in the rendered modal:\n\
+            all_text.contains("Ask xvora"),
+            "[{fixture_label}] docs footer (`Ask xvora`) must appear in the rendered modal:\n\
              {all_text}"
         );
         assert!(
-            all_text.contains("change theme to grokday"),
+            all_text.contains("change theme to xvoday"),
             "[{fixture_label}] docs footer must include the example phrasing"
         );
     }
@@ -4211,11 +4211,11 @@ fn pr14_default_model_picker_commits_resolved_model_id() {
     let snapshot = PagerLocalSnapshot {
         available_models: vec![
             (
-                "Grok 4.5".to_string(),
+                "xvora 4.5".to_string(),
                 agent_client_protocol::ModelId::new(std::sync::Arc::from("grok-4.5")),
             ),
             (
-                "Grok 3".to_string(),
+                "xvora 3".to_string(),
                 agent_client_protocol::ModelId::new(std::sync::Arc::from("grok-3")),
             ),
         ],
@@ -4237,7 +4237,7 @@ fn pr14_default_model_picker_commits_resolved_model_id() {
         "Enter must transition to PickingEnum for default_model"
     );
 
-    // Walk down past row 0 ("(no override)") to row 1 ("Grok 4.5").
+    // Walk down past row 0 ("(no override)") to row 1 ("xvora 4.5").
     let outcome = handle_settings_key(&mut s, &press(KeyCode::Down));
     assert!(
         matches!(outcome, SettingsKeyOutcome::Changed),
@@ -4267,7 +4267,7 @@ fn pr14_default_model_picker_commits_resolved_model_id() {
 fn pr14_default_model_picker_row_zero_commits_clear_action() {
     let snapshot = PagerLocalSnapshot {
         available_models: vec![(
-            "Grok 3".to_string(),
+            "xvora 3".to_string(),
             agent_client_protocol::ModelId::new(std::sync::Arc::from("grok-3")),
         )],
         ..PagerLocalSnapshot::default()
@@ -4303,7 +4303,7 @@ fn pr14_default_model_picker_row_zero_commits_clear_action() {
 fn pr14_mouse_click_on_dynamic_enum_row_opens_picker() {
     let snapshot = PagerLocalSnapshot {
         available_models: vec![(
-            "Grok 3".to_string(),
+            "xvora 3".to_string(),
             agent_client_protocol::ModelId::new(std::sync::Arc::from("grok-3")),
         )],
         ..PagerLocalSnapshot::default()

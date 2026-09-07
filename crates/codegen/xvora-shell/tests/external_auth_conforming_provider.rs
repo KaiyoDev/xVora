@@ -83,15 +83,15 @@ fn dead_endpoint() -> String {
 
 #[tokio::test]
 async fn a_provider_that_declines_the_headless_run_can_still_sign_the_user_in() {
-    let home = tempfile::tempdir().expect("grok home");
+    let home = tempfile::tempdir().expect("xvora home");
     let provider = write_conforming_provider(home.path());
     let dead = dead_endpoint();
 
     // SAFETY: single-threaded test entry, before any thread that reads the
-    // environment is spawned. `grok_home()` memoizes, so this must stay the
+    // environment is spawned. `xvora_home()` memoizes, so this must stay the
     // only test in the binary.
     unsafe {
-        std::env::set_var("GROK_HOME", home.path());
+        std::env::set_var("xvora_home", home.path());
         std::env::set_var("GROK_CLI_CHAT_PROXY_BASE_URL", &dead);
         std::env::set_var("GROK_XAI_API_BASE_URL", &dead);
         std::env::remove_var("XAI_API_KEY");

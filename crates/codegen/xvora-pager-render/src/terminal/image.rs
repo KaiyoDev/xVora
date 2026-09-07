@@ -46,7 +46,7 @@ impl GraphicsProtocol {
 static GRAPHICS_PROTOCOL: OnceLock<GraphicsProtocol> = OnceLock::new();
 
 /// When set, scrollback inline-media overlays are forced **off** process-wide, regardless of the terminal's graphics capability.
-/// The scrollback-native minimal mode (`grok --minimal`) sets this once at startup because it never runs the interactive draw loop.
+/// The scrollback-native minimal mode (`xvora --minimal`) sets this once at startup because it never runs the interactive draw loop.
 /// In that mode, committed media blocks must always fall back to the `[Open …]` text affordance and must not reserve blank image rows.
 /// See [`set_inline_overlay_force_off`].
 static INLINE_OVERLAY_FORCE_OFF: AtomicBool = AtomicBool::new(false);
@@ -311,8 +311,8 @@ fn convert_via_sips(image_data: &[u8]) -> Option<Vec<u8>> {
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
         .as_nanos();
-    let src = tmp_dir.join(format!("grok-sips-{id}-{ts}.dat"));
-    let dst = tmp_dir.join(format!("grok-sips-{id}-{ts}.png"));
+    let src = tmp_dir.join(format!("xvora-sips-{id}-{ts}.dat"));
+    let dst = tmp_dir.join(format!("xvora-sips-{id}-{ts}.png"));
 
     // Write source bytes to temp file.
     let mut f = std::fs::File::create(&src).ok()?;

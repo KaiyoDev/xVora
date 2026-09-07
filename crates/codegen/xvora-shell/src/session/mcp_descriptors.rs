@@ -177,7 +177,7 @@ fn is_gateway_owned_descriptor(path: &Path) -> bool {
         return false;
     };
     value
-        .get("x-grok-managed-gateway")
+        .get("x-xvora-managed-gateway")
         .and_then(|v| v.as_bool())
         == Some(true)
 }
@@ -240,7 +240,7 @@ mod tests {
 
     #[test]
     fn server_dir_is_joined_under_root() {
-        let root = Path::new("/home/u/.grok/projects/enc/mcps");
+        let root = Path::new("/home/u/.xvora/projects/enc/mcps");
         assert_eq!(server_descriptor_dir(root, "vercel"), root.join("vercel"));
     }
 
@@ -319,7 +319,7 @@ mod tests {
                 "name": "gateway_tool",
                 "description": "Gateway tool",
                 "inputSchema": {"type": "object"},
-                "x-grok-managed-gateway": true,
+                "x-xvora-managed-gateway": true,
             }))
             .unwrap(),
         )

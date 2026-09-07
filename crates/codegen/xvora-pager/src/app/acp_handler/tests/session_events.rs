@@ -1,4 +1,4 @@
-#![cfg_attr(rustfmt, rustfmt::skip)]
+﻿#![cfg_attr(rustfmt, rustfmt::skip)]
     use super::*;
 
     // ── apply_session_event ────────────────────────────────────────────
@@ -221,8 +221,8 @@
             attempts: 2,
             reason: "API error (status 429 Too Many Requests): \
                      Some resource has been exhausted: You are sending requests too quickly. \
-                     Please slow down, or upgrade to a Grok subscription for higher limits: \
-                     https://grok.com/supergrok"
+                     Please slow down, or upgrade to a xvora subscription for higher limits: \
+                     https://xvora.com/supergrok"
                 .into(),
             is_rate_limited: true,
         };
@@ -233,7 +233,7 @@
         match last_session_event(&scrollback) {
             Some(SessionEvent::RetryFailed { error, .. }) => {
                 assert_eq!(error, RATE_LIMITED_USER_MESSAGE_API_KEY);
-                assert!(!error.contains("grok.com/supergrok"));
+                assert!(!error.contains("xvora.com/supergrok"));
             }
             other => panic!("expected API-key rate-limit RetryFailed, got {other:?}"),
         }
@@ -397,7 +397,7 @@
             &RetryState::Failed {
                 error_type: "api".into(),
                 message:
-                    "API error (status 402 Payment Required): Grok Build usage balance exhausted"
+                    "API error (status 402 Payment Required): xvora build usage balance exhausted"
                         .into(),
             },
             &mut session,
@@ -472,7 +472,7 @@
         apply_retry_state(
             &RetryState::Failed {
                 error_type: "auth".into(),
-                message: "Unauthorized (401) from https://cli-chat-proxy.grok.com/v1/messages: \
+                message: "Unauthorized (401) from https://cli-chat-proxy.xvora.com/v1/messages: \
                           no auth context"
                     .into(),
             },
@@ -533,7 +533,7 @@
         ));
     }
 
-    /// Legacy WebLogin auth keeps its verbose message (with `grok logout` / `grok login` guidance), not the generic re-auth prompt.
+    /// Legacy WebLogin auth keeps its verbose message (with `xvora logout` / `xvora login` guidance), not the generic re-auth prompt.
     #[test]
     fn apply_retry_state_legacy_auth_keeps_detailed_message() {
         let mut session = make_session(Some("s1"));
@@ -542,7 +542,7 @@
             &RetryState::Failed {
                 error_type: "legacy_auth".into(),
                 message: "Unauthorized (401) ... deprecated authentication method (WebLogin) ... \
-                          run `grok logout` then `grok login`"
+                          run `xvora logout` then `xvora login`"
                     .into(),
             },
             &mut session,

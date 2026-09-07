@@ -534,7 +534,7 @@ pub async fn get_worktree_info(cwd: &Path) -> Option<(bool, Option<String>)> {
         let mut marker_main = None;
         for ancestor in cwd.ancestors() {
             let git = ancestor.join(".git");
-            if let Ok(contents) = std::fs::read_to_string(git.join("grok-worktree-source"))
+            if let Ok(contents) = std::fs::read_to_string(git.join("xvora-worktree-source"))
                 && let trimmed = contents.trim()
                 && !trimmed.is_empty()
             {
@@ -1958,7 +1958,7 @@ pub async fn stash_before_destructive_op(
         return StashOutcome::Skipped(reason);
     }
     let message = format!(
-        "grok: pre-{label} {} {}",
+        "xvora: pre-{label} {} {}",
         session_id,
         chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ")
     );
@@ -2299,19 +2299,19 @@ async fn pop_checkout_auto_stash(
 /// `--depth=1` is only added when the repo is already shallow.
 /// That is only acceptable in two situations:
 ///
-/// 1. `supplied_cwd` is a grok-managed worktree (`~/.grok/worktrees/...`).
+/// 1. `supplied_cwd` is a xvora-managed worktree (`~/.xvora/worktrees/...`).
 ///    These are disposable snapshots that exist precisely to carry a detached session HEAD.
 /// 2. `supplied_cwd` is exactly the cwd the session was persisted with (`persisted_cwd`), the original "same-directory restore" intent.
 ///
 /// In every other case running the checkout would silently detach the user's real repository and leave their active branch behind, so we refuse.
 /// The notable case: a forked-worktree session persisted with `git_ref = origin/main` but later loaded with `cwd = <source repo>`.
 pub fn restore_code_checkout_allowed(supplied_cwd: &Path, persisted_cwd: Option<&str>) -> bool {
-    let worktrees_dir = tools::util::grok_home::grok_home().join("worktrees");
+    let worktrees_dir = tools::util::xvora_home::xvora_home().join("worktrees");
     restore_code_checkout_allowed_in(supplied_cwd, persisted_cwd, &worktrees_dir)
 }
 /// Pure core of [`restore_code_checkout_allowed`] with the worktrees root
 /// injected so the decision can be unit-tested without touching
-/// `~/.grok`.
+/// `~/.xvora`.
 fn restore_code_checkout_allowed_in(
     supplied_cwd: &Path,
     persisted_cwd: Option<&str>,
@@ -2776,12 +2776,12 @@ async fn git_cli_raw_mut(cwd: &Path, args: &[&str]) -> Result<(bool, String)> {
 }
 /// Marker line guarding the default-exclude seed.
 /// Environments may pre-seed the same block at provision time under this marker; whichever side seeds first wins and the other becomes a no-op.
-const DEFAULT_EXCLUDES_MARKER: &str = "grok default excludes";
+const DEFAULT_EXCLUDES_MARKER: &str = "xvora default excludes";
 /// Local-only default excludes so `stage_all` can't sweep in dependency trees, build output, or env files.
 /// Lives in `.git/info/exclude`, which never enters the repo's history. `git add -f` still overrides.
 const DEFAULT_EXCLUDES_BLOCK: &str = "\
-# grok default excludes (local-only; seeded by the workspace git_commit op)
-.grok/
+# xvora default excludes (local-only; seeded by the workspace git_commit op)
+.xvora/
 node_modules/
 .env
 .env.*

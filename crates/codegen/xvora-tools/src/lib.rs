@@ -1,4 +1,4 @@
-//! Grok tools library.
+//! xvora tools library.
 
 pub use version::VERSION;
 

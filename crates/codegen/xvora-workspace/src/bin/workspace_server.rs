@@ -1,6 +1,6 @@
 //! Standalone workspace ToolServer for remote sandboxes.
 //!
-//! Reads OIDC credentials from `~/.grok/auth.json`, connects to a
+//! Reads OIDC credentials from `~/.xvora/auth.json`, connects to a
 //! server, exposes workspace tools, and refreshes tokens automatically.
 use clap::Parser;
 use diag_server::{self as diag_server, DiagHandle, ErrorClass};
@@ -67,7 +67,7 @@ struct Args {
     /// Legacy binaries reject the unknown flag via clap (non-zero exit), giving the launcher a definitive feature probe.
     #[arg(long)]
     capabilities: bool,
-    #[arg(long, default_value = "wss://computer-hub.grok.com/v1/tools")]
+    #[arg(long, default_value = "wss://computer-hub.xvora.com/v1/tools")]
     hub_url: String,
     #[arg(long)]
     auth_config: Option<PathBuf>,
@@ -110,7 +110,7 @@ struct Args {
     /// Fail `session.bind`s without an explicit toolset closed (RPC-only) instead of widening to the built-in default catalog.
     #[arg(long)]
     require_explicit_toolset: bool,
-    /// Trust project-scoped LSP servers from `<repo>/.grok/lsp.json`.
+    /// Trust project-scoped LSP servers from `<repo>/.xvora/lsp.json`.
     /// Defaults off; sandbox opts in only after workspace trust is established.
     #[arg(
         long,
@@ -921,7 +921,7 @@ mod tests {
             "--preview-instance-suffix",
             ".inst.example",
             "--preview-auth-redirect",
-            "https://grok.com/preview-auth",
+            "https://xvora.com/preview-auth",
             "--preview-allow-public",
             "--preview-workspace-server-port",
             "8470",
@@ -938,7 +938,7 @@ mod tests {
         assert_eq!(cfg.instance_suffix.as_deref(), Some(".inst.example"));
         assert_eq!(
             cfg.auth_redirect.as_deref(),
-            Some("https://grok.com/preview-auth")
+            Some("https://xvora.com/preview-auth")
         );
         assert!(cfg.allow_public);
         assert_eq!(cfg.workspace_server_port, Some(8470));
@@ -955,7 +955,7 @@ mod tests {
                 "--instance-suffix",
                 ".inst.example",
                 "--auth-redirect",
-                "https://grok.com/preview-auth",
+                "https://xvora.com/preview-auth",
                 "--allow-public",
                 "--workspace-server-port",
                 "8470",

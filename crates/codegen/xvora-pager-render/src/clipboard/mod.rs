@@ -32,13 +32,13 @@ fn is_container_no_display() -> bool {
 
 /// Cached result of the "an upstream OSC 52 sink is capturing our output" check.
 ///
-/// `grok wrap` runs a command inside a local PTY and scans its output for OSC 52 clipboard sequences (see `xvora-pager`'s `pty_wrap` module).
+/// `xvora wrap` runs a command inside a local PTY and scans its output for OSC 52 clipboard sequences (see `xvora-pager`'s `pty_wrap` module).
 /// It writes each payload to the *real* (local) system clipboard and advertises this to the wrapped program via an environment variable.
-/// The inner `grok` then knows its OSC 52 writes are reliably intercepted and copied, even when the inner terminal brand is misdetected.
+/// The inner `xvora` then knows its OSC 52 writes are reliably intercepted and copied, even when the inner terminal brand is misdetected.
 /// Over SSH only `TERM` propagates, so Apple Terminal and unknown brands look OSC-52-incapable.
 ///
 /// Two names are accepted: the canonical `GROK_OSC52_SINK` (inherited by local children) and the `LC_`-prefixed `LC_GROK_OSC52_SINK`.
-/// Default OpenSSH configs forward it (`SendEnv LANG LC_*` / `AcceptEnv LANG LC_*`), so the signal survives the hop into a remote `grok`.
+/// Default OpenSSH configs forward it (`SendEnv LANG LC_*` / `AcceptEnv LANG LC_*`), so the signal survives the hop into a remote `xvora`.
 pub fn osc52_sink_active() -> bool {
     static SINK: OnceLock<bool> = OnceLock::new();
     *SINK.get_or_init(|| {
@@ -49,7 +49,7 @@ pub fn osc52_sink_active() -> bool {
 
 /// Kill switch: never emit OSC 52 clipboard sequences.
 ///
-/// Set `GROK_CLIPBOARD_NO_OSC52` (any value) before starting Grok.
+/// Set `GROK_CLIPBOARD_NO_OSC52` (any value) before starting xvora.
 /// Presence forces the OSC 52 leg off for the whole process, including Linux "always emit", tmux, SSH, container, and `GROK_OSC52_SINK` paths.
 /// Use this when the host terminal paints OSC 52 payloads as visible garbage (e.g. OpenText Exceed and other non-supporting emulators).
 pub fn osc52_disabled() -> bool {
@@ -145,7 +145,7 @@ struct ClipboardRouteOpts {
 fn resolve_clipboard_route_with(ctx: &TerminalContext, opts: ClipboardRouteOpts) -> ClipboardRoute {
     let is_tmux = ctx.multiplexer == MultiplexerKind::Tmux;
     // Linux: always emit OSC 52 as a safety net; other terminal agent CLIs emit OSC 52 on every copy
-    // macOS/Windows: emit only in tmux/SSH/container contexts, or when an upstream `grok wrap` sink is capturing our output
+    // macOS/Windows: emit only in tmux/SSH/container contexts, or when an upstream `xvora wrap` sink is capturing our output
     // The sink forwards captured OSC 52 to the real clipboard
     // `GROK_CLIPBOARD_NO_OSC52` wins over every automatic path.
     let osc52 = !opts.no_osc52
@@ -345,7 +345,7 @@ impl ClipboardFeedback {
             Self::CopiedOscContainer => "Copied via OSC 52 from the container.",
             Self::CopiedOscRemote => "Copied via OSC 52.",
             Self::UnverifiedOscRemote | Self::UnverifiedOscContainer => {
-                "Copy sent. If paste fails, use grok wrap or /minimal."
+                "Copy sent. If paste fails, use xvora wrap or /minimal."
             }
             Self::VsCodeSshNonAscii => {
                 "Copied. VS Code over SSH may garble non-ASCII; use /minimal if needed."
@@ -409,7 +409,7 @@ fn decision_for_legs(legs: &ClipboardWriteLegs, text: &str) -> ClipboardFeedback
     trust::resolve_copy_decision(legs, text, clipboard_environment(legs))
 }
 
-/// Write text and return a toast; emits `grok-shell-clipboard_copy` when enabled.
+/// Write text and return a toast; emits `xvora-shell-clipboard_copy` when enabled.
 pub fn copy_text(text: &str) -> CopyResult {
     let started = std::time::Instant::now();
     let route = clipboard_route();
@@ -488,10 +488,10 @@ impl CopyDelivery {
 /// Default path for the always-written copy backup file.
 ///
 /// Override with [`GROK_COPY_FILE_ENV`] (supports `~`). Otherwise
-/// `~/.grok/last-copy.txt` (grok's per-user home — short, stable, and
+/// `~/.xvora/last-copy.txt` (xvora's per-user home — short, stable, and
 /// readable in a toast, unlike macOS's `/var/folders/...` temp dir).
 ///
-/// `None` when no grok home resolves and the env var is unset.
+/// `None` when no xvora home resolves and the env var is unset.
 /// Rather than write to a predictable world-visible temp path, the backup file is skipped (the clipboard legs still fire).
 pub fn default_copy_fallback_path() -> Option<std::path::PathBuf> {
     if let Ok(raw) = std::env::var(GROK_COPY_FILE_ENV) {
@@ -502,12 +502,12 @@ pub fn default_copy_fallback_path() -> Option<std::path::PathBuf> {
             ));
         }
     }
-    config::user_grok_home().map(|grok_home| grok_home.join("last-copy.txt"))
+    config::user_grok_home().map(|xvora_home| xvora_home.join("last-copy.txt"))
 }
 
 /// Render a backup-file path for user-facing messages using the codebase-wide
-/// abbreviation convention ([`crate::util::abbreviate_path`]): a grok-home
-/// prefix collapses to `~/.grok` (or `$GROK_HOME` when overridden), and a
+/// abbreviation convention ([`crate::util::abbreviate_path`]): a xvora-home
+/// prefix collapses to `~/.xvora` (or `$xvora_home` when overridden), and a
 /// plain home prefix collapses to `~` — so toasts stay short.
 pub fn display_copy_path(path: &std::path::Path) -> String {
     crate::util::abbreviate_path(&path.to_string_lossy()).into_owned()
@@ -534,7 +534,7 @@ pub fn write_text_to_copy_file(
 
 /// Write `text` to `path`, owner-readable only (`0600`) on unix.
 ///
-/// A pre-existing file (e.g. a `last-copy.txt` created `0644` by an older grok) is tightened via `set_permissions`.
+/// A pre-existing file (e.g. a `last-copy.txt` created `0644` by an older xvora) is tightened via `set_permissions`.
 /// The create-time `mode` only applies to newly created files.
 /// Non-unix falls back to a plain write.
 fn write_owner_only(path: &std::path::Path, text: &str) -> std::io::Result<()> {
@@ -562,7 +562,7 @@ fn write_owner_only(path: &std::path::Path, text: &str) -> std::io::Result<()> {
 ///
 /// On Unix a missing parent directory is created `0700` (a custom
 /// `GROK_COPY_FILE` may point at a not-yet-created private directory;
-/// `~/.grok` normally already exists).
+/// `~/.xvora` normally already exists).
 pub fn write_copy_fallback(text: &str) -> std::io::Result<std::path::PathBuf> {
     let Some(path) = default_copy_fallback_path() else {
         return Err(std::io::Error::new(
@@ -608,7 +608,7 @@ fn resolve_delivery(
 /// (Claude Code parity: every copy lands in a file too).
 ///
 /// The file is the recovery path for terminals that cannot reach the local
-/// clipboard over SSH (notably Apple Terminal without `grok wrap`); a failed
+/// clipboard over SSH (notably Apple Terminal without `xvora wrap`); a failed
 /// file write never fails a copy whose clipboard leg succeeded.
 pub fn copy_text_or_file(text: &str) -> CopyDelivery {
     let clipboard = copy_text(text);
@@ -1824,7 +1824,7 @@ mod tests {
         );
         assert!(
             on.osc52,
-            "grok wrap sink must emit OSC 52 so the local PTY can intercept it"
+            "xvora wrap sink must emit OSC 52 so the local PTY can intercept it"
         );
         let killed = resolve_clipboard_route_with(
             &plain_terminal_ctx(),
@@ -2073,14 +2073,14 @@ mod tests {
             (
                 ClipboardFeedback::UnverifiedOscRemote,
                 ClipboardDelivery::Unverified,
-                "Copy sent. If paste fails, use grok wrap or /minimal.",
+                "Copy sent. If paste fails, use xvora wrap or /minimal.",
                 "unverified_osc_remote",
                 120,
             ),
             (
                 ClipboardFeedback::UnverifiedOscContainer,
                 ClipboardDelivery::Unverified,
-                "Copy sent. If paste fails, use grok wrap or /minimal.",
+                "Copy sent. If paste fails, use xvora wrap or /minimal.",
                 "unverified_osc_container",
                 120,
             ),
@@ -2135,7 +2135,7 @@ mod tests {
     }
 
     /// Copied text can be sensitive and the fallback path is predictable, so the file must be owner-only (`0600`).
-    /// That includes a pre-existing `0644` file left by an older grok.
+    /// That includes a pre-existing `0644` file left by an older xvora.
     #[cfg(unix)]
     #[test]
     fn copy_file_is_owner_only_0600() {
@@ -2200,8 +2200,8 @@ mod tests {
         assert_eq!(std::fs::read_to_string(&custom).expect("read"), "payload");
     }
 
-    /// Without `GROK_COPY_FILE`, the default is `~/.grok/last-copy.txt`
-    /// (grok home) — short and toast-friendly, unlike macOS's temp dir.
+    /// Without `GROK_COPY_FILE`, the default is `~/.xvora/last-copy.txt`
+    /// (xvora home) — short and toast-friendly, unlike macOS's temp dir.
     #[test]
     #[serial_test::serial(grok_copy_file)]
     fn default_copy_fallback_path_is_grok_home() {
@@ -2209,7 +2209,7 @@ mod tests {
             std::env::remove_var(GROK_COPY_FILE_ENV);
         }
         let path = default_copy_fallback_path();
-        // Test envs always resolve a home (or set GROK_HOME).
+        // Test envs always resolve a home (or set xvora_home).
         let expected = config::user_grok_home()
             .expect("home resolves in tests")
             .join("last-copy.txt");
@@ -2217,21 +2217,21 @@ mod tests {
     }
 
     /// Toast paths collapse the home prefix to `~`.
-    /// Grok-home paths go through the shared `abbreviate_path` convention.
-    /// The `GROK_HOME`-override integration test in `xvora-pager` covers that further.
+    /// xvora-home paths go through the shared `abbreviate_path` convention.
+    /// The `xvora_home`-override integration test in `xvora-pager` covers that further.
     #[test]
     fn display_copy_path_abbreviates_home() {
-        if std::env::var_os("GROK_HOME").is_none() {
+        if std::env::var_os("xvora_home").is_none() {
             let home = dirs::home_dir().expect("home resolves in tests");
             assert_eq!(
-                display_copy_path(&home.join(".grok").join("last-copy.txt")),
-                "~/.grok/last-copy.txt"
+                display_copy_path(&home.join(".xvora").join("last-copy.txt")),
+                "~/.xvora/last-copy.txt"
             );
         }
         // Non-home paths pass through untouched, including multi-byte UTF-8 components (must never slice at a non-char boundary)
         assert_eq!(
-            display_copy_path(std::path::Path::new("/tmp/grok-0/last-copy.txt")),
-            "/tmp/grok-0/last-copy.txt"
+            display_copy_path(std::path::Path::new("/tmp/xvora-0/last-copy.txt")),
+            "/tmp/xvora-0/last-copy.txt"
         );
         assert_eq!(
             display_copy_path(std::path::Path::new("/tmp/日本語/コピー.txt")),
@@ -2256,7 +2256,7 @@ mod tests {
 
     #[test]
     fn delivery_clipboard_success_carries_backup_file() {
-        let path = std::path::PathBuf::from("/tmp/grok-1/last-copy.txt");
+        let path = std::path::PathBuf::from("/tmp/xvora-1/last-copy.txt");
         match resolve_delivery(copy_result(true), Ok(path.clone())) {
             CopyDelivery::Clipboard { result, file } => {
                 assert!(result.delivery.reported_success());
@@ -2281,7 +2281,7 @@ mod tests {
     /// Clipboard `Failed` still yields `File` delivery.
     #[test]
     fn delivery_clipboard_failure_yields_file() {
-        let path = std::path::PathBuf::from("/tmp/grok-1/last-copy.txt");
+        let path = std::path::PathBuf::from("/tmp/xvora-1/last-copy.txt");
         let delivery = resolve_delivery(copy_result(false), Ok(path.clone()));
         assert!(delivery.success());
         match delivery {
@@ -2302,7 +2302,7 @@ mod tests {
 
     #[test]
     fn toast_message_names_backup_only_for_unverified_or_file_fallback() {
-        let path = std::path::PathBuf::from("/tmp/grok-1/last-copy.txt");
+        let path = std::path::PathBuf::from("/tmp/xvora-1/last-copy.txt");
 
         let confirmed = CopyDelivery::Clipboard {
             result: ClipboardFeedback::Copied.to_result(),
@@ -2323,7 +2323,7 @@ mod tests {
         };
         assert_eq!(
             unverified.toast_message(),
-            "Copy sent, saved to /tmp/grok-1/last-copy.txt"
+            "Copy sent, saved to /tmp/xvora-1/last-copy.txt"
         );
         assert_eq!(unverified.toast_ticks(), 120);
 
@@ -2339,7 +2339,7 @@ mod tests {
         let file_only = CopyDelivery::File { path };
         assert_eq!(
             file_only.toast_message(),
-            "Clipboard unreachable: wrote /tmp/grok-1/last-copy.txt"
+            "Clipboard unreachable: wrote /tmp/xvora-1/last-copy.txt"
         );
         assert_eq!(file_only.toast_ticks(), 120);
 
@@ -2354,7 +2354,7 @@ mod tests {
     /// Unverified OSC still composes as clipboard delivery (not file fallback).
     #[test]
     fn unverified_clipboard_delivery_composes_as_clipboard() {
-        let path = std::path::PathBuf::from("/tmp/grok-1/last-copy.txt");
+        let path = std::path::PathBuf::from("/tmp/xvora-1/last-copy.txt");
         let delivery = resolve_delivery(
             ClipboardFeedback::UnverifiedOscRemote.to_result(),
             Ok(path.clone()),

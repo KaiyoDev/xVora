@@ -256,7 +256,7 @@ impl WorktreeIdentityRepair {
 /// `Err` means the on-disk state is unknown; callers must keep their summary as-is rather than display a label the file may not have.
 ///
 /// Repairs summaries created before identity was stamped at creation.
-/// Desktop hides local rows whose cwd sits under a grok worktree unless they carry a label (or `session_kind == "worktree"`).
+/// Desktop hides local rows whose cwd sits under a xvora worktree unless they carry a label (or `session_kind == "worktree"`).
 /// Those sessions never appear, so a repair that ran only on session load would never fire.
 pub(crate) fn repair_worktree_identity(
     summary_path: &Path,
@@ -303,7 +303,7 @@ pub(crate) fn repair_worktree_identity(
     result
 }
 
-/// Read-site repair for a `summary` that is untagged, or kinded but still missing `worktree_label`, when its cwd is inside a grok-managed worktree.
+/// Read-site repair for a `summary` that is untagged, or kinded but still missing `worktree_label`, when its cwd is inside a xvora-managed worktree.
 /// Stamps the missing identity on disk via [`repair_worktree_identity`] and replaces `summary` with the lock-fresh on-disk state.
 /// Memory then mirrors disk whichever way the repair went.
 /// On failure the summary stays as-is (logged); the next read retries.

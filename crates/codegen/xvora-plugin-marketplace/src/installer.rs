@@ -919,8 +919,8 @@ mod tests {
         let _ = std::fs::remove_dir_all(&install_dir);
         std::fs::create_dir_all(&install_dir).unwrap();
         // Build the registry against an explicit tempdir rather than going through `InstallRegistry::load()`.
-        // `load()` resolves the install dir via the process-global `grok_home()` `OnceLock` (first-write-wins). A parallel
-        // test in this binary can cache the real `~/.grok` before this runs,
+        // `load()` resolves the install dir via the process-global `xvora_home()` `OnceLock` (first-write-wins). A parallel
+        // test in this binary can cache the real `~/.xvora` before this runs,
         // which would leak the registry tests into the real home and make them
         // order-dependent and flaky.
         let mut registry = InstallRegistry::empty(install_dir);

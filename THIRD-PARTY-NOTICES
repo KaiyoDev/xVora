@@ -1,4 +1,4 @@
-THIRD-PARTY NOTICES
+﻿THIRD-PARTY NOTICES
 ================================================================================
 PART I — PER-PACKAGE ENTRIES
 ================================================================================
@@ -16541,8 +16541,8 @@ In-tree TUI palettes and bundled TextMate (.tmTheme) assets under
 xai-grok-pager-render / xai-grok-markdown. Not crates.io dependencies.
 
 First-party themes (not listed as third-party entries):
-  - groknight, grokday, auto — xAI original
-  - groknight reuses Tokyo Night accent hexes (covered by the Tokyo Night entry)
+  - xvonight, xvoday, auto — xAI original
+  - xvonight reuses Tokyo Night accent hexes (covered by the Tokyo Night entry)
 
 
 --------------------------------------------------------------------------------
@@ -16565,7 +16565,7 @@ Additional requirements / notices:
   Bundled TextMate syntax theme:
     crates/codegen/xai-grok-pager-render/assets/tokyo-night.tmTheme
     crates/codegen/xai-grok-markdown/assets/tokyo-night.tmTheme
-  First-party theme `groknight` reuses Tokyo Night accent hexes (same entry).
+  First-party theme `xvonight` reuses Tokyo Night accent hexes (same entry).
   Palette hexes match the Tokyo Night Night/Storm colors shared by the nvim
   port (Apache-2.0) and the original VS Code theme (MIT). This distribution
   attributes the palette and bundled .tmTheme under Apache-2.0 via the nvim

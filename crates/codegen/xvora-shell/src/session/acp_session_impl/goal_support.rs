@@ -757,13 +757,13 @@ mod fold_tokens_by_model_tests {
     fn mixed_models_sum_marginals_sorted_desc() {
         let records = vec![
             rec(Some("g1"), 0, 100, Some("grok-3")),
-            rec(Some("g1"), 100, 500, Some("grok-4")), // marginal 400
-            rec(Some("g1"), 0, 50, Some("grok-3")),    // grok-3 total 150
+            rec(Some("g1"), 100, 500, Some("xvora-4")), // marginal 400
+            rec(Some("g1"), 0, 50, Some("grok-3")),     // grok-3 total 150
         ];
         let out = fold_tokens_by_model(&records, "g1", "cur");
         assert_eq!(
             out,
-            vec![("grok-4".to_owned(), 400), ("grok-3".to_owned(), 150)]
+            vec![("xvora-4".to_owned(), 400), ("grok-3".to_owned(), 150)]
         );
     }
 
@@ -790,37 +790,37 @@ mod fold_tokens_by_model_tests {
     #[test]
     fn single_distinct_model_collapses_to_one_entry() {
         let records = vec![
-            rec(Some("g1"), 0, 100, Some("grok-4")),
-            rec(Some("g1"), 0, 200, None), // folds under current = grok-4
+            rec(Some("g1"), 0, 100, Some("xvora-4")),
+            rec(Some("g1"), 0, 200, None), // folds under current = xvora-4
         ];
-        let out = fold_tokens_by_model(&records, "g1", "grok-4");
-        assert_eq!(out, vec![("grok-4".to_owned(), 300)]);
+        let out = fold_tokens_by_model(&records, "g1", "xvora-4");
+        assert_eq!(out, vec![("xvora-4".to_owned(), 300)]);
     }
 
     #[test]
     fn other_goal_records_excluded() {
         let records = vec![
-            rec(Some("g1"), 0, 100, Some("grok-4")),
-            rec(Some("g2"), 0, 999, Some("grok-4")),
-            rec(None, 0, 999, Some("grok-4")),
+            rec(Some("g1"), 0, 100, Some("xvora-4")),
+            rec(Some("g2"), 0, 999, Some("xvora-4")),
+            rec(None, 0, 999, Some("xvora-4")),
         ];
         let out = fold_tokens_by_model(&records, "g1", "cur");
-        assert_eq!(out, vec![("grok-4".to_owned(), 100)]);
+        assert_eq!(out, vec![("xvora-4".to_owned(), 100)]);
     }
 
     #[test]
     fn last_below_anchor_does_not_underflow() {
-        let records = vec![rec(Some("g1"), 500, 100, Some("grok-4"))];
+        let records = vec![rec(Some("g1"), 500, 100, Some("xvora-4"))];
         // The marginal saturates to 0, so the record is skipped as a zero-token entry
         assert!(fold_tokens_by_model(&records, "g1", "cur").is_empty());
     }
 
     #[test]
     fn captured_model_survives_mid_goal_current_model_switch() {
-        // A record captured `grok-4` at spawn keeps it even though the current model at aggregation time is `grok-3`
-        let records = vec![rec(Some("g1"), 0, 100, Some("grok-4"))];
+        // A record captured `xvora-4` at spawn keeps it even though the current model at aggregation time is `grok-3`
+        let records = vec![rec(Some("g1"), 0, 100, Some("xvora-4"))];
         let out = fold_tokens_by_model(&records, "g1", "grok-3");
-        assert_eq!(out, vec![("grok-4".to_owned(), 100)]);
+        assert_eq!(out, vec![("xvora-4".to_owned(), 100)]);
     }
 
     #[test]
@@ -839,11 +839,11 @@ mod fold_tokens_by_model_tests {
     fn empty_model_merges_with_current_model_bucket() {
         // An empty id folds into the SAME bucket as records that explicitly captured the current model id
         let records = vec![
-            rec(Some("g1"), 0, 100, Some("grok-4")),
+            rec(Some("g1"), 0, 100, Some("xvora-4")),
             rec(Some("g1"), 0, 200, Some("")),
         ];
-        let out = fold_tokens_by_model(&records, "g1", "grok-4");
-        assert_eq!(out, vec![("grok-4".to_owned(), 300)]);
+        let out = fold_tokens_by_model(&records, "g1", "xvora-4");
+        assert_eq!(out, vec![("xvora-4".to_owned(), 300)]);
     }
 }
 

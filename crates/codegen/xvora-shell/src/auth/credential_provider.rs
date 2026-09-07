@@ -134,12 +134,12 @@ pub(crate) fn embedding_session_credentials(
 ///
 /// Every call site must pass the correct `client_identifier` so the API proxy and the telemetry and metrics backends can attribute requests:
 ///
-/// - `"grok-shell"`: classic Grok CLI / TUI (xvora-shell)
-/// - `"grok-pager"`: new Grok Pager / TUI (xvora-pager)
-/// - `"grok-desktop"`: Grok Desktop app
-/// - `"grok-extension"`: VS Code / browser extension
+/// - `"xvora-shell"`: classic xvora CLI / TUI (xvora-shell)
+/// - `"xvora-pager"`: new xvora Pager / TUI (xvora-pager)
+/// - `"xvora-desktop"`: xvora Desktop app
+/// - `"xvora-extension"`: VS Code / browser extension
 ///
-/// The factory forwards both `x-grok-client-version` (e.g. "0.1.210-alpha.5 (279ffacddb)") and `x-grok-client-identifier`.
+/// The factory forwards both `x-xvora-client-version` (e.g. "0.1.210-alpha.5 (279ffacddb)") and `x-xvora-client-identifier`.
 /// They reach the underlying `xvora-file-utils::StorageClient` via `.with_client_identity(...)` and attribute requests in error logs.
 ///
 /// - When `auth_manager` is `Some`, uses the live `ShellAuthCredentialProvider` (OIDC refresh, proactive refresh, 401 recovery).
@@ -431,8 +431,8 @@ pub fn build_default_otel_layer_config() -> telemetry::otel_layer::OtelLayerConf
             && !crate::agent::config::is_telemetry_explicitly_disabled_sync(),
     };
     let token_header_value = grok_com_config.token_header.clone();
-    let grok_home = crate::util::grok_home::grok_home();
-    let bootstrap = Arc::new(AuthManager::new(&grok_home, grok_com_config));
+    let xvora_home = crate::util::xvora_home::xvora_home();
+    let bootstrap = Arc::new(AuthManager::new(&xvora_home, grok_com_config));
     let provider = Arc::new(OtelAuthCredentialProvider::new(bootstrap));
     let _ = OTEL_PROVIDER.set(provider.clone());
     telemetry::otel_layer::OtelLayerConfig {

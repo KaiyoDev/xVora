@@ -1,4 +1,4 @@
-//! The interactive folder-trust prompt, an ACP round-trip (`x.ai/folder_trust/request`) from the agent to a GUI client (grok-desktop).
+﻿//! The interactive folder-trust prompt, an ACP round-trip (`x.ai/folder_trust/request`) from the agent to a GUI client (xvora-desktop).
 //! It asks the client to decide trust for an untrusted workspace that has repo configs.
 //! On a grant it reloads the now-trusted project servers without a restart.
 //!
@@ -11,7 +11,7 @@
 //! After a grant, MCP, plugins, and each session's own project hooks are hot-reloaded in place.
 //! The reload covers every session sharing the granted workspace (same `workspace_key`), each reloaded against its own cwd.
 //! Project LSP is not hot-reloaded: the LSP backend is baked into the tool bridge at build time and has no in-place reconfigure API.
-//! Repo-local `.grok/lsp.json` servers therefore start on the next session open (the durable grant makes that re-spawn trusted).
+//! Repo-local `.xvora/lsp.json` servers therefore start on the next session open (the durable grant makes that re-spawn trusted).
 //! `lsp` is still reported in the prompt's `configKinds` because it is a real reason the folder is gated; only the post-grant hot-reload skips it.
 
 use super::*;
@@ -285,7 +285,7 @@ async fn reload_project_servers_after_grant(ctx: ReloadAfterGrant<'_>) {
         let _ = target
             .cmd_tx
             .send(crate::session::SessionCommand::ReloadPlugins { registry });
-        // This reloads the session's own project hooks (`.grok/hooks`, `.cursor/hooks.json`), which `ReloadPlugins` does not touch
+        // This reloads the session's own project hooks (`.xvora/hooks`, `.cursor/hooks.json`), which `ReloadPlugins` does not touch
         // `reload_hooks_impl` re-discovers them against the actor's own `session_info.cwd` on the now-trusted verdict
         let _ = target
             .cmd_tx

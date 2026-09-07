@@ -3,7 +3,7 @@
 //! A pin is live if **any** of daemon.db / mounts.toml / backing markers /
 //! worktrees.db names its id (except aborted journal rows). GC never trusts
 //! worktrees.db alone. Pin deletion always goes through [`grove_git::delete_pin_ref`]
-//! (id → `refs/grok/worktrees/<id>` only).
+//! (id → `refs/xvora/worktrees/<id>` only).
 use super::confined::is_safe_worktree_id;
 use super::mount_table::{dest_is_mountpoint, dest_is_nfs_mount};
 use anyhow::Result;
@@ -12,7 +12,7 @@ use std::collections::{HashMap, HashSet};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use tempfile::NamedTempFile;
-pub const BACKING_MARKER_FILE: &str = "grok-nfs-worktree.json";
+pub const BACKING_MARKER_FILE: &str = "xvora-nfs-worktree.json";
 pub const WORKTREE_BACKING_DIR: &str = "worktree-backing";
 pub const PIN_GC_GRACE_SECS: i64 = 24 * 60 * 60;
 const PIN_GC_MIN_CYCLES: u32 = 2;
@@ -40,8 +40,8 @@ pub fn candidate_data_dirs() -> Vec<PathBuf> {
     if let Some(home) = dirs::home_dir() {
         push(home.join(".local/share/grove"));
     }
-    if let Some(grok_home) = xvora_dirs::resolve_grok_home() {
-        push(grok_home.join("grove"));
+    if let Some(xvora_home) = xvora_dirs::resolve_grok_home() {
+        push(xvora_home.join("grove"));
     }
     dirs
 }
@@ -399,7 +399,7 @@ pub fn gc_orphan_pins(
         if !is_safe_worktree_id(&idn.worktree_id) {
             continue;
         }
-        let pin = format!("refs/grok/worktrees/{}", idn.worktree_id);
+        let pin = format!("refs/xvora/worktrees/{}", idn.worktree_id);
         if let Some(src) = &idn.source_repo {
             candidates.insert(
                 idn.worktree_id.clone(),
@@ -411,7 +411,7 @@ pub fn gc_orphan_pins(
         if !is_safe_worktree_id(id) {
             continue;
         }
-        let pin = format!("refs/grok/worktrees/{id}");
+        let pin = format!("refs/xvora/worktrees/{id}");
         candidates
             .entry(id.clone())
             .or_insert_with(|| (ent.source.clone(), pin, None, None));
@@ -629,11 +629,11 @@ mod tests {
         rec.metadata = Some(serde_json::json!({
             "grove": {
                 "backing": "/data/grove/worktree-backing/wt-grove",
-                "source_pin": "refs/grok/worktrees/wt-grove"
+                "source_pin": "refs/xvora/worktrees/wt-grove"
             },
             "nfs": {
                 "backing": "/legacy/should-not-win",
-                "source_pin": "refs/grok/worktrees/legacy"
+                "source_pin": "refs/xvora/worktrees/legacy"
             }
         }));
         let ids = identities_from_worktree_records(&[rec]);
@@ -644,7 +644,7 @@ mod tests {
         );
         assert_eq!(
             ids[0].pin_ref.as_deref(),
-            Some("refs/grok/worktrees/wt-grove")
+            Some("refs/xvora/worktrees/wt-grove")
         );
     }
     #[test]
@@ -684,7 +684,7 @@ mod tests {
                 .unwrap()
                 .success()
         );
-        let pin = "refs/grok/worktrees/wt-live";
+        let pin = "refs/xvora/worktrees/wt-live";
         let mut uref = std::process::Command::new("git");
         tty_utils::detach_std_command(&mut uref);
         assert!(
@@ -753,7 +753,7 @@ mod tests {
         std::fs::write(repo.join("f.txt"), "x").unwrap();
         git_commit_all(&repo, "c");
         let oid = git_rev_parse(&repo, "HEAD");
-        let pin = "refs/grok/worktrees/wt-orphan";
+        let pin = "refs/xvora/worktrees/wt-orphan";
         let mut uref = std::process::Command::new("git");
         tty_utils::detach_std_command(&mut uref);
         assert!(
@@ -785,7 +785,7 @@ mod tests {
         std::fs::write(repo.join("f.txt"), "x").unwrap();
         git_commit_all(&repo, "c");
         let oid = git_rev_parse(&repo, "HEAD");
-        let pin = "refs/grok/worktrees/wt-fly";
+        let pin = "refs/xvora/worktrees/wt-fly";
         let mut uref = std::process::Command::new("git");
         tty_utils::detach_std_command(&mut uref);
         assert!(
@@ -824,7 +824,7 @@ mod tests {
                 .unwrap()
                 .success()
         );
-        let pin = "refs/grok/worktrees/wt-mask";
+        let pin = "refs/xvora/worktrees/wt-mask";
         let mut uref = std::process::Command::new("git");
         tty_utils::detach_std_command(&mut uref);
         assert!(

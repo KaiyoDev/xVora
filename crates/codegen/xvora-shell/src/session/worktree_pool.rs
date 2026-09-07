@@ -2,11 +2,11 @@
 //!
 //! A pre-warmed worktree pool (background fill, acquire/claim/release,
 //! orphan adoption) once lived here but was never wired into production and
-//! has been deleted. This cleanup path remains so `~/.grok/worktree_pool/`
+//! has been deleted. This cleanup path remains so `~/.xvora/worktree_pool/`
 //! directories left behind by dead agent instances are still reclaimed.
 //!
 //! Layout: each pool instance owned
-//! `~/.grok/worktree_pool/<instance_id>/<pool_id>/` with a `.pid` liveness
+//! `~/.xvora/worktree_pool/<instance_id>/<pool_id>/` with a `.pid` liveness
 //! file in the instance directory.
 //! Cleanup only touches directories whose owning process is dead.
 
@@ -14,7 +14,7 @@ use std::path::{Path, PathBuf};
 
 use tty_utils::git_command;
 
-use crate::util::grok_home::grok_home;
+use crate::util::xvora_home::xvora_home;
 
 const WORKTREE_POOL_LOG: &str = "xvora_worktree_pool";
 
@@ -31,7 +31,7 @@ static REGISTRATION_CLEANUP_ONCE: std::sync::Once = std::sync::Once::new();
 /// It runs even if the directory cleanup already ran from an earlier call with `None`.
 ///
 /// Multi-instance safe: iterates instance subdirectories under
-/// `~/.grok/worktree_pool/`, reads each `.pid` file, and checks
+/// `~/.xvora/worktree_pool/`, reads each `.pid` file, and checks
 /// whether the PID is still alive.
 ///
 /// This is a **synchronous** function intended to be called via `tokio::task::spawn_blocking`.
@@ -158,9 +158,9 @@ fn cleanup_stale_pool_worktrees_inner() {
     );
 }
 
-/// The base pool directory under `~/.grok/`.
+/// The base pool directory under `~/.xvora/`.
 fn pool_base_directory() -> PathBuf {
-    grok_home().join("worktree_pool")
+    xvora_home().join("worktree_pool")
 }
 
 #[cfg(test)]

@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::process::{Command, Stdio};
 
 fn pager_binary() -> Result<std::path::PathBuf, String> {
-    for key in ["PAGER_BINARY", "CARGO_BIN_EXE_xai-grok-pager"] {
+    for key in ["PAGER_BINARY", "CARGO_BIN_EXE_xai-xvora-pager"] {
         if let Some(value) = std::env::var_os(key) {
             let path = std::path::PathBuf::from(value);
             if path.exists() {
@@ -10,7 +10,7 @@ fn pager_binary() -> Result<std::path::PathBuf, String> {
             }
         }
     }
-    Err("PAGER_BINARY/CARGO_BIN_EXE_xai-grok-pager not set".to_owned())
+    Err("PAGER_BINARY/CARGO_BIN_EXE_xai-xvora-pager not set".to_owned())
 }
 
 #[test]
@@ -19,22 +19,22 @@ fn doctor_json_bypasses_unrelated_startup_state() {
     let binary = pager_binary().expect("real pager binary is required when this test is selected");
     let temp = tempfile::tempdir().expect("tempdir");
     let home = temp.path().join("home");
-    let grok_home = temp.path().join("grok-home");
+    let xvora_home = temp.path().join("xvora-home");
     std::fs::create_dir_all(&home).expect("create HOME");
-    std::fs::create_dir_all(&grok_home).expect("create GROK_HOME");
+    std::fs::create_dir_all(&xvora_home).expect("create xvora_home");
 
-    let version_path = grok_home.join("version.json");
+    let version_path = xvora_home.join("version.json");
     std::fs::write(
         &version_path,
         br#"{"stable":{"version":"999.0.0"},"checked_at":0}"#,
     )
     .expect("write valid hostile version state");
 
-    let before = directory_entries(&grok_home);
+    let before = directory_entries(&xvora_home);
     let output = run_pager(
         &binary,
         &home,
-        &grok_home,
+        &xvora_home,
         "/bin/sh",
         &["doctor", "--json"],
         &[],
@@ -53,9 +53,9 @@ fn doctor_json_bypasses_unrelated_startup_state() {
     let json: serde_json::Value =
         serde_json::from_slice(&output.stdout).expect("stdout is one JSON document");
     assert_eq!(json["schemaVersion"], "1");
-    assert!(!String::from_utf8_lossy(&output.stdout).contains("Grok Doctor"));
+    assert!(!String::from_utf8_lossy(&output.stdout).contains("xvora Doctor"));
 
-    let after = directory_entries(&grok_home);
+    let after = directory_entries(&xvora_home);
     assert_eq!(after, before, "doctor must not create startup artifacts");
     assert_eq!(
         std::fs::read(&version_path).unwrap(),
@@ -63,7 +63,7 @@ fn doctor_json_bypasses_unrelated_startup_state() {
     );
     for absent in ["docs", "crash", "memtrace", "active_sessions.json"] {
         assert!(
-            !grok_home.join(absent).exists(),
+            !xvora_home.join(absent).exists(),
             "unexpected startup artifact: {absent}"
         );
     }
@@ -75,10 +75,10 @@ fn doctor_fix_without_id_lists_tmux_fixes_from_current_probe_evidence() {
     let binary = pager_binary().expect("real pager binary is required when selected");
     let temp = tempfile::tempdir().unwrap();
     let home = temp.path().join("home");
-    let grok_home = temp.path().join("qhome");
+    let xvora_home = temp.path().join("qhome");
     let fake_bin = temp.path().join("bin");
     std::fs::create_dir_all(&home).unwrap();
-    std::fs::create_dir_all(&grok_home).unwrap();
+    std::fs::create_dir_all(&xvora_home).unwrap();
     std::fs::create_dir_all(&fake_bin).unwrap();
     let tmux = fake_bin.join("tmux");
     std::fs::write(
@@ -94,7 +94,7 @@ fn doctor_fix_without_id_lists_tmux_fixes_from_current_probe_evidence() {
     let output = run_pager(
         &binary,
         &home,
-        &grok_home,
+        &xvora_home,
         "/bin/bash",
         &["doctor", "fix"],
         &[
@@ -116,10 +116,10 @@ fn doctor_tmux_fix_probes_are_bounded_and_never_write_on_timeout() {
     let binary = pager_binary().expect("real pager binary is required when selected");
     let temp = tempfile::tempdir().unwrap();
     let home = temp.path().join("home");
-    let grok_home = temp.path().join("qhome");
+    let xvora_home = temp.path().join("qhome");
     let fake_bin = temp.path().join("bin");
     std::fs::create_dir_all(&home).unwrap();
-    std::fs::create_dir_all(&grok_home).unwrap();
+    std::fs::create_dir_all(&xvora_home).unwrap();
     std::fs::create_dir_all(&fake_bin).unwrap();
     let tmux = fake_bin.join("tmux");
     std::fs::write(&tmux, "#!/bin/sh\nsleep 30\n").unwrap();
@@ -141,7 +141,7 @@ fn doctor_tmux_fix_probes_are_bounded_and_never_write_on_timeout() {
         let output = run_pager(
             &binary,
             &home,
-            &grok_home,
+            &xvora_home,
             "/bin/bash",
             &actual,
             &[
@@ -166,10 +166,10 @@ fn doctor_tmux_fix_kills_background_pipe_holders_after_leader_exit() {
     let binary = pager_binary().expect("real pager binary is required when selected");
     let temp = tempfile::tempdir().unwrap();
     let home = temp.path().join("home");
-    let grok_home = temp.path().join("qhome");
+    let xvora_home = temp.path().join("qhome");
     let fake_bin = temp.path().join("bin");
     std::fs::create_dir_all(&home).unwrap();
-    std::fs::create_dir_all(&grok_home).unwrap();
+    std::fs::create_dir_all(&xvora_home).unwrap();
     std::fs::create_dir_all(&fake_bin).unwrap();
     let tmux = fake_bin.join("tmux");
     std::fs::write(&tmux, "#!/bin/sh\nsleep 30 &\nexit 0\n").unwrap();
@@ -186,7 +186,7 @@ fn doctor_tmux_fix_kills_background_pipe_holders_after_leader_exit() {
         let output = run_pager(
             &binary,
             &home,
-            &grok_home,
+            &xvora_home,
             "/bin/bash",
             &args,
             &[
@@ -213,10 +213,10 @@ fn doctor_tmux_fix_kills_term_ignoring_redirected_descendants() {
     let binary = pager_binary().expect("real pager binary is required when selected");
     let temp = tempfile::tempdir().unwrap();
     let home = temp.path().join("home");
-    let grok_home = temp.path().join("qhome");
+    let xvora_home = temp.path().join("qhome");
     let fake_bin = temp.path().join("bin");
     std::fs::create_dir_all(&home).unwrap();
-    std::fs::create_dir_all(&grok_home).unwrap();
+    std::fs::create_dir_all(&xvora_home).unwrap();
     std::fs::create_dir_all(&fake_bin).unwrap();
     let tmux = fake_bin.join("tmux");
     let pid_file = temp.path().join("descendant.pid");
@@ -240,7 +240,7 @@ fn doctor_tmux_fix_kills_term_ignoring_redirected_descendants() {
         let output = run_pager(
             &binary,
             &home,
-            &grok_home,
+            &xvora_home,
             "/bin/bash",
             &args,
             &[
@@ -277,14 +277,14 @@ fn doctor_irrelevant_unsafe_byobu_does_not_break_ssh_or_plain_tmux() {
     let binary = pager_binary().expect("real pager binary is required when selected");
     let temp = tempfile::tempdir().unwrap();
     let home = temp.path().join("home");
-    let grok_home = temp.path().join("qhome");
+    let xvora_home = temp.path().join("qhome");
     std::fs::create_dir_all(&home).unwrap();
-    std::fs::create_dir_all(&grok_home).unwrap();
+    std::fs::create_dir_all(&xvora_home).unwrap();
 
     let ssh = run_pager(
         &binary,
         &home,
-        &grok_home,
+        &xvora_home,
         "/bin/bash",
         &["doctor", "fix", "ssh-wrap", "--yes"],
         &[("BYOBU_CONFIG_DIR", "relative")],
@@ -299,7 +299,7 @@ fn doctor_irrelevant_unsafe_byobu_does_not_break_ssh_or_plain_tmux() {
     let plain = run_pager(
         &binary,
         &home,
-        &grok_home,
+        &xvora_home,
         "/bin/bash",
         &["doctor", "fix"],
         &[
@@ -322,11 +322,11 @@ fn doctor_hostile_home_and_byobu_create_no_config_files() {
             .unwrap();
     let temp = tempfile::tempdir().unwrap();
     let home = temp.path().join("home");
-    let grok_home = temp.path().join("qhome");
+    let xvora_home = temp.path().join("qhome");
     std::fs::create_dir_all(&home).unwrap();
-    std::fs::create_dir_all(&grok_home).unwrap();
+    std::fs::create_dir_all(&xvora_home).unwrap();
     for (key, value) in [("HOME", "."), ("BYOBU_CONFIG_DIR", "relative")] {
-        let mut command = base_pager_command(&binary, &home, &grok_home, "/bin/bash");
+        let mut command = base_pager_command(&binary, &home, &xvora_home, "/bin/bash");
         command
             .current_dir(temp.path())
             .env(key, value)
@@ -351,14 +351,14 @@ fn doctor_fix_without_id_lists_only_applicable_automatic_fixes() {
     let binary = pager_binary().expect("real pager binary is required when selected");
     let temp = tempfile::tempdir().unwrap();
     let home = temp.path().join("home");
-    let grok_home = temp.path().join("qhome");
+    let xvora_home = temp.path().join("qhome");
     std::fs::create_dir_all(&home).unwrap();
-    std::fs::create_dir_all(&grok_home).unwrap();
+    std::fs::create_dir_all(&xvora_home).unwrap();
 
     let output = run_pager(
         &binary,
         &home,
-        &grok_home,
+        &xvora_home,
         "/bin/bash",
         &["doctor", "fix"],
         &[("SSH_CONNECTION", "1 2 3 4")],
@@ -366,7 +366,7 @@ fn doctor_fix_without_id_lists_only_applicable_automatic_fixes() {
     assert!(output.status.success());
     let stdout = String::from_utf8(output.stdout).unwrap();
     assert!(
-        stdout.contains("On your local computer, run: grok doctor fix ssh-wrap"),
+        stdout.contains("On your local computer, run: xvora doctor fix ssh-wrap"),
         "{stdout}"
     );
     assert!(!home.join(".bashrc").exists());
@@ -374,7 +374,7 @@ fn doctor_fix_without_id_lists_only_applicable_automatic_fixes() {
     let output = run_pager(
         &binary,
         &home,
-        &grok_home,
+        &xvora_home,
         "/bin/bash",
         &["doctor", "fix", "terminal.ssh-wrap", "--yes"],
         &[],
@@ -383,7 +383,7 @@ fn doctor_fix_without_id_lists_only_applicable_automatic_fixes() {
     let output = run_pager(
         &binary,
         &home,
-        &grok_home,
+        &xvora_home,
         "/bin/bash",
         &["doctor", "fix"],
         &[],
@@ -401,10 +401,10 @@ fn doctor_tmux_fix_yes_writes_only_actual_home_tmux_config() {
     let binary = pager_binary().expect("real pager binary is required when this test is selected");
     let temp = tempfile::tempdir().expect("tempdir");
     let home = temp.path().join("home");
-    let grok_home = temp.path().join("grok-home");
+    let xvora_home = temp.path().join("xvora-home");
     let fake_bin = temp.path().join("bin");
     std::fs::create_dir_all(&home).unwrap();
-    std::fs::create_dir_all(&grok_home).unwrap();
+    std::fs::create_dir_all(&xvora_home).unwrap();
     std::fs::create_dir_all(&fake_bin).unwrap();
     let tmux = fake_bin.join("tmux");
     std::fs::write(
@@ -421,7 +421,7 @@ fn doctor_tmux_fix_yes_writes_only_actual_home_tmux_config() {
     let output = run_pager(
         &binary,
         &home,
-        &grok_home,
+        &xvora_home,
         "/bin/bash",
         &["doctor", "fix", "tmux-clipboard", "--yes"],
         &[
@@ -450,9 +450,9 @@ fn doctor_tmux_fix_yes_writes_only_actual_home_tmux_config() {
     );
     assert_eq!(
         std::fs::read_to_string(home.join(".tmux.conf")).unwrap(),
-        "# >>> grok doctor >>>\n# >>> terminal.tmux-clipboard >>>\nset -g set-clipboard on\n# <<< terminal.tmux-clipboard <<<\n# <<< grok doctor <<<"
+        "# >>> xvora doctor >>>\n# >>> terminal.tmux-clipboard >>>\nset -g set-clipboard on\n# <<< terminal.tmux-clipboard <<<\n# <<< xvora doctor <<<"
     );
-    assert!(!grok_home.join(".tmux.conf").exists());
+    assert!(!xvora_home.join(".tmux.conf").exists());
 }
 
 #[test]
@@ -461,14 +461,14 @@ fn doctor_fix_yes_writes_only_actual_home_shell_rc() {
     let binary = pager_binary().expect("real pager binary is required when this test is selected");
     let temp = tempfile::tempdir().expect("tempdir");
     let home = temp.path().join("home");
-    let grok_home = temp.path().join("grok-home");
+    let xvora_home = temp.path().join("xvora-home");
     std::fs::create_dir_all(&home).unwrap();
-    std::fs::create_dir_all(&grok_home).unwrap();
+    std::fs::create_dir_all(&xvora_home).unwrap();
 
     let output = run_pager(
         &binary,
         &home,
-        &grok_home,
+        &xvora_home,
         "/bin/bash",
         &["doctor", "fix", "terminal.ssh-wrap", "--yes"],
         &[],
@@ -488,9 +488,9 @@ fn doctor_fix_yes_writes_only_actual_home_shell_rc() {
     assert!(stdout.contains("command ssh"));
     assert_eq!(
         std::fs::read_to_string(home.join(".bashrc")).unwrap(),
-        "# >>> grok doctor >>>\n# >>> terminal.ssh-wrap >>>\nalias ssh='grok wrap ssh'\n# <<< terminal.ssh-wrap <<<\n# <<< grok doctor <<<"
+        "# >>> xvora doctor >>>\n# >>> terminal.ssh-wrap >>>\nalias ssh='xvora wrap ssh'\n# <<< terminal.ssh-wrap <<<\n# <<< xvora doctor <<<"
     );
-    assert!(!grok_home.join(".bashrc").exists());
+    assert!(!xvora_home.join(".bashrc").exists());
 }
 
 #[test]
@@ -499,16 +499,16 @@ fn doctor_fix_safety_boundaries_are_process_isolated() {
     let binary = pager_binary().expect("real pager binary is required when selected");
     let temp = tempfile::tempdir().unwrap();
     let home = temp.path().join("home");
-    let grok_home = temp.path().join("qhome");
+    let xvora_home = temp.path().join("qhome");
     std::fs::create_dir_all(&home).unwrap();
-    std::fs::create_dir_all(&grok_home).unwrap();
+    std::fs::create_dir_all(&xvora_home).unwrap();
 
     let conflict = home.join(".zshrc");
     std::fs::write(&conflict, "alias ssh='ssh -A'\n").unwrap();
     let output = run_pager(
         &binary,
         &home,
-        &grok_home,
+        &xvora_home,
         "/bin/zsh",
         &["doctor", "fix", "ssh-wrap", "--yes"],
         &[],
@@ -516,7 +516,7 @@ fn doctor_fix_safety_boundaries_are_process_isolated() {
     assert_eq!(output.status.code(), Some(1));
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(
-        stderr.contains("Grok found an existing SSH alias or function")
+        stderr.contains("xvora found an existing SSH alias or function")
             && stderr.contains(&conflict.display().to_string()),
         "{stderr}"
     );
@@ -529,7 +529,7 @@ fn doctor_fix_safety_boundaries_are_process_isolated() {
     let output = run_pager(
         &binary,
         &home,
-        &grok_home,
+        &xvora_home,
         "/bin/zsh",
         &["doctor", "fix", "ssh-wrap"],
         &[],
@@ -545,7 +545,7 @@ fn doctor_fix_safety_boundaries_are_process_isolated() {
     let output = run_pager(
         &binary,
         &home,
-        &grok_home,
+        &xvora_home,
         "/bin/zsh",
         &["doctor", "fix", "ssh-wrap", "--yes"],
         &[("SSH_CONNECTION", "1 2 3 4")],
@@ -566,14 +566,14 @@ fn restrictive_umask_still_preserves_exact_rc_mode() {
     let binary = pager_binary().expect("real pager binary is required when selected");
     let temp = tempfile::tempdir().unwrap();
     let home = temp.path().join("home");
-    let grok_home = temp.path().join("qhome");
+    let xvora_home = temp.path().join("qhome");
     std::fs::create_dir_all(&home).unwrap();
-    std::fs::create_dir_all(&grok_home).unwrap();
+    std::fs::create_dir_all(&xvora_home).unwrap();
     let rc = home.join(".bashrc");
     std::fs::write(&rc, "export KEEP=1\n").unwrap();
     std::fs::set_permissions(&rc, std::fs::Permissions::from_mode(0o666)).unwrap();
 
-    let mut command = base_pager_command(&binary, &home, &grok_home, "/bin/bash");
+    let mut command = base_pager_command(&binary, &home, &xvora_home, "/bin/bash");
     command.args(["doctor", "fix", "terminal.ssh-wrap", "--yes"]);
     use std::os::unix::process::CommandExt as _;
     // SAFETY: umask is async-signal-safe and runs only in the isolated child.
@@ -601,13 +601,13 @@ fn wrap_non_tty_true_exec_preserves_argv_and_exit() {
     let binary = pager_binary().expect("real pager binary is required when selected");
     let temp = tempfile::tempdir().unwrap();
     let home = temp.path().join("home");
-    let grok_home = temp.path().join("qhome");
+    let xvora_home = temp.path().join("qhome");
     std::fs::create_dir_all(&home).unwrap();
-    std::fs::create_dir_all(&grok_home).unwrap();
+    std::fs::create_dir_all(&xvora_home).unwrap();
     let output = run_pager(
         &binary,
         &home,
-        &grok_home,
+        &xvora_home,
         "/bin/sh",
         &[
             "wrap",
@@ -626,12 +626,12 @@ fn wrap_non_tty_true_exec_preserves_argv_and_exit() {
 fn run_pager(
     binary: &std::path::Path,
     home: &std::path::Path,
-    grok_home: &std::path::Path,
+    xvora_home: &std::path::Path,
     shell: &str,
     args: &[&str],
     extra_env: &[(&str, &str)],
 ) -> std::process::Output {
-    let mut command = base_pager_command(binary, home, grok_home, shell);
+    let mut command = base_pager_command(binary, home, xvora_home, shell);
     command.args(args).envs(extra_env.iter().copied());
     command.output().expect("run isolated pager binary")
 }
@@ -639,14 +639,14 @@ fn run_pager(
 fn base_pager_command(
     binary: &std::path::Path,
     home: &std::path::Path,
-    grok_home: &std::path::Path,
+    xvora_home: &std::path::Path,
     shell: &str,
 ) -> Command {
     let mut command = Command::new(binary);
     command
         .env_clear()
         .env("HOME", home)
-        .env("GROK_HOME", grok_home)
+        .env("xvora_home", xvora_home)
         .env("SHELL", shell)
         .env("PATH", std::env::var_os("PATH").unwrap_or_default())
         .env("TERM", "xterm-256color")

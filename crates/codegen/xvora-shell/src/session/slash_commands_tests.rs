@@ -1700,7 +1700,7 @@ fn listing(name: &str) -> crate::session::workflow::registry::WorkflowListing {
         description: "does things".to_string(),
         when_to_use: None,
         source: "project",
-        path: Some(format!(".grok/workflows/{name}.rhai")),
+        path: Some(format!(".xvora/workflows/{name}.rhai")),
     }
 }
 

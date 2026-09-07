@@ -3,7 +3,7 @@ use clap::Subcommand;
 use shell::agent::config::Config as AgentConfig;
 use shell::auth::{AuthManager, try_ensure_fresh_auth};
 use shell::session::merge::MergedSession;
-use shell::util::grok_home::grok_home;
+use shell::util::xvora_home::xvora_home;
 #[derive(Debug, clap::Args, Clone)]
 pub struct SessionsArgs {
     #[command(subcommand)]
@@ -36,12 +36,12 @@ enum SessionsCommand {
 pub async fn run(args: SessionsArgs, agent_config: &AgentConfig) -> Result<()> {
     // Best-effort only: never force an interactive public login here
     // Enterprise deployments may configure only a deployment_key and a custom xvora_api_base_url
-    // If the user has previously run the interactive `grok` TUI (which succeeds for these setups), any cached credential is used
+    // If the user has previously run the interactive `xvora` TUI (which succeeds for these setups), any cached credential is used
     // Otherwise we still proceed so the SessionRegistryClient can use the deployment_key when talking to the custom proxy
     let auth = try_ensure_fresh_auth(&agent_config.grok_com_config).await;
 
     let auth_manager = std::sync::Arc::new(AuthManager::new(
-        &grok_home(),
+        &xvora_home(),
         agent_config.grok_com_config.clone(),
     ));
 
@@ -86,7 +86,7 @@ pub async fn run(args: SessionsArgs, agent_config: &AgentConfig) -> Result<()> {
                 offset: 0,
                 include_content: true,
             };
-            let root = grok_home();
+            let root = xvora_home();
 
             let remote_limit = (limit * 3).max(100) as i64;
             let (local_resp, remote_results) = tokio::join!(

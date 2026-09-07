@@ -65,7 +65,7 @@ fn chat_completion_bodies(server: &test_support::MockInferenceServer) -> Vec<Str
         .into_iter()
         .filter(|r| r.path == "/v1/chat/completions")
         .filter(|r| {
-            !r.header("x-grok-req-id")
+            !r.header("x-xvora-req-id")
                 .is_some_and(|id| id.starts_with("xvora-turn-summary-"))
         })
         .map(|r| r.body.map(|b| b.to_string()).unwrap_or_default())
@@ -165,7 +165,7 @@ fn poisoned_image_session_recovers_within_the_failing_turn() {
 
 /// The session's `chat_history.jsonl`; the sessions dir name encodes the cwd in an internal format, so we scan for the file.
 fn session_chat_jsonl() -> std::path::PathBuf {
-    let sessions = std::path::PathBuf::from(std::env::var("GROK_HOME").expect("GROK_HOME set"))
+    let sessions = std::path::PathBuf::from(std::env::var("xvora_home").expect("xvora_home set"))
         .join("sessions");
     std::fs::read_dir(&sessions)
         .expect("read sessions dir")

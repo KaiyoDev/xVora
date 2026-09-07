@@ -1,44 +1,44 @@
-//! Canonical external-settings tool name ↔ Grok tool correspondence: one table
+//! Canonical external-settings tool name ↔ xvora tool correspondence: one table
 //! replacing two that drifted apart.
 //!
 //! Two consumers read it independently. The hook matcher (`xvora-hooks`) needs the
-//! Grok tool **names** an external settings term maps to (and the reverse, for regex
+//! xvora tool **names** an external settings term maps to (and the reverse, for regex
 //! matchers); the agent builder (`xvora-agent`) needs the [`ToolKind`] a `tools:`
 //! allowlist entry resolves to. A row may carry a kind without names (`PowerShell`
 //! shares `Execute`, with no distinct tool) or names without a kind (e.g.
 //! `Agent`/`ExitPlanMode`/`Cron*` are matchable but not allowlist-resolvable).
 //!
-//! The `grok` names are test-checked against the live registry.
+//! The `xvora` names are test-checked against the live registry.
 
 use super::tool::ToolKind;
 use ToolKind::*;
 
-/// One Claude tool's correspondence to Grok, read via the accessor functions below.
+/// One Claude tool's correspondence to xvora, read via the accessor functions below.
 struct ClaudeTool {
     claude: &'static str,
-    /// Grok [`ToolKind`] for allowlist resolution; `None` for names that are matchable
+    /// xvora [`ToolKind`] for allowlist resolution; `None` for names that are matchable
     /// (spawn/plan-mode directives) but must not resolve an allowlist.
     kind: Option<ToolKind>,
-    /// Grok tool names this Claude tool maps to (empty when there is no direct
-    /// Grok tool — the entry then only contributes a `kind`).
-    grok: &'static [&'static str],
+    /// xvora tool names this Claude tool maps to (empty when there is no direct
+    /// xvora tool — the entry then only contributes a `kind`).
+    xvora: &'static [&'static str],
 }
 
 /// Row that resolves an allowlist (carries a [`ToolKind`]) — the common case.
-const fn k(claude: &'static str, kind: ToolKind, grok: &'static [&'static str]) -> ClaudeTool {
+const fn k(claude: &'static str, kind: ToolKind, xvora: &'static [&'static str]) -> ClaudeTool {
     ClaudeTool {
         claude,
         kind: Some(kind),
-        grok,
+        xvora,
     }
 }
 
 /// Row that is matchable but not allowlist-resolvable (`kind: None`).
-const fn match_only(claude: &'static str, grok: &'static [&'static str]) -> ClaudeTool {
+const fn match_only(claude: &'static str, xvora: &'static [&'static str]) -> ClaudeTool {
     ClaudeTool {
         claude,
         kind: None,
-        grok,
+        xvora,
     }
 }
 
@@ -67,7 +67,7 @@ const CLAUDE_TOOLS: &[ClaudeTool] = &[
     k("TaskStop",        KillTaskAction,       &["kill_command_or_subagent", "kill_terminal_command"]),
     k("KillShell",       KillTaskAction,       &["kill_command_or_subagent", "kill_terminal_command"]),
     k("KillBash",        KillTaskAction,       &["kill_command_or_subagent", "kill_terminal_command"]),
-    k("Skill",           Read,                 &["skill"]),                           // matcher: opencode's `skill` tool; allowlist Read (grok-build reads SKILL.md)
+    k("Skill",           Read,                 &["skill"]),                           // matcher: opencode's `skill` tool; allowlist Read (xvora-build reads SKILL.md)
     k("ToolSearch",      SearchTool,           &["search_tool"]),
     match_only("Agent",         &["spawn_subagent"]),                                 // canonical; Task is the legacy alias
     match_only("Task",          &["spawn_subagent"]),
@@ -79,7 +79,7 @@ const CLAUDE_TOOLS: &[ClaudeTool] = &[
     match_only("ListMcpResourcesTool", &["ListMcpResources"]),                        // cursor preset
 ];
 
-/// The Grok [`ToolKind`] a Claude allowlist entry resolves to, if any.
+/// The xvora [`ToolKind`] a Claude allowlist entry resolves to, if any.
 pub fn kind_for(claude: &str) -> Option<ToolKind> {
     CLAUDE_TOOLS
         .iter()
@@ -87,12 +87,12 @@ pub fn kind_for(claude: &str) -> Option<ToolKind> {
         .and_then(|t| t.kind)
 }
 
-/// The Grok tool names a Claude matcher term fires on.
+/// The xvora tool names a Claude matcher term fires on.
 pub fn grok_names_for(claude: &str) -> impl Iterator<Item = &'static str> {
     CLAUDE_TOOLS
         .iter()
         .find(|t| t.claude == claude)
-        .map(|t| t.grok)
+        .map(|t| t.xvora)
         .unwrap_or(&[])
         .iter()
         .copied()
@@ -102,17 +102,17 @@ pub fn grok_names_for(claude: &str) -> impl Iterator<Item = &'static str> {
 pub fn claude_names_for(grok_name: &str) -> impl Iterator<Item = &'static str> + '_ {
     CLAUDE_TOOLS
         .iter()
-        .filter(move |t| t.grok.contains(&grok_name))
+        .filter(move |t| t.xvora.contains(&grok_name))
         .map(|t| t.claude)
 }
 
-/// Every distinct Grok name the table references, for the `xvora-agent` drift-check
+/// Every distinct xvora name the table references, for the `xvora-agent` drift-check
 /// test that asserts each is a real client tool name.
 pub fn grok_names() -> impl Iterator<Item = &'static str> {
     let mut seen = std::collections::HashSet::new();
     CLAUDE_TOOLS
         .iter()
-        .flat_map(|t| t.grok.iter().copied())
+        .flat_map(|t| t.xvora.iter().copied())
         .filter(move |name| seen.insert(*name))
 }
 
@@ -131,10 +131,10 @@ mod tests {
 
     #[test]
     fn every_row_contributes() {
-        // A row with neither a kind nor a Grok name is dead weight (and signals a typo).
+        // A row with neither a kind nor a xvora name is dead weight (and signals a typo).
         for t in CLAUDE_TOOLS {
             assert!(
-                t.kind.is_some() || !t.grok.is_empty(),
+                t.kind.is_some() || !t.xvora.is_empty(),
                 "dead row: {}",
                 t.claude
             );

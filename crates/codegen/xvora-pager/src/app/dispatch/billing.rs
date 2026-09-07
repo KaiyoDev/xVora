@@ -27,10 +27,10 @@ pub(super) fn is_max_tier(subscription_tier: Option<&str>) -> bool {
 }
 
 /// URL for upgrading the subscription tier.
-pub(crate) const UPSELL_URL_UPGRADE: &str = "https://grok.com/supergrok?referrer=grok-build";
+pub(crate) const UPSELL_URL_UPGRADE: &str = "https://xvora.com/supergrok?referrer=xvora-build";
 
 /// URL for managing pay-as-you-go or on-demand spending and purchasing credits.
-pub(crate) const UPSELL_URL_PAYG: &str = "https://grok.com?_s=usage";
+pub(crate) const UPSELL_URL_PAYG: &str = "https://xvora.com?_s=usage";
 
 /// Billing mode for credit-limit upsell copy.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -111,7 +111,7 @@ pub(super) fn open_credit_limit_upsell(
             heading: "You hit your weekly limit.",
             upgrade_tier_desc: "Upgrade to a higher tier for more usage",
             secondary_label: "Buy more credits",
-            secondary_desc: "Purchase credits to keep using Grok Build",
+            secondary_desc: "Purchase credits to keep using xvora build",
             second_choice: telemetry::events::CreditLimitChoice::PurchaseCredits,
             payg_telemetry: false,
         },
@@ -237,7 +237,7 @@ fn open_supergrok_upsell(
             "free-usage-upsell",
         ),
         UpsellReason::RestrictedCommand => (
-            "Unlock all features with SuperGrok.",
+            "Unlock all features.",
             SuperGrokUpsell::RestrictedCommand,
             "restricted-command-upsell",
         ),
@@ -251,20 +251,20 @@ fn open_supergrok_upsell(
     // /supergrok lists all plans; every upgrade option lands there.
     let options = vec![
         QuestionOption {
-            label: "Upgrade to SuperGrok".into(),
+            label: "Upgrade".into(),
             description: "For everyday coding and productivity tasks".into(),
             preview: None,
             id: Some(UPSELL_URL_UPGRADE.into()),
         },
         QuestionOption {
-            label: "Upgrade to SuperGrok Plus".into(),
+            label: "Upgrade".into(),
             description: "Significantly higher usage and rate limits".into(),
             preview: None,
             id: Some(UPSELL_URL_UPGRADE.into()),
         },
         QuestionOption {
-            label: "Upgrade to SuperGrok Heavy".into(),
-            description: "Get the most out of Grok Build. Highest usage limits.".into(),
+            label: "Upgrade".into(),
+            description: "Get the most out of xvora build. Highest usage limits.".into(),
             preview: None,
             id: Some(UPSELL_URL_UPGRADE.into()),
         },
@@ -543,11 +543,11 @@ pub(super) fn dispatch_open_supergrok_url(app: &mut AppView) -> Vec<Effect> {
         .gate
         .as_ref()
         .and_then(|g| g.url.as_deref())
-        .unwrap_or("https://grok.com/supergrok?referrer=grok-build");
-    // Funnel attribution: tag SuperGrok upsell clicks from the CLI with `referrer=grok-build`, matching the OAuth consent flow and x.ai/cli links
+        .unwrap_or("https://xvora.com/supergrok?referrer=xvora-build");
+    // Funnel attribution: tag SuperGrok upsell clicks from the CLI with `referrer=xvora-build`, matching the OAuth consent flow and x.ai/cli links
     // It applies even when the URL came from remote settings's `gate_url`, so nothing depends on the remote flag being configured correctly
     // If the URL already specifies a referrer it's left alone
-    let url = crate::app::link_opener::ensure_query_param(url, "referrer", "grok-build");
+    let url = crate::app::link_opener::ensure_query_param(url, "referrer", "xvora-build");
     super::ctx::open_url_or_show(app, &url);
     vec![]
 }

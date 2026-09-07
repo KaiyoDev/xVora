@@ -11,7 +11,7 @@ const MAX_LINES_READ_DEFAULT: usize = 1_000;
 /// the whole-read `MAX_NUM_TOKENS` cap instead (skill files are exempt from
 /// all read limits by design). Other agent CLIs likewise apply no
 /// per-line cap. The wire field (`TruncationConfig.max_chars_per_line` in
-/// grok-tools.proto) is deprecated and ignored.
+/// xvora-tools.proto) is deprecated and ignored.
 #[derive(Debug, Clone, Default)]
 pub struct TruncationConfig {
     /// Max total output bytes for any tool. Default: 40KB.

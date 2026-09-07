@@ -14,7 +14,7 @@
 //!
 //! ## Files
 //!
-//! `$GROK_HOME/memtrace/<start-ts>-<pid>.jsonl` (and a `.1` after 4 MiB rotation) plus `<stem>-jemalloc-<seq>.txt` threshold dumps.
+//! `$xvora_home/memtrace/<start-ts>-<pid>.jsonl` (and a `.1` after 4 MiB rotation) plus `<stem>-jemalloc-<seq>.txt` threshold dumps.
 //! Files are created lazily on the first event so short-lived CLI invocations leave no debris.
 //! Traces contain **process memory numbers only** (no user content), so they are safe to ship for analysis.
 //!
@@ -412,12 +412,12 @@ fn first_threshold_from_env() -> u64 {
         .saturating_mul(1 << 20)
 }
 
-/// Start memory tracing: install the process-global sink under `dir` (e.g. `$GROK_HOME/memtrace/`) and spawn the detached sampler thread.
+/// Start memory tracing: install the process-global sink under `dir` (e.g. `$xvora_home/memtrace/`) and spawn the detached sampler thread.
 /// Call once from the composition-root binary, AFTER the intercepts for short-lived children (the mermaid render worker), so helpers don't trace.
 /// Inert when `GROK_MEMTRACE=0`.
 ///
 /// The trace file is created lazily on the first event, and the first sample is taken after one full interval.
-/// Short-lived CLI invocations (`grok --version`, `grok trace …`) therefore leave no files behind.
+/// Short-lived CLI invocations (`xvora --version`, `xvora trace …`) therefore leave no files behind.
 pub fn start(dir: PathBuf) {
     if !enabled_by_env() {
         return;
@@ -442,7 +442,7 @@ pub fn start(dir: PathBuf) {
     // Detached sampler: holds no locks across waits, and the JoinHandle is dropped so nothing else can unpark this thread (see memory_trace_wait)
     // The thread is named so `sample` and Instruments can show it; it dies with the process
     let _ = std::thread::Builder::new()
-        .name("grok-memtrace".into())
+        .name("xvora-memtrace".into())
         .spawn(move || {
             let mut wrote_start = false;
             loop {
@@ -517,7 +517,7 @@ pub fn record_crash_sample() {
 }
 
 pub fn default_dir() -> PathBuf {
-    shell::util::grok_home::grok_home().join("memtrace")
+    shell::util::xvora_home::xvora_home().join("memtrace")
 }
 
 #[derive(Debug, PartialEq, Eq)]

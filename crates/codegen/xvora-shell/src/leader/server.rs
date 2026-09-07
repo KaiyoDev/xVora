@@ -151,7 +151,7 @@ struct ClientState {
     tx: AsyncSender<ClientOutbound>,
     mode: ClientMode,
     capabilities: ClientCapabilities,
-    /// The client type string from IPC registration (e.g., "grok-tui", "grok-code-extension").
+    /// The client type string from IPC registration (e.g., "xvora-tui", "xvora-code-extension").
     /// Injected into `initialize` requests as `clientIdentifier` so the agent knows the real client type when several clients share one leader.
     client_type: String,
     /// Set to `true` once the client's `initialize` request has been seen and had `clientIdentifier` injected.
@@ -1063,7 +1063,7 @@ fn workspace_server_id() -> String {
         .collect();
     let name = sanitized.trim_matches('-');
     if name.is_empty() {
-        "grok-workspace".to_string()
+        "xvora-workspace".to_string()
     } else {
         name.to_string()
     }
@@ -1149,7 +1149,7 @@ async fn handle_workspace_start(
     let auth = wait_for_leader_auth(ws, &cancel).await?;
     let server_id = workspace_server_id();
     let metadata = serde_json::json!({
-        "source": "grok-workspace",
+        "source": "xvora-workspace",
         "hostname": gethostname::gethostname().to_string_lossy(),
         "cwd": cwd_path.display().to_string(),
     });
@@ -1497,7 +1497,7 @@ fn make_version_mismatch_notification(
                 "leaderVersion": leader_version,
                 "message": format!(
                     "Client version {client_version} differs from leader version \
-                     {leader_version}. Restart the grok binary to use the same version."
+                     {leader_version}. Restart the xvora binary to use the same version."
                 )
             }
         })
@@ -1539,7 +1539,7 @@ fn make_version_mismatch_notification(
 ///   The `RelaunchForUpdate` drain consults it alongside `agent_busy`, plus the pre-shutdown session flush.
 /// * `ready_rx` - Watch receiver; ACP forwarding is gated until this is `true`
 /// * `relay_demand_tx` - Watch sender flipped to `true` when the first [`ClientMode::Headless`] client registers.
-///   `run_leader` defers starting the grok.com WebSocket relay until this fires.
+///   `run_leader` defers starting the xvora.com WebSocket relay until this fires.
 ///   A leader serving only interactive clients (TUI dashboard, IDE) thus never duplicates its ACP stream onto the relay.
 ///   Headless registration is the devbox-flow marker: those clients are driven remotely *through* the relay.
 /// * `shutdown_tx` - Watch sender for the shutdown reason.

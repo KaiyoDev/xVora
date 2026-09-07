@@ -1049,13 +1049,13 @@ mod tests {
         let cwd = std::env::current_dir().unwrap();
         let mut state = ShellState::init(ShellKind::Bash, &cwd, None).await.unwrap();
 
-        let (code, _) = run_command(&mut state, "export GPG_TTY=/grok-sentinel-tty").await;
+        let (code, _) = run_command(&mut state, "export GPG_TTY=/xvora-sentinel-tty").await;
         assert_eq!(code, 0);
 
         let (code, stdout) = run_command(&mut state, "echo \"[$GPG_TTY]\"").await;
         assert_eq!(code, 0);
         assert!(
-            !stdout.contains("/grok-sentinel-tty"),
+            !stdout.contains("/xvora-sentinel-tty"),
             "GPG_TTY must not persist across commands via the snapshot, got: {stdout:?}"
         );
     }
@@ -1069,13 +1069,13 @@ mod tests {
         let cwd = std::env::current_dir().unwrap();
         let mut state = ShellState::init(ShellKind::Zsh, &cwd, None).await.unwrap();
 
-        let (code, _) = run_command(&mut state, "export GPG_TTY=/grok-sentinel-tty").await;
+        let (code, _) = run_command(&mut state, "export GPG_TTY=/xvora-sentinel-tty").await;
         assert_eq!(code, 0);
 
         let (code, stdout) = run_command(&mut state, "echo \"[$GPG_TTY]\"").await;
         assert_eq!(code, 0);
         assert!(
-            !stdout.contains("/grok-sentinel-tty"),
+            !stdout.contains("/xvora-sentinel-tty"),
             "GPG_TTY must not persist across commands via the snapshot, got: {stdout:?}"
         );
     }

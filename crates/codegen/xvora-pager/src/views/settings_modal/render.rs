@@ -5,9 +5,9 @@ use ratatui::text::{Line, Span};
 use unicode_width::UnicodeWidthStr;
 
 use super::state::{
-    CONTENT_MIN_WIDTH, MAX_THOUGHTS_WIDTH_WIDENED_MARGIN, MODAL_TITLE, RowEntry,
-    STANDARD_MAX_WIDTH, SettingsModalState, SettingsMode, SettingsModeKind,
-    TITLE_LEADING_DECORATION_W, effective_enum_choices, group_children, mode_is_consent_chooser,
+    CONTENT_MIN_WIDTH, MAX_THOUGHTS_WIDTH_WIDENED_MARGIN, RowEntry, STANDARD_MAX_WIDTH,
+    SettingsModalState, SettingsMode, SettingsModeKind, TITLE_LEADING_DECORATION_W,
+    effective_enum_choices, group_children, modal_title, mode_is_consent_chooser,
 };
 use crate::render::line_utils::truncate_str;
 use crate::settings::{
@@ -53,7 +53,8 @@ pub fn render_settings_modal(
     let breadcrumb_owned: String;
     let title: &str = if let Some(o) = overlay {
         breadcrumb_owned = format!(
-            "{MODAL_TITLE} {} {}",
+            "{} {} {}",
+            modal_title(),
             crate::glyphs::chevron(),
             o.breadcrumb_suffix
         );
@@ -62,33 +63,45 @@ pub fn render_settings_modal(
         match &state.state.mode {
             SettingsMode::PickingEnum { key, .. } => {
                 if let Some(meta) = state.registry.find(key) {
-                    breadcrumb_owned =
-                        format!("{MODAL_TITLE} {} {}", crate::glyphs::chevron(), meta.label);
+                    breadcrumb_owned = format!(
+                        "{} {} {}",
+                        modal_title(),
+                        crate::glyphs::chevron(),
+                        meta.label
+                    );
                     &breadcrumb_owned
                 } else {
-                    MODAL_TITLE
+                    modal_title()
                 }
             }
 
             SettingsMode::EditingString { key, .. } | SettingsMode::EditingInt { key, .. } => {
                 if let Some(meta) = state.registry.find(key) {
-                    breadcrumb_owned =
-                        format!("{MODAL_TITLE} {} {}", crate::glyphs::chevron(), meta.label);
+                    breadcrumb_owned = format!(
+                        "{} {} {}",
+                        modal_title(),
+                        crate::glyphs::chevron(),
+                        meta.label
+                    );
                     &breadcrumb_owned
                 } else {
-                    MODAL_TITLE
+                    modal_title()
                 }
             }
             SettingsMode::PickingGroup { key, .. } => {
                 if let Some(meta) = state.registry.find(key) {
-                    breadcrumb_owned =
-                        format!("{MODAL_TITLE} {} {}", crate::glyphs::chevron(), meta.label);
+                    breadcrumb_owned = format!(
+                        "{} {} {}",
+                        modal_title(),
+                        crate::glyphs::chevron(),
+                        meta.label
+                    );
                     &breadcrumb_owned
                 } else {
-                    MODAL_TITLE
+                    modal_title()
                 }
             }
-            _ => MODAL_TITLE,
+            _ => modal_title(),
         }
     };
 
@@ -431,8 +444,8 @@ pub(super) fn render_row_list_with_search_bar(
 
 pub(super) fn render_docs_footer(buf: &mut Buffer, area: Rect, theme: &Theme) {
     const LONG: &str =
-        "Tip · Ask Grok: \"change theme to grokday\" or \"what does compact mode do?\"";
-    const SHORT: &str = "Tip · Ask Grok to change a setting";
+        "Tip · Ask xvora: \"change theme to xvoday\" or \"what does compact mode do?\"";
+    const SHORT: &str = "Tip · Ask xvora to change a setting";
     let text = modal_window::fit_tip_line(&[LONG, SHORT], area.width as usize);
     modal_window::render_centered_tip_footer(buf, area, theme, text.as_ref());
 }

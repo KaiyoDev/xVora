@@ -37,7 +37,7 @@ pub enum ReplayLookupFallback {
 }
 
 /// Optional location hints so child `updates.jsonl` lookup can skip a full
-/// `~/.grok/sessions` RelocationView scan.
+/// `~/.xvora/sessions` RelocationView scan.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct ReplayPathHint<'a> {
     /// Parent session working directory; tried as `<sessions>/<encoded_cwd>/<child_id>/updates.jsonl`.
@@ -163,17 +163,17 @@ pub fn load_updates_for_replay(
     Ok(Some(collect_replay_updates(&updates_path)?))
 }
 
-/// Like [`load_updates_for_replay`], but resolves the session under a specific grok home.
+/// Like [`load_updates_for_replay`], but resolves the session under a specific xvora home.
 /// Typed, materialize-all replay reader: collects every update into owned `Vec`s.
 /// Production forwards replay through [`stream_replay_updates_at`] to bound peak memory.
 /// Only tests call it: the `testkit_synth_roundtrip` and `session_load_perf` parity references and the in-crate relocation tests.
 #[cfg(any(test, feature = "test-support"))]
 pub fn load_updates_for_replay_at(
     session_id: &str,
-    grok_home: &std::path::Path,
+    xvora_home: &std::path::Path,
 ) -> std::io::Result<Option<Vec<acp::SessionUpdate>>> {
     let Some(updates_path) =
-        resolve_replay_updates_path(session_id, grok_home, ReplayPathHint::default())?
+        resolve_replay_updates_path(session_id, xvora_home, ReplayPathHint::default())?
     else {
         return Ok(None);
     };
@@ -196,7 +196,7 @@ fn is_safe_session_id_component(session_id: &str) -> bool {
 
 fn try_fast_replay_updates_path(
     session_id: &str,
-    grok_home: &Path,
+    xvora_home: &Path,
     hint: ReplayPathHint<'_>,
 ) -> Option<PathBuf> {
     if !is_safe_session_id_component(session_id) {
@@ -204,7 +204,7 @@ fn try_fast_replay_updates_path(
     }
     for cwd in [hint.child_cwd, hint.parent_cwd].into_iter().flatten() {
         let encoded = config::encode_cwd_dirname(&cwd.to_string_lossy());
-        let candidate = grok_home.join("sessions").join(encoded).join(session_id);
+        let candidate = xvora_home.join("sessions").join(encoded).join(session_id);
         if let Some(path) = replay_updates_path_in_dir(&candidate) {
             return Some(path);
         }
@@ -212,14 +212,14 @@ fn try_fast_replay_updates_path(
     None
 }
 
-/// Resolve `updates.jsonl` for `session_id` under `grok_home`, or `None` when the session directory or the file is missing.
+/// Resolve `updates.jsonl` for `session_id` under `xvora_home`, or `None` when the session directory or the file is missing.
 /// Shared by the typed `load_updates_for_replay_at` and the streaming [`stream_replay_updates_at`].
 pub(crate) fn resolve_replay_updates_path(
     session_id: &str,
-    grok_home: &std::path::Path,
+    xvora_home: &std::path::Path,
     hint: ReplayPathHint<'_>,
 ) -> std::io::Result<Option<std::path::PathBuf>> {
-    match try_fast_replay_updates_path(session_id, grok_home, hint) {
+    match try_fast_replay_updates_path(session_id, xvora_home, hint) {
         Some(path) => return Ok(Some(path)),
         None if hint.fallback == ReplayLookupFallback::HintedOnly => {
             // The cwd hints missed; skip the RelocationView scan, which would run on the UI thread
@@ -227,7 +227,7 @@ pub(crate) fn resolve_replay_updates_path(
         }
         None => {}
     }
-    let sessions_root = grok_home.join("sessions");
+    let sessions_root = xvora_home.join("sessions");
     let view = RelocationView::load_for_sessions_root(&sessions_root).map_err(io::Error::other)?;
     let Some(session_dir) = view
         .find_persisted_session_dir(session_id)
@@ -238,7 +238,7 @@ pub(crate) fn resolve_replay_updates_path(
     Ok(replay_updates_path_in_dir(&session_dir))
 }
 
-/// Invoke `f` once per client-replay ACP update for a session under `grok_home`, never building the full typed `Vec`.
+/// Invoke `f` once per client-replay ACP update for a session under `xvora_home`, never building the full typed `Vec`.
 /// Skips ACU / InProgress lines before full notification serde and collapses a ToolCall with its updates.
 /// The typed [`load_updates_for_replay_at`] reference does not skip those.
 ///
@@ -246,14 +246,19 @@ pub(crate) fn resolve_replay_updates_path(
 /// I/O errors from reading the file still propagate.
 pub fn stream_replay_updates_at<F: FnMut(acp::SessionUpdate)>(
     session_id: &str,
-    grok_home: &std::path::Path,
+    xvora_home: &std::path::Path,
     mut f: F,
 ) -> std::io::Result<ReplayEmission> {
-    stream_replay_updates_at_hinted(session_id, grok_home, ReplayPathHint::default(), |update| {
-        if let ReplayedUpdate::Acp(update, _) = update {
-            f(update);
-        }
-    })
+    stream_replay_updates_at_hinted(
+        session_id,
+        xvora_home,
+        ReplayPathHint::default(),
+        |update| {
+            if let ReplayedUpdate::Acp(update, _) = update {
+                f(update);
+            }
+        },
+    )
 }
 
 /// Whether replaying `session_id`'s persisted transcript would emit at least one ACP update ([`ReplayEmission::Emitted`]), without applying anything.
@@ -264,10 +269,10 @@ pub fn stream_replay_updates_at<F: FnMut(acp::SessionUpdate)>(
 /// `false` and `Err` both mean "keep the in-memory copy".
 pub fn replay_would_emit(
     session_id: &str,
-    grok_home: &std::path::Path,
+    xvora_home: &std::path::Path,
     hint: ReplayPathHint<'_>,
 ) -> std::io::Result<bool> {
-    let Some(path) = resolve_replay_updates_path(session_id, grok_home, hint)? else {
+    let Some(path) = resolve_replay_updates_path(session_id, xvora_home, hint)? else {
         return Ok(false);
     };
     let raw_contents = std::fs::read_to_string(&path)?;
@@ -301,11 +306,11 @@ pub fn replay_would_emit(
 /// Persisted xAI child events are forwarded in file order (see [`ReplayedUpdate`]).
 pub fn stream_replay_updates_at_hinted<F: FnMut(ReplayedUpdate)>(
     session_id: &str,
-    grok_home: &std::path::Path,
+    xvora_home: &std::path::Path,
     hint: ReplayPathHint<'_>,
     mut f: F,
 ) -> std::io::Result<ReplayEmission> {
-    let Some(updates_path) = resolve_replay_updates_path(session_id, grok_home, hint)? else {
+    let Some(updates_path) = resolve_replay_updates_path(session_id, xvora_home, hint)? else {
         return Ok(ReplayEmission::Empty);
     };
     let raw_contents = std::fs::read_to_string(&updates_path)?;

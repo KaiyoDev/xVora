@@ -176,7 +176,7 @@ pub struct WorkspaceBindMetadata {
         skip_serializing_if = "Option::is_none"
     )]
     pub capability_mode: Option<String>,
-    /// Explicit toolset in the grok-tools gRPC wire shape. Empty = unset.
+    /// Explicit toolset in the xvora-tools gRPC wire shape. Empty = unset.
     #[serde(
         default,
         deserialize_with = "ok_or_default",

@@ -11,7 +11,7 @@ use std::time::{Duration, Instant};
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 
-use config::grok_home;
+use config::xvora_home;
 
 /// Binary version stamped into every log entry.
 /// Set once at startup via [`set_version()`]; entries emitted before that get `None`.
@@ -49,11 +49,11 @@ pub enum LogSource {
     #[strum(serialize = "shell")]
     #[serde(rename = "shell")]
     Shell,
-    #[strum(serialize = "grok-pager")]
-    #[serde(rename = "grok-pager")]
+    #[strum(serialize = "xvora-pager")]
+    #[serde(rename = "xvora-pager")]
     GrokPager,
-    #[strum(serialize = "grok-desktop")]
-    #[serde(rename = "grok-desktop")]
+    #[strum(serialize = "xvora-desktop")]
+    #[serde(rename = "xvora-desktop")]
     GrokDesktop,
 }
 
@@ -145,7 +145,7 @@ static TEST_REDIRECT: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicB
 /// Redirect all subsequent unified-log writes **and** snapshot reads to a
 /// per-process file under the system temp directory, so test binaries stop
 /// writing synthetic events into the developer's real
-/// `~/.grok/logs/unified.jsonl` (those bursts inflate exactly the counters
+/// `~/.xvora/logs/unified.jsonl` (those bursts inflate exactly the counters
 /// an incident responder greps for).
 /// Runtime-activated rather than a cargo feature: Bazel compiles production and test targets with one shared feature set.
 /// A feature gate would therefore leak into production builds.
@@ -163,7 +163,7 @@ fn log_path() -> PathBuf {
     if TEST_REDIRECT.load(std::sync::atomic::Ordering::Relaxed) {
         return test_log_dir().join(LOG_FILE);
     }
-    grok_home().join(LOG_DIR).join(LOG_FILE)
+    xvora_home().join(LOG_DIR).join(LOG_FILE)
 }
 
 /// Owner-only (0o700), freshly-created directory for the test redirect.
@@ -182,7 +182,7 @@ fn test_log_dir() -> &'static PathBuf {
             .map(|d| d.as_nanos())
             .unwrap_or(0);
         let dir = std::env::temp_dir().join(format!(
-            "grok-unified-log-test-{}-{nanos}",
+            "xvora-unified-log-test-{}-{nanos}",
             std::process::id()
         ));
         let builder = fs::DirBuilder::new();
@@ -224,7 +224,7 @@ fn open_writer() -> Option<LogWriter> {
 
 /// Open (creating if needed) a writer for an explicit path.
 ///
-/// Split from [`open_writer`] so a writer re-points at **its own** path when healing a stale handle rather than re-resolving `$GROK_HOME`.
+/// Split from [`open_writer`] so a writer re-points at **its own** path when healing a stale handle rather than re-resolving `$xvora_home`.
 /// That also makes the healing path testable against a temp directory.
 fn open_writer_at(path: PathBuf) -> Option<LogWriter> {
     if let Some(parent) = path.parent()
@@ -511,13 +511,13 @@ mod tests {
     use super::*;
 
     /// Pre-main, so no test in this binary can race the lazily-opened
-    /// writer onto the developer's real `~/.grok/logs/unified.jsonl`.
+    /// writer onto the developer's real `~/.xvora/logs/unified.jsonl`.
     #[ctor::ctor]
     fn redirect_for_tests() {
         redirect_to_temp_for_tests();
     }
 
-    /// The redirect must cover both the writer and the snapshot readers: an emit lands in a per-process temp file, never under `grok_home()`.
+    /// The redirect must cover both the writer and the snapshot readers: an emit lands in a per-process temp file, never under `xvora_home()`.
     #[test]
     fn redirect_routes_writes_and_snapshots_to_process_temp_file() {
         info(
@@ -532,7 +532,7 @@ mod tests {
         );
         assert!(
             log_path().starts_with(std::env::temp_dir()),
-            "the shared file must live under the temp dir, not grok_home(): {}",
+            "the shared file must live under the temp dir, not xvora_home(): {}",
             log_path().display()
         );
     }
@@ -899,7 +899,7 @@ mod tests {
         for bad in &[
             r#"{"src":"evil","entries":[]}"#,
             r#"{"src":"","entries":[]}"#,
-            r#"{"src":"GROK-PAGER","entries":[]}"#,
+            r#"{"src":"xvora-PAGER","entries":[]}"#,
         ] {
             assert!(serde_json::from_str::<LogNotificationParams>(bad).is_err());
         }

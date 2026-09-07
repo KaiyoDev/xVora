@@ -8,7 +8,7 @@ use super::common::*;
 #[ignore = "PTY e2e; run the owning pty_e2e_* Cargo test with --ignored (see Cargo.toml)"]
 async fn requirements_version_failure_exits_2_with_guidance() {
     let sandbox = test_support::TestSandbox::new();
-    let home_path = sandbox.grok_home();
+    let home_path = sandbox.xvora_home();
     // With fail_closed set, a version_override whose version can't parse makes apply_version_overrides err, so startup aborts
     std::fs::write(
         home_path.join("requirements.toml"),
@@ -28,7 +28,7 @@ async fn requirements_version_failure_exits_2_with_guidance() {
     )
     .expect("spawn pager");
 
-    let msg = "Update Grok to a version the policy allows";
+    let msg = "Update xvora to a version the policy allows";
     // This single budget covers the child's cold exec (a ~680MB unoptimized debug binary), reaching `main()`, and running `validate_requirements`
     // All of that happens before the runtime/TUI
     // Under the ~60-way-parallel `pty_e2e` suite, spawning that many large binaries at once can delay a child's first write well past 30s

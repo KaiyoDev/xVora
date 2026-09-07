@@ -199,10 +199,10 @@ mod tests {
     #[test]
     fn options_have_one_selected_model_and_a_mode_per_effort() {
         let models = [
-            model("grok-build", "Grok Build"),
-            model("grok-4.5", "Grok 4.5"),
+            model("xvora-build", "xvora build"),
+            model("grok-4.5", "xvora 4.5"),
         ];
-        let current = acp::ModelId::from("grok-build");
+        let current = acp::ModelId::from("xvora-build");
         let opts = build_session_config_options(
             &models,
             &current,
@@ -214,7 +214,7 @@ mod tests {
         assert_eq!(model_opts.len(), 2);
         let selected_models: Vec<_> = model_opts.iter().filter(|o| o.selected).collect();
         assert_eq!(selected_models.len(), 1);
-        assert_eq!(selected_models[0].id, "grok-build");
+        assert_eq!(selected_models[0].id, "xvora-build");
 
         let mode_opts: Vec<_> = opts.iter().filter(|o| o.category == "mode").collect();
         assert_eq!(mode_opts.len(), SELECTABLE_REASONING_EFFORTS.len());
@@ -227,8 +227,8 @@ mod tests {
     #[test]
     fn none_effort_is_not_a_user_selectable_mode() {
         assert!(!SELECTABLE_REASONING_EFFORTS.contains(&ReasoningEffort::None));
-        let models = [model("grok-build", "Grok Build")];
-        let current = acp::ModelId::from("grok-build");
+        let models = [model("xvora-build", "xvora build")];
+        let current = acp::ModelId::from("xvora-build");
         let opts = build_session_config_options(
             &models,
             &current,
@@ -242,8 +242,8 @@ mod tests {
 
     #[test]
     fn no_mode_options_when_model_lacks_effort_support() {
-        let models = [model("grok-build", "Grok Build")];
-        let current = acp::ModelId::from("grok-build");
+        let models = [model("xvora-build", "xvora build")];
+        let current = acp::ModelId::from("xvora-build");
         let opts = build_session_config_options(&models, &current, &[], None);
         assert_eq!(opts.len(), 1);
         assert!(opts.iter().all(|o| o.category == "model"));
@@ -251,25 +251,25 @@ mod tests {
 
     #[test]
     fn model_label_falls_back_to_id_when_name_empty() {
-        let models = [model("grok-build", "")];
-        let current = acp::ModelId::from("grok-build");
+        let models = [model("xvora-build", "")];
+        let current = acp::ModelId::from("xvora-build");
         let opts = build_session_config_options(&models, &current, &[], None);
-        assert_eq!(opts[0].label, "grok-build");
+        assert_eq!(opts[0].label, "xvora-build");
     }
 
     #[test]
     fn session_config_option_serializes_camel_case() {
         let opt = SessionConfigOption {
-            id: "grok-build".to_string(),
+            id: "xvora-build".to_string(),
             category: "model".to_string(),
-            label: "Grok Build".to_string(),
+            label: "xvora build".to_string(),
             description: None,
             selected: true,
         };
         let v = serde_json::to_value(&opt).expect("serialize");
-        assert_eq!(v["id"], "grok-build");
+        assert_eq!(v["id"], "xvora-build");
         assert_eq!(v["category"], "model");
-        assert_eq!(v["label"], "Grok Build");
+        assert_eq!(v["label"], "xvora build");
         assert_eq!(v["selected"], true);
         assert!(v.get("description").is_none());
     }
@@ -279,22 +279,22 @@ mod tests {
         let detail = GrokSessionDetail::build(
             "sess-1".to_string(),
             "/Users/me/xvora".to_string(),
-            "grok-build".to_string(),
+            "xvora-build".to_string(),
             None,
         );
         let v = serde_json::to_value(&detail).expect("serialize");
         assert_eq!(v["sessionId"], "sess-1");
         assert_eq!(v["kind"], "build");
         assert_eq!(v["cwd"], "/Users/me/xvora");
-        assert_eq!(v["currentModelId"], "grok-build");
+        assert_eq!(v["currentModelId"], "xvora-build");
         assert!(v.get("title").is_none());
     }
 
     #[test]
     fn acp_config_options_map_model_and_effort_selectors() {
         let models = [
-            model("grok-build", "Grok Build"),
-            model("grok-4.5", "Grok 4.5"),
+            model("xvora-build", "xvora build"),
+            model("grok-4.5", "xvora 4.5"),
         ];
         let efforts = [ReasoningEffortOption {
             id: "high".to_string(),
@@ -317,8 +317,8 @@ mod tests {
                 "Model",
                 "grok-4.5",
                 vec![
-                    acp::SessionConfigSelectOption::new("grok-build", "Grok Build"),
-                    acp::SessionConfigSelectOption::new("grok-4.5", "Grok 4.5"),
+                    acp::SessionConfigSelectOption::new("xvora-build", "xvora build"),
+                    acp::SessionConfigSelectOption::new("grok-4.5", "xvora 4.5"),
                 ],
             )
             .category(acp::SessionConfigOptionCategory::Model),
@@ -335,7 +335,7 @@ mod tests {
 
     #[test]
     fn acp_config_options_effort_current_preserves_unlisted_value() {
-        let models = [model("grok-4.5", "Grok 4.5")];
+        let models = [model("grok-4.5", "xvora 4.5")];
         let efforts = [ReasoningEffortOption {
             id: "high".to_string(),
             value: ReasoningEffort::High,
@@ -364,8 +364,8 @@ mod tests {
     #[test]
     fn acp_config_options_model_current_preserves_unlisted_value() {
         let models = [
-            model("grok-build", "Grok Build"),
-            model("grok-4.5", "Grok 4.5"),
+            model("xvora-build", "xvora build"),
+            model("grok-4.5", "xvora 4.5"),
         ];
         let options =
             build_acp_config_options(&models, &acp::ModelId::from("stale-model"), &[], None);

@@ -65,12 +65,12 @@ pub(crate) fn project_root(session_cwd: &Path) -> PathBuf {
 }
 
 pub(crate) fn user_workflow_dir() -> PathBuf {
-    crate::util::grok_home::grok_home().join("workflows")
+    crate::util::xvora_home::xvora_home().join("workflows")
 }
 
-/// Runtime-updated builtins from the GCS subagent bundle (`~/.grok/bundled/workflows`).
+/// Runtime-updated builtins from the GCS subagent bundle (`~/.xvora/bundled/workflows`).
 pub(crate) fn bundled_workflow_dir() -> PathBuf {
-    crate::util::grok_home::grok_home()
+    crate::util::xvora_home::xvora_home()
         .join("bundled")
         .join("workflows")
 }
@@ -139,7 +139,10 @@ impl WorkflowRegistry {
         if let Some(cwd) = session_cwd
             && crate::agent::folder_trust::project_scope_allowed(cwd)
         {
-            dirs.push((project_root(cwd).join(".grok").join("workflows"), "project"));
+            dirs.push((
+                project_root(cwd).join(".xvora").join("workflows"),
+                "project",
+            ));
         }
         dirs.push((user_workflow_dir(), "user"));
 
@@ -356,7 +359,7 @@ pub(crate) fn resolve_by_path(
     if !in_project && !in_user_or_session {
         return Err(ResolveError::UntrustedPath {
             path: candidate.display().to_string(),
-            reason: "outside the project, grok home, and session workflow runs".into(),
+            reason: "outside the project, xvora home, and session workflow runs".into(),
         });
     }
 
@@ -537,7 +540,7 @@ pub(crate) fn save_project_workflow(
         path: root.display().to_string(),
         error: error.to_string(),
     })?;
-    let dir = canonical_root.join(".grok").join("workflows");
+    let dir = canonical_root.join(".xvora").join("workflows");
     create_contained_workflow_dir(&canonical_root, &dir)?;
     let canonical_dir = dunce::canonicalize(&dir).map_err(|error| ResolveError::Io {
         path: dir.display().to_string(),
@@ -699,7 +702,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         git2::Repository::init(dir.path()).unwrap();
         let cwd = dir.path().join("nested");
-        let wf_dir = dir.path().join(".grok").join("workflows");
+        let wf_dir = dir.path().join(".xvora").join("workflows");
         std::fs::create_dir_all(&cwd).unwrap();
         std::fs::create_dir_all(&wf_dir).unwrap();
         std::fs::write(wf_dir.join("alpha.rhai"), script("alpha")).unwrap();
@@ -744,7 +747,7 @@ mod tests {
     fn project_workflows_follow_folder_trust() {
         let dir = tempfile::tempdir().unwrap();
         git2::Repository::init(dir.path()).unwrap();
-        let workflows = dir.path().join(".grok/workflows");
+        let workflows = dir.path().join(".xvora/workflows");
         std::fs::create_dir_all(&workflows).unwrap();
         std::fs::write(workflows.join("project-only.rhai"), script("project-only")).unwrap();
 
@@ -930,7 +933,7 @@ mod tests {
 
         let dir = tempfile::tempdir().unwrap();
         let project = dir.path().join("project");
-        let workflows = project.join(".grok/workflows");
+        let workflows = project.join(".xvora/workflows");
         let target = dir.path().join("linked.rhai");
         std::fs::create_dir_all(&workflows).unwrap();
         std::fs::write(&target, script("linked")).unwrap();
@@ -976,7 +979,7 @@ mod tests {
         let path = save_project_workflow(&linked, "safe", &script("safe")).unwrap();
         assert_eq!(
             dunce::canonicalize(path).unwrap(),
-            project.join(".grok/workflows/safe.rhai")
+            project.join(".xvora/workflows/safe.rhai")
         );
     }
 
@@ -988,9 +991,9 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let project = dir.path().join("project");
         let attacker = dir.path().join("attacker");
-        std::fs::create_dir_all(project.join(".grok")).unwrap();
+        std::fs::create_dir_all(project.join(".xvora")).unwrap();
         std::fs::create_dir_all(&attacker).unwrap();
-        symlink(&attacker, project.join(".grok/workflows")).unwrap();
+        symlink(&attacker, project.join(".xvora/workflows")).unwrap();
 
         assert!(matches!(
             save_project_workflow(&project, "safe", &script("safe")),

@@ -1,10 +1,10 @@
 //! End-to-end tests for `install_internal`, the GCS-bucket installer used when `installer = "internal"` is configured.
 //!
-//! Wires together a wiremock-mocked GCS bucket and an isolated `GROK_HOME` tempdir to verify the full install pipeline:
-//! fetch version, download the grok binary, chmod, atomic symlink, cleanup_old_downloads, persist installer config.
+//! Wires together a wiremock-mocked GCS bucket and an isolated `xvora_home` tempdir to verify the full install pipeline:
+//! fetch version, download the xvora binary, chmod, atomic symlink, cleanup_old_downloads, persist installer config.
 //!
-//! The function reads `grok_home()` (a process-wide `OnceLock`).
-//! All tests in this binary therefore share one `GROK_HOME` and run serially via `#[serial]`.
+//! The function reads `xvora_home()` (a process-wide `OnceLock`).
+//! All tests in this binary therefore share one `xvora_home` and run serially via `#[serial]`.
 
 #![cfg(unix)]
 
@@ -60,9 +60,9 @@ async fn mount_gcs(version: &str, platform: &str) -> MockServer {
         .mount(&server)
         .await;
 
-    // Main grok binary download.
+    // Main xvora binary download.
     Mock::given(method("GET"))
-        .and(path(format!("/grok-{version}-{platform}")))
+        .and(path(format!("/xvora-{version}-{platform}")))
         .respond_with(ResponseTemplate::new(200).set_body_bytes(b"#!/bin/sh\nexit 0\n".to_vec()))
         .mount(&server)
         .await;
@@ -90,23 +90,23 @@ async fn install_internal_pinned_version_writes_binary_and_symlink() {
     let home = test_home();
     let downloaded = home
         .join("downloads")
-        .join(format!("grok-0.1.181-{platform}"));
+        .join(format!("xvora-0.1.181-{platform}"));
     assert!(downloaded.exists(), "binary downloaded: {downloaded:?}");
     assert_eq!(std::fs::read(&downloaded).unwrap(), b"#!/bin/sh\nexit 0\n");
 
-    let symlink = home.join("bin").join("grok");
-    assert!(symlink.is_symlink(), "grok symlink created");
+    let symlink = home.join("bin").join("xvora");
+    assert!(symlink.is_symlink(), "xvora symlink created");
     let target = std::fs::read_link(&symlink).unwrap();
     assert_eq!(
         target.file_name().unwrap(),
-        format!("grok-0.1.181-{platform}").as_str()
+        format!("xvora-0.1.181-{platform}").as_str()
     );
 
-    // `grok` and `agent` move together; see `swap_managed_bin_links`
+    // `xvora` and `agent` move together; see `swap_managed_bin_links`
     let agent_link = home.join("bin").join("agent");
     assert!(agent_link.is_symlink(), "agent symlink created");
     let agent_target = std::fs::read_link(&agent_link).unwrap();
-    assert_eq!(agent_target, target, "agent and grok point at same target");
+    assert_eq!(agent_target, target, "agent and xvora point at same target");
 }
 
 /// Regression: pre-existing `agent` symlink from a prior install must be swapped to the new version, not left stale (the original bug).
@@ -125,12 +125,12 @@ async fn install_internal_updates_stale_agent_symlink_to_new_version() {
     let download_dir = home.join("downloads");
     std::fs::create_dir_all(&bin_dir).unwrap();
     std::fs::create_dir_all(&download_dir).unwrap();
-    let old_binary = download_dir.join(format!("grok-0.1.180-{platform}"));
+    let old_binary = download_dir.join(format!("xvora-0.1.180-{platform}"));
     std::fs::write(&old_binary, b"#!/bin/sh\nexit 0\n").unwrap();
     let rel_old = std::path::Path::new("..")
         .join("downloads")
-        .join(format!("grok-0.1.180-{platform}"));
-    std::os::unix::fs::symlink(&rel_old, bin_dir.join("grok")).unwrap();
+        .join(format!("xvora-0.1.180-{platform}"));
+    std::os::unix::fs::symlink(&rel_old, bin_dir.join("xvora")).unwrap();
     std::os::unix::fs::symlink(&rel_old, bin_dir.join("agent")).unwrap();
 
     install_internal_from_base(Some("0.1.181"), &cfg, &server.uri())
@@ -141,12 +141,12 @@ async fn install_internal_updates_stale_agent_symlink_to_new_version() {
     let agent_target = std::fs::read_link(&agent_link).unwrap();
     assert_eq!(
         agent_target.file_name().unwrap(),
-        format!("grok-0.1.181-{platform}").as_str(),
+        format!("xvora-0.1.181-{platform}").as_str(),
         "agent symlink must swap to the new version, not stay on old"
     );
 }
 
-/// Rollback regression: if `agent` swap fails after `grok` succeeded, `grok` must roll back to its prior target (all-or-nothing).
+/// Rollback regression: if `agent` swap fails after `xvora` succeeded, `xvora` must roll back to its prior target (all-or-nothing).
 #[tokio::test]
 #[serial]
 async fn install_internal_rolls_back_grok_when_agent_swap_fails() {
@@ -161,12 +161,12 @@ async fn install_internal_rolls_back_grok_when_agent_swap_fails() {
     let download_dir = home.join("downloads");
     std::fs::create_dir_all(&bin_dir).unwrap();
     std::fs::create_dir_all(&download_dir).unwrap();
-    let old_binary = download_dir.join(format!("grok-0.1.180-{platform}"));
+    let old_binary = download_dir.join(format!("xvora-0.1.180-{platform}"));
     std::fs::write(&old_binary, b"#!/bin/sh\nexit 0\n").unwrap();
     let rel_old = std::path::Path::new("..")
         .join("downloads")
-        .join(format!("grok-0.1.180-{platform}"));
-    std::os::unix::fs::symlink(&rel_old, bin_dir.join("grok")).unwrap();
+        .join(format!("xvora-0.1.180-{platform}"));
+    std::os::unix::fs::symlink(&rel_old, bin_dir.join("xvora")).unwrap();
 
     // Sabotage the agent swap: a non-empty directory makes the rename fail with EISDIR
     let agent_dir = bin_dir.join("agent");
@@ -178,16 +178,16 @@ async fn install_internal_rolls_back_grok_when_agent_swap_fails() {
         .expect_err("agent swap must fail when target is a non-empty dir");
     drop(err);
 
-    let grok_target = std::fs::read_link(bin_dir.join("grok")).unwrap();
+    let grok_target = std::fs::read_link(bin_dir.join("xvora")).unwrap();
     assert_eq!(
         grok_target.file_name().unwrap(),
-        format!("grok-0.1.180-{platform}").as_str(),
-        "grok must be rolled back when agent swap fails"
+        format!("xvora-0.1.180-{platform}").as_str(),
+        "xvora must be rolled back when agent swap fails"
     );
 }
 
-/// Rollback regression for a fresh install (no prior `grok` or `agent`): a sabotaged `agent` swap must *remove* the just-created `grok` link.
-/// Otherwise `grok` would stay on the new binary while `agent` is absent.
+/// Rollback regression for a fresh install (no prior `xvora` or `agent`): a sabotaged `agent` swap must *remove* the just-created `xvora` link.
+/// Otherwise `xvora` would stay on the new binary while `agent` is absent.
 #[tokio::test]
 #[serial]
 async fn install_internal_rollback_removes_absent_prior_grok_link() {
@@ -201,13 +201,13 @@ async fn install_internal_rollback_removes_absent_prior_grok_link() {
     let bin_dir = home.join("bin");
     std::fs::create_dir_all(&bin_dir).unwrap();
 
-    // No prior `grok`. Sabotage the `agent` swap: a non-empty directory fails the rename with EISDIR.
+    // No prior `xvora`. Sabotage the `agent` swap: a non-empty directory fails the rename with EISDIR.
     let agent_dir = bin_dir.join("agent");
     std::fs::create_dir(&agent_dir).unwrap();
     std::fs::write(agent_dir.join("blocker"), b"x").unwrap();
     assert!(
-        !bin_dir.join("grok").exists() && !bin_dir.join("grok").is_symlink(),
-        "precondition: grok must not exist before install",
+        !bin_dir.join("xvora").exists() && !bin_dir.join("xvora").is_symlink(),
+        "precondition: xvora must not exist before install",
     );
 
     let err = install_internal_from_base(Some("0.1.181"), &cfg, &server.uri())
@@ -215,10 +215,10 @@ async fn install_internal_rollback_removes_absent_prior_grok_link() {
         .expect_err("agent swap must fail when target is a non-empty dir");
     drop(err);
 
-    let grok_path = bin_dir.join("grok");
+    let grok_path = bin_dir.join("xvora");
     assert!(
         !grok_path.is_symlink() && !grok_path.exists(),
-        "grok must be removed on rollback when there was no prior link",
+        "xvora must be removed on rollback when there was no prior link",
     );
 }
 
@@ -239,7 +239,7 @@ async fn install_internal_chmods_binary_executable() {
     let home = test_home();
     let binary = home
         .join("downloads")
-        .join(format!("grok-0.1.181-{platform}"));
+        .join(format!("xvora-0.1.181-{platform}"));
     let mode = std::fs::metadata(&binary).unwrap().permissions().mode();
     assert!(mode & 0o111 != 0, "binary must be executable, got {mode:o}");
 }
@@ -247,8 +247,8 @@ async fn install_internal_chmods_binary_executable() {
 #[tokio::test]
 #[serial]
 async fn install_internal_cleans_up_stale_pager_symlink() {
-    // Old installations shipped a separate grok-pager binary. Verify the
-    // update removes the stale symlink from ~/.grok/bin/.
+    // Old installations shipped a separate xvora-pager binary. Verify the
+    // update removes the stale symlink from ~/.xvora/bin/.
     let _ = test_home();
     reset_home();
     let platform = host_platform();
@@ -258,7 +258,7 @@ async fn install_internal_cleans_up_stale_pager_symlink() {
     let home = test_home();
     let bin_dir = home.join("bin");
     std::fs::create_dir_all(&bin_dir).unwrap();
-    let pager_link = bin_dir.join("grok-pager");
+    let pager_link = bin_dir.join("xvora-pager");
     std::os::unix::fs::symlink("/tmp/fake-old-pager", &pager_link).unwrap();
     assert!(
         pager_link.is_symlink(),
@@ -271,7 +271,7 @@ async fn install_internal_cleans_up_stale_pager_symlink() {
 
     assert!(
         !pager_link.exists() && !pager_link.is_symlink(),
-        "stale grok-pager symlink should be removed"
+        "stale xvora-pager symlink should be removed"
     );
 }
 
@@ -313,7 +313,7 @@ async fn install_internal_resolves_version_via_channel_pointer_when_no_target() 
     let home = test_home();
     assert!(
         home.join("downloads")
-            .join(format!("grok-0.1.181-{platform}"))
+            .join(format!("xvora-0.1.181-{platform}"))
             .exists(),
         "binary at version from /stable pointer"
     );
@@ -339,7 +339,7 @@ async fn install_internal_alpha_channel_resolves_max_of_alpha_and_stable() {
         .mount(&server)
         .await;
     Mock::given(method("GET"))
-        .and(path(format!("/grok-0.1.181-{platform}")))
+        .and(path(format!("/xvora-0.1.181-{platform}")))
         .respond_with(ResponseTemplate::new(200).set_body_bytes(b"#!/bin/sh\nexit 0\n".to_vec()))
         .mount(&server)
         .await;
@@ -352,7 +352,7 @@ async fn install_internal_alpha_channel_resolves_max_of_alpha_and_stable() {
     let home = test_home();
     assert!(
         home.join("downloads")
-            .join(format!("grok-0.1.181-{platform}"))
+            .join(format!("xvora-0.1.181-{platform}"))
             .exists()
     );
 }
@@ -376,7 +376,7 @@ async fn install_internal_fails_on_grok_binary_404() {
         .await;
     // The main binary returns 404, which must propagate as an error
     Mock::given(method("GET"))
-        .and(path(format!("/grok-0.1.181-{platform}")))
+        .and(path(format!("/xvora-0.1.181-{platform}")))
         .respond_with(ResponseTemplate::new(404))
         .mount(&server)
         .await;
@@ -433,19 +433,19 @@ async fn install_internal_cleans_up_old_versions_keeping_n_minus_one() {
     let home = test_home();
     let downloads = home.join("downloads");
     assert!(
-        downloads.join(format!("grok-0.1.181-{platform}")).exists(),
+        downloads.join(format!("xvora-0.1.181-{platform}")).exists(),
         "current"
     );
     assert!(
-        downloads.join(format!("grok-0.1.180-{platform}")).exists(),
+        downloads.join(format!("xvora-0.1.180-{platform}")).exists(),
         "N-1 retained"
     );
     assert!(
-        !downloads.join(format!("grok-0.1.179-{platform}")).exists(),
+        !downloads.join(format!("xvora-0.1.179-{platform}")).exists(),
         "oldest deleted"
     );
 
-    let target = std::fs::read_link(home.join("bin").join("grok")).unwrap();
+    let target = std::fs::read_link(home.join("bin").join("xvora")).unwrap();
     assert!(
         target
             .file_name()
@@ -472,7 +472,7 @@ async fn install_internal_idempotent_for_same_version() {
     let first = std::fs::read(
         test_home()
             .join("downloads")
-            .join(format!("grok-0.1.181-{platform}")),
+            .join(format!("xvora-0.1.181-{platform}")),
     )
     .unwrap();
 
@@ -482,12 +482,12 @@ async fn install_internal_idempotent_for_same_version() {
     let second = std::fs::read(
         test_home()
             .join("downloads")
-            .join(format!("grok-0.1.181-{platform}")),
+            .join(format!("xvora-0.1.181-{platform}")),
     )
     .unwrap();
 
     assert_eq!(first, second);
-    let target = std::fs::read_link(test_home().join("bin").join("grok")).unwrap();
+    let target = std::fs::read_link(test_home().join("bin").join("xvora")).unwrap();
     assert!(target.to_string_lossy().contains("0.1.181"));
 }
 
@@ -544,7 +544,7 @@ async fn install_internal_from_bases_falls_back_to_secondary_when_primary_fails(
     assert!(
         test_home()
             .join("downloads")
-            .join(format!("grok-0.1.181-{platform}"))
+            .join(format!("xvora-0.1.181-{platform}"))
             .exists(),
         "fallback should produce a downloaded binary"
     );
@@ -566,7 +566,7 @@ async fn install_internal_from_bases_does_not_fallback_on_smoke_failure() {
         .mount(&primary)
         .await;
     Mock::given(method("GET"))
-        .and(path(format!("/grok-0.1.181-{platform}")))
+        .and(path(format!("/xvora-0.1.181-{platform}")))
         .respond_with(ResponseTemplate::new(200).set_body_bytes(b"#!/bin/sh\nexit 1\n".to_vec()))
         .mount(&primary)
         .await;
@@ -620,7 +620,7 @@ async fn install_internal_from_bases_uses_primary_when_it_works() {
     assert!(
         test_home()
             .join("downloads")
-            .join(format!("grok-0.1.181-{platform}"))
+            .join(format!("xvora-0.1.181-{platform}"))
             .exists()
     );
 }

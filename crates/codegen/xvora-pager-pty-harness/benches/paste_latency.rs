@@ -19,7 +19,7 @@
 //!
 //! # Compare an old release artifact, text mode only, JSON to a file:
 //! cargo bench -p xvora-pager-pty-harness --bench paste_latency -- \
-//!   --binary ~/Downloads/grok-old --mode text --json /tmp/paste-old.json
+//!   --binary ~/Downloads/xvora-old --mode text --json /tmp/paste-old.json
 //! ```
 
 use std::path::{Path, PathBuf};

@@ -1,22 +1,22 @@
-//! Path-derived identity of a grok-managed worktree.
+//! Path-derived identity of a xvora-managed worktree.
 //!
-//! Every creation path resolves its destination to `<grok home>/worktrees/<repo slug>/<label>`, with the label as the last path component.
+//! Every creation path resolves its destination to `<xvora home>/worktrees/<repo slug>/<label>`, with the label as the last path component.
 //! A session cwd anywhere inside a worktree is therefore enough to recover the label.
 //! The worktree DB only enriches the result with the recorded source repo.
 //! It is a cache, never a dependency, so identity can be stamped on summaries even when the DB is missing or empty.
 
 use std::path::{Path, PathBuf};
 
-/// Identity of the grok-managed worktree containing a cwd.
+/// Identity of the xvora-managed worktree containing a cwd.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WorktreeIdentity {
     pub label: String,
     pub source_workspace_dir: Option<String>,
 }
 
-/// [`worktree_identity_in`] against the default `<grok home>/worktrees`.
+/// [`worktree_identity_in`] against the default `<xvora home>/worktrees`.
 pub fn worktree_identity_for_cwd(cwd: &str) -> Option<WorktreeIdentity> {
-    worktree_identity_in(&super::grok_home().join("worktrees"), cwd)
+    worktree_identity_in(&super::xvora_home().join("worktrees"), cwd)
 }
 
 /// Derive the identity of the worktree containing `cwd`, where worktrees live at `<worktrees_dir>/<slug>/<label>`.
@@ -24,7 +24,7 @@ pub fn worktree_identity_for_cwd(cwd: &str) -> Option<WorktreeIdentity> {
 /// Returns `None` when `cwd` is not inside a worktree.
 pub fn worktree_identity_in(worktrees_dir: &Path, cwd: &str) -> Option<WorktreeIdentity> {
     // Session cwd is usually `current_dir()` (symlink-resolved)
-    // GROK_HOME (and so `worktrees_dir`) is often the unresolved env spelling
+    // xvora_home (and so `worktrees_dir`) is often the unresolved env spelling
     // A raw strip_prefix then misses a real worktree and summaries never get a kind or label
     let cwd_path = Path::new(cwd);
     let cwd_canon = canonical(cwd_path);
@@ -43,8 +43,8 @@ pub fn worktree_identity_in(worktrees_dir: &Path, cwd: &str) -> Option<WorktreeI
     let source_workspace_dir = super::source_repo_for_cwd(cwd)
         .or_else(|| standalone_source_marker(&worktree_root))
         .or_else(|| {
-            // NO_SEARCH, not `discover`: every grok-created worktree has `.git` at its root
-            // An upward walk would let a stray non-repo directory here inherit a repository enclosing grok home, like a git-managed home directory
+            // NO_SEARCH, not `discover`: every xvora-created worktree has `.git` at its root
+            // An upward walk would let a stray non-repo directory here inherit a repository enclosing xvora home, like a git-managed home directory
             let repo = git2::Repository::open_ext(
                 &worktree_root,
                 git2::RepositoryOpenFlags::NO_SEARCH,
@@ -53,7 +53,7 @@ pub fn worktree_identity_in(worktrees_dir: &Path, cwd: &str) -> Option<WorktreeI
             .ok()?;
             let root = repo.commondir().parent()?.to_path_buf();
             // git2 returns symlink-resolved paths, so the containment check must compare canonicalized paths
-            // Otherwise a symlinked grok home lets a standalone clone report itself as the source
+            // Otherwise a symlinked xvora home lets a standalone clone report itself as the source
             (!canonical(&root).starts_with(canonical(worktrees_dir))).then_some(root)
         })
         .map(|root| root.to_string_lossy().into_owned());
@@ -67,7 +67,7 @@ pub fn worktree_identity_in(worktrees_dir: &Path, cwd: &str) -> Option<WorktreeI
 // Only standalone clones carry it: their `.git` is a directory; a linked worktree's `.git` file makes the read fail and fall through to git
 fn standalone_source_marker(worktree_root: &Path) -> Option<PathBuf> {
     let contents =
-        std::fs::read_to_string(worktree_root.join(".git").join("grok-worktree-source")).ok()?;
+        std::fs::read_to_string(worktree_root.join(".git").join("xvora-worktree-source")).ok()?;
     let trimmed = contents.trim();
     (!trimmed.is_empty()).then(|| PathBuf::from(trimmed))
 }

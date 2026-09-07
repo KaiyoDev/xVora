@@ -6156,8 +6156,8 @@ mod tests {
             .run_until(async {
                 for path in [
                     "/etc/hosts",
-                    "/home/user/.grok/hooks/evil.json",
-                    "/home/user/.grok/sandbox.toml",
+                    "/home/user/.xvora/hooks/evil.json",
+                    "/home/user/.xvora/sandbox.toml",
                 ] {
                     let mut auto = crate::permission::types::PermissionConfig::new(vec![]);
                     auto.prompt_policy = PromptPolicy::Auto;

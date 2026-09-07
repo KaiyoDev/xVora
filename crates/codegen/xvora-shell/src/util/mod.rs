@@ -13,14 +13,14 @@ pub use shell_base::util::*;
 
 pub(crate) fn is_user_instruction_path(
     path: &std::path::Path,
-    grok_home: &std::path::Path,
+    xvora_home: &std::path::Path,
     vendor_homes: &[(std::path::PathBuf, bool)],
     workspace_roots: &[&std::path::Path],
 ) -> bool {
     let parent = path.parent();
-    let grok_rules = grok_home.join("rules");
+    let grok_rules = xvora_home.join("rules");
     let is_exact_home_surface = parent
-        .is_some_and(|parent| parent == grok_home || parent == grok_rules)
+        .is_some_and(|parent| parent == xvora_home || parent == grok_rules)
         || vendor_homes.iter().any(|(vendor_home, named_enabled)| {
             parent.is_some_and(|parent| {
                 (*named_enabled && parent == vendor_home) || parent == vendor_home.join("rules")
@@ -33,7 +33,7 @@ pub(crate) fn is_user_instruction_path(
     if workspace_roots.iter().any(|root| path.starts_with(root)) {
         return false;
     }
-    path.starts_with(grok_home)
+    path.starts_with(xvora_home)
         || vendor_homes
             .iter()
             .any(|(vendor_home, _)| path.starts_with(vendor_home))
@@ -129,10 +129,10 @@ mod is_user_instruction_path_tests {
     #[test]
     fn workspace_descendants_under_grok_home_stay_project_scoped() {
         assert!(!is_user_instruction_path(
-            Path::new("/custom/grok/worktrees/repo/src/AGENTS.md"),
-            Path::new("/custom/grok"),
+            Path::new("/custom/xvora/worktrees/repo/src/AGENTS.md"),
+            Path::new("/custom/xvora"),
             &[],
-            &[Path::new("/custom/grok/worktrees/repo")],
+            &[Path::new("/custom/xvora/worktrees/repo")],
         ));
     }
 }

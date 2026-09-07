@@ -112,10 +112,10 @@ fn seed_fake_oauth_raw(
     opted_out: bool,
     team_fields: &str,
 ) {
-    let grok_home = content.home().join(".grok");
-    std::fs::create_dir_all(&grok_home).expect("create temp .grok");
+    let xvora_home = content.home().join(".xvora");
+    std::fs::create_dir_all(&xvora_home).expect("create temp .xvora");
     std::fs::write(
-        grok_home.join("auth.json"),
+        xvora_home.join("auth.json"),
         format!(
             r#"{{
   "https://auth.x.ai::b1a00492-073a-47ea-816f-4c329264a828": {{

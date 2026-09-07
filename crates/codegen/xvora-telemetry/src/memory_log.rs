@@ -1,5 +1,5 @@
 //! Provides a dedicated tracing target (`memory`) with an optional
-//! file logger that writes to `~/.grok/logs/memory.log`.
+//! file logger that writes to `~/.xvora/logs/memory.log`.
 //!
 //! ## When to use
 //!
@@ -10,8 +10,8 @@
 //!
 //! ```bash
 //! # build with memory logging enabled, then:
-//! GROK_MEMORY_LOG=0 grok                # disable even when enabled
-//! tail -f ~/.grok/logs/memory.log      # watch in another terminal
+//! GROK_MEMORY_LOG=0 xvora                # disable even when enabled
+//! tail -f ~/.xvora/logs/memory.log      # watch in another terminal
 //! ```
 
 /// Tracing target for all memory system operations.
@@ -32,7 +32,7 @@ mod inner {
     use tracing_subscriber::registry::LookupSpan;
 
     use super::TARGET;
-    use config::grok_home;
+    use config::xvora_home;
 
     const ENV_MEMORY_LOG: &str = "GROK_MEMORY_LOG";
 
@@ -60,7 +60,7 @@ mod inner {
         }
     }
 
-    /// Writes to `~/.grok/logs/memory.log`. Filters to `memory=trace`.
+    /// Writes to `~/.xvora/logs/memory.log`. Filters to `memory=trace`.
     /// Set `GROK_MEMORY_LOG=0` to disable, `GROK_MEMORY_LOG=/path` to redirect.
     pub fn layer<S>() -> Option<impl Layer<S>>
     where
@@ -104,7 +104,7 @@ mod inner {
     }
 
     fn resolve_log_path() -> Option<PathBuf> {
-        let default_path = || grok_home().join("logs").join("memory.log");
+        let default_path = || xvora_home().join("logs").join("memory.log");
         let raw = match std::env::var(ENV_MEMORY_LOG) {
             Ok(val) => val,
             Err(_) => return Some(default_path()),

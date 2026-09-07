@@ -306,8 +306,8 @@ pub(super) fn handle_settings_update(notif: &acp::ExtNotification, app: &mut App
             Some(&remote_tips),
         );
         if !app.tips.is_empty() {
-            let grok_home = tools::util::grok_home::grok_home();
-            app.tip = shell::util::tips::pick_and_advance(&app.tips, &grok_home);
+            let xvora_home = tools::util::xvora_home::xvora_home();
+            app.tip = shell::util::tips::pick_and_advance(&app.tips, &xvora_home);
         } else {
             app.tip = None;
         }

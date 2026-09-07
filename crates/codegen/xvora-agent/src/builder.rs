@@ -14,8 +14,8 @@ use tools::computer::types::{AsyncFileSystem, TerminalBackend};
 use tools::notification::ToolNotificationHandle;
 use tools::registry::types::SessionContext;
 use tools::types::tool::ToolKind;
-/// The Grok [`ToolKind`] a vendor-compat `tools:` allowlist entry resolves to, so a plugin's upstream allowlist still binds.
-/// Backed by the shared vendor-to-Grok tool registry in `xvora-tools` (also used by the hook matcher).
+/// The xvora [`ToolKind`] a vendor-compat `tools:` allowlist entry resolves to, so a plugin's upstream allowlist still binds.
+/// Backed by the shared vendor-to-xvora tool registry in `xvora-tools` (also used by the hook matcher).
 fn claude_tool_kind(name: &str) -> Option<ToolKind> {
     tools::types::kind_for(name)
 }
@@ -42,7 +42,7 @@ pub struct AgentBuilder {
     /// Model-facing working directory for the system prompt `<user_info>` block.
     ///
     /// In forked sessions, the real `working_directory` is an overlay/worktree
-    /// path (e.g., `~/.grok/worktrees/project/fork-...-overlay`) that must stay
+    /// path (e.g., `~/.xvora/worktrees/project/fork-...-overlay`) that must stay
     /// hidden from the model. When set, `PromptContext.working_directory` uses
     /// this value instead of `self.working_directory`, so the system prompt
     /// shows the original project path. Tool execution (`ToolContext.cwd`,
@@ -554,7 +554,7 @@ impl AgentBuilder {
         self
     }
     /// Set the skills config (custom paths, ignore globs) from config.toml.
-    /// Without this, only auto-discovered skills (cwd/.grok/skills, ~/.grok/skills)
+    /// Without this, only auto-discovered skills (cwd/.xvora/skills, ~/.xvora/skills)
     /// are included — custom paths added via `x.ai/skills/add` would be ignored.
     pub fn with_skills_config(mut self, config: crate::prompt::skills::SkillsConfig) -> Self {
         self.skills_config = config;
@@ -928,7 +928,7 @@ impl AgentBuilder {
                     agent = %definition.name,
                     unresolved = ?unresolved,
                     allowed = ?definition.tools,
-                    "tools allowlist had unmappable entries; keeping full grok toolset"
+                    "tools allowlist had unmappable entries; keeping full xvora toolset"
                 );
             }
         }
@@ -1622,7 +1622,7 @@ mod tests {
         use tools::notification::ToolNotificationHandle;
         let tmp = tempfile::tempdir().unwrap();
         let write_skill = |dir: &str, content: &str| {
-            let d = tmp.path().join(".grok/skills").join(dir);
+            let d = tmp.path().join(".xvora/skills").join(dir);
             std::fs::create_dir_all(&d).unwrap();
             std::fs::write(d.join("SKILL.md"), content).unwrap();
         };
@@ -1700,61 +1700,61 @@ mod tests {
         }
         let cases: &[PagerFlagCase] = &[
             PagerFlagCase {
-                label: "grok-build / subagents+ask_user",
+                label: "xvora-build / subagents+ask_user",
                 profile: AgentDefinition::default_grok_build,
                 subagents: true,
                 ask_user: true,
             },
             PagerFlagCase {
-                label: "grok-build / subagents / no-ask-user",
+                label: "xvora-build / subagents / no-ask-user",
                 profile: AgentDefinition::default_grok_build,
                 subagents: true,
                 ask_user: false,
             },
             PagerFlagCase {
-                label: "grok-build / no-subagents / ask_user",
+                label: "xvora-build / no-subagents / ask_user",
                 profile: AgentDefinition::default_grok_build,
                 subagents: false,
                 ask_user: true,
             },
             PagerFlagCase {
-                label: "grok-build / no-subagents / no-ask-user",
+                label: "xvora-build / no-subagents / no-ask-user",
                 profile: AgentDefinition::default_grok_build,
                 subagents: false,
                 ask_user: false,
             },
             PagerFlagCase {
-                label: "grok-build-ask-user / subagents",
+                label: "xvora-build-ask-user / subagents",
                 profile: AgentDefinition::grok_build_ask_user,
                 subagents: true,
                 ask_user: true,
             },
             PagerFlagCase {
-                label: "grok-build-ask-user / no-subagents",
+                label: "xvora-build-ask-user / no-subagents",
                 profile: AgentDefinition::grok_build_ask_user,
                 subagents: false,
                 ask_user: true,
             },
             PagerFlagCase {
-                label: "grok-build-plan",
+                label: "xvora-build-plan",
                 profile: AgentDefinition::grok_build_plan,
                 subagents: true,
                 ask_user: true,
             },
             PagerFlagCase {
-                label: "grok-build-plan / no-ask-user",
+                label: "xvora-build-plan / no-ask-user",
                 profile: AgentDefinition::grok_build_plan,
                 subagents: true,
                 ask_user: false,
             },
             PagerFlagCase {
-                label: "grok-build-plan-no-subagents",
+                label: "xvora-build-plan-no-subagents",
                 profile: AgentDefinition::grok_build_plan_no_subagents,
                 subagents: false,
                 ask_user: true,
             },
             PagerFlagCase {
-                label: "grok-build-plan-no-subagents / no-ask-user",
+                label: "xvora-build-plan-no-subagents / no-ask-user",
                 profile: AgentDefinition::grok_build_plan_no_subagents,
                 subagents: false,
                 ask_user: false,
@@ -2247,7 +2247,7 @@ mod tests {
             Some(vec!["worker".into()])
         );
     }
-    /// Compat allowlist names (`Read`, `Bash`, `Grep`) map to their Grok equivalents by `ToolKind`: a real restricted toolset, not zero tools.
+    /// Compat allowlist names (`Read`, `Bash`, `Grep`) map to their xvora equivalents by `ToolKind`: a real restricted toolset, not zero tools.
     #[tokio::test]
     async fn claude_tool_names_map_to_grok_equivalents() {
         let tools = vec!["Read".into(), "Bash".into(), "Grep".into()];
@@ -2275,7 +2275,7 @@ mod tests {
             "Edit must be excluded by the allowlist; got: {names:?}"
         );
     }
-    /// Shell, LSP, ask, and task-lifecycle tool names resolve to their grok `ToolKind`, so those allowlists are honored instead of failing open.
+    /// Shell, LSP, ask, and task-lifecycle tool names resolve to their xvora `ToolKind`, so those allowlists are honored instead of failing open.
     #[test]
     fn shell_lsp_ask_and_task_tool_names_map() {
         assert_eq!(claude_tool_kind("PowerShell"), Some(ToolKind::Execute));
@@ -2381,7 +2381,7 @@ mod tests {
     }
     /// A restrictive allowlist must never strip MCP access.
     /// Compat allowlists treat `mcp__*` as always-on.
-    /// Grok keeps the MCP meta-tools (`search_tool`/`use_tool`) regardless of what the allowlist names.
+    /// xvora keeps the MCP meta-tools (`search_tool`/`use_tool`) regardless of what the allowlist names.
     #[tokio::test]
     async fn restrictive_allowlist_keeps_mcp_access() {
         let agent = build_with_tools(vec!["Read".into()], vec![]).await;
@@ -2478,7 +2478,7 @@ mod tests {
             assert!(!names.contains(&excluded.to_string()), "got: {names:?}");
         }
     }
-    /// grok-build toolsets have no Skill tool; skills are read from `SKILL.md` via `read_file`.
+    /// xvora-build toolsets have no Skill tool; skills are read from `SKILL.md` via `read_file`.
     /// A compat `Skill` allowlist entry therefore grants `read_file` (plus always-on MCP access) without falling back to the full toolset.
     #[tokio::test]
     async fn skill_allowlist_maps_to_read() {
@@ -2545,7 +2545,7 @@ mod tests {
             "no full-toolset fallback — unlisted tools must be excluded; got: {names:?}"
         );
     }
-    /// Compat `ToolSearch` meta-tool maps to grok's `search_tool` (MCP discovery).
+    /// Compat `ToolSearch` meta-tool maps to xvora's `search_tool` (MCP discovery).
     /// Naming it in an allowlist keeps MCP access without falling back to the full toolset.
     #[tokio::test]
     async fn tool_search_allowlist_maps_to_search_tool() {

@@ -1,4 +1,4 @@
-//! Local, ACP, and PTY terminal runners for the grok shell.
+//! Local, ACP, and PTY terminal runners for the xvora shell.
 //!
 //! `xvora-shell` re-exports this crate as `shell::terminal`.
 

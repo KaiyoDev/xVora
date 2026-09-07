@@ -86,7 +86,7 @@ impl WelcomeWorkspaceMode {
 }
 
 /// Structured log target for welcome / in-session workspace mode events.
-pub const WORKSPACE_MODE_LOG: &str = "grok.pager.workspace_mode";
+pub const WORKSPACE_MODE_LOG: &str = "xvora.pager.workspace_mode";
 
 /// Log a welcome picker selection change (Ctrl+E cycle or click).
 pub fn log_welcome_mode_selected(
@@ -818,7 +818,7 @@ mod apply_tests {
         let _ack = test_support::EnvGuard::unset(GROK_CHAT_LOCAL_WORKSPACE_ACK_ENV);
         // Isolate the ack file from the developer machine
         let home = tempfile::tempdir().unwrap();
-        let _home = test_support::EnvGuard::set("GROK_HOME", home.path().to_str().unwrap());
+        let _home = test_support::EnvGuard::set("xvora_home", home.path().to_str().unwrap());
         set_active_local_workspace(None).unwrap();
         let tmp = tempfile::tempdir().unwrap();
         let out = prepare_welcome_workspace_for_new_session(

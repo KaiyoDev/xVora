@@ -1,5 +1,5 @@
-//! Grok-owned direct global hook paths shared by shell discovery and sandbox write-deny.
-//! These are `$GROK_HOME/hooks`, `hooks-paths`, and absolute registry targets.
+//! xvora-owned direct global hook paths shared by shell discovery and sandbox write-deny.
+//! These are `$xvora_home/hooks`, `hooks-paths`, and absolute registry targets.
 //! Relative registry lines, project hooks, and vendor compat are out of scope.
 
 use std::io;
@@ -12,13 +12,13 @@ use crate::loader::{
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GlobalHookSourceKind {
-    /// `$GROK_HOME/hooks/` (discovered and protected).
+    /// `$xvora_home/hooks/` (discovered and protected).
     HookDirectory,
-    /// `$GROK_HOME/hooks-paths` (protected; never loaded as hook JSON).
+    /// `$xvora_home/hooks-paths` (protected; never loaded as hook JSON).
     RegistryFile,
     /// Absolute registry target (must exist before sandbox apply).
     ConfiguredSource,
-    /// `$GROK_HOME` trust-boundary file (protected; never hook JSON or a discovery source).
+    /// `$xvora_home` trust-boundary file (protected; never hook JSON or a discovery source).
     TrustBoundaryFile,
 }
 
@@ -60,7 +60,7 @@ pub enum GlobalHookSourceError {
         #[source]
         source: io::Error,
     },
-    #[error("symlinked GROK_HOME is not allowed under sandbox write-deny: {path}")]
+    #[error("symlinked xvora_home is not allowed under sandbox write-deny: {path}")]
     SymlinkedGrokHome { path: PathBuf },
     #[error("hook source path contains a symlink component (retargetable): {path}")]
     SymlinkedSource { path: PathBuf },
@@ -68,17 +68,17 @@ pub enum GlobalHookSourceError {
     HardLinkedHookFile { path: PathBuf, nlink: u64 },
     #[error("hook JSON path is not a regular file: {path}")]
     InvalidHookJsonFile { path: PathBuf },
-    #[error("Grok hooks directory has wrong type (expected real directory): {path}")]
+    #[error("xvora hooks directory has wrong type (expected real directory): {path}")]
     InvalidHooksDir { path: PathBuf },
-    #[error("Grok hooks-paths registry has wrong type (expected real file): {path}")]
+    #[error("xvora hooks-paths registry has wrong type (expected real file): {path}")]
     InvalidRegistryFile { path: PathBuf },
-    #[error("cannot create Grok hooks directory {path}: {source}")]
+    #[error("cannot create xvora hooks directory {path}: {source}")]
     CreateHooksDir {
         path: PathBuf,
         #[source]
         source: io::Error,
     },
-    #[error("cannot create Grok hooks-paths registry {path}: {source}")]
+    #[error("cannot create xvora hooks-paths registry {path}: {source}")]
     CreateRegistryFile {
         path: PathBuf,
         #[source]
@@ -303,52 +303,52 @@ fn ensure_real_file_slot(path: &Path) -> Result<(), GlobalHookSourceError> {
     Ok(())
 }
 
-/// Ensure real `$GROK_HOME/hooks` dir and `hooks-paths` file (create if missing).
+/// Ensure real `$xvora_home/hooks` dir and `hooks-paths` file (create if missing).
 /// The create is race-resistant (`create_dir` / `create_new` with `O_NOFOLLOW`) and never truncates an existing registry.
 /// Symlinks and wrong types are rejected.
-pub fn ensure_grok_hook_slots(grok_home: &Path) -> Result<(), GlobalHookSourceError> {
-    if path_has_symlink_component(grok_home) {
+pub fn ensure_grok_hook_slots(xvora_home: &Path) -> Result<(), GlobalHookSourceError> {
+    if path_has_symlink_component(xvora_home) {
         return Err(GlobalHookSourceError::SymlinkedGrokHome {
-            path: grok_home.to_path_buf(),
+            path: xvora_home.to_path_buf(),
         });
     }
 
-    match std::fs::create_dir(grok_home) {
+    match std::fs::create_dir(xvora_home) {
         Ok(()) => {}
         Err(e) if e.kind() == io::ErrorKind::AlreadyExists => {}
         Err(e) if e.kind() == io::ErrorKind::NotFound => {
-            std::fs::create_dir_all(grok_home).map_err(|source| {
+            std::fs::create_dir_all(xvora_home).map_err(|source| {
                 GlobalHookSourceError::CreateHooksDir {
-                    path: grok_home.to_path_buf(),
+                    path: xvora_home.to_path_buf(),
                     source,
                 }
             })?;
         }
         Err(source) => {
             return Err(GlobalHookSourceError::CreateHooksDir {
-                path: grok_home.to_path_buf(),
+                path: xvora_home.to_path_buf(),
                 source,
             });
         }
     }
-    if path_has_symlink_component(grok_home) {
+    if path_has_symlink_component(xvora_home) {
         return Err(GlobalHookSourceError::SymlinkedGrokHome {
-            path: grok_home.to_path_buf(),
+            path: xvora_home.to_path_buf(),
         });
     }
-    let grok_meta = std::fs::symlink_metadata(grok_home).map_err(|source| {
+    let grok_meta = std::fs::symlink_metadata(xvora_home).map_err(|source| {
         GlobalHookSourceError::CreateHooksDir {
-            path: grok_home.to_path_buf(),
+            path: xvora_home.to_path_buf(),
             source,
         }
     })?;
     if grok_meta.file_type().is_symlink() || !grok_meta.file_type().is_dir() {
         return Err(GlobalHookSourceError::SymlinkedGrokHome {
-            path: grok_home.to_path_buf(),
+            path: xvora_home.to_path_buf(),
         });
     }
 
-    let hooks = grok_home.join("hooks");
+    let hooks = xvora_home.join("hooks");
     match std::fs::create_dir(&hooks) {
         Ok(()) => {}
         Err(e) if e.kind() == io::ErrorKind::AlreadyExists => {
@@ -366,13 +366,13 @@ pub fn ensure_grok_hook_slots(grok_home: &Path) -> Result<(), GlobalHookSourceEr
         return Err(GlobalHookSourceError::SymlinkedSource { path: hooks });
     }
 
-    ensure_real_file_slot(&grok_home.join("hooks-paths"))?;
+    ensure_real_file_slot(&xvora_home.join("hooks-paths"))?;
 
-    ensure_grok_trust_boundary_slots(grok_home)?;
+    ensure_grok_trust_boundary_slots(xvora_home)?;
     Ok(())
 }
 
-/// `$GROK_HOME` files that are always-trusted or trust-granting if writable.
+/// `$xvora_home` files that are always-trusted or trust-granting if writable.
 pub const TRUST_BOUNDARY_FILENAMES: &[&str] = &[
     USER_CONFIG_FILENAME,
     TRUSTED_FOLDERS_FILENAME,
@@ -384,31 +384,31 @@ pub const TRUST_BOUNDARY_FILENAMES: &[&str] = &[
 /// Ensure real regular files for [`TRUST_BOUNDARY_FILENAMES`] (create if missing).
 /// Files are created if absent and never truncated, the same contract as `hooks-paths`.
 pub(crate) fn ensure_grok_trust_boundary_slots(
-    grok_home: &Path,
+    xvora_home: &Path,
 ) -> Result<(), GlobalHookSourceError> {
-    if path_has_symlink_component(grok_home) {
+    if path_has_symlink_component(xvora_home) {
         return Err(GlobalHookSourceError::SymlinkedGrokHome {
-            path: grok_home.to_path_buf(),
+            path: xvora_home.to_path_buf(),
         });
     }
     for name in TRUST_BOUNDARY_FILENAMES {
-        ensure_real_file_slot(&grok_home.join(name))?;
+        ensure_real_file_slot(&xvora_home.join(name))?;
     }
     Ok(())
 }
 
-/// Resolve `$GROK_HOME` trust-boundary files (symlink-rejected for sandbox).
+/// Resolve `$xvora_home` trust-boundary files (symlink-rejected for sandbox).
 pub fn resolve_trust_boundary_sources(
-    grok_home: &Path,
+    xvora_home: &Path,
 ) -> Result<Vec<GlobalHookSource>, GlobalHookSourceError> {
-    if path_has_symlink_component(grok_home) {
+    if path_has_symlink_component(xvora_home) {
         return Err(GlobalHookSourceError::SymlinkedGrokHome {
-            path: grok_home.to_path_buf(),
+            path: xvora_home.to_path_buf(),
         });
     }
     let mut out = Vec::with_capacity(TRUST_BOUNDARY_FILENAMES.len());
     for name in TRUST_BOUNDARY_FILENAMES {
-        let path = grok_home.join(name);
+        let path = xvora_home.join(name);
         if path_has_symlink_component(&path) {
             return Err(GlobalHookSourceError::SymlinkedSource { path });
         }
@@ -451,23 +451,23 @@ fn open_registry_create_new(path: &Path) -> io::Result<std::fs::File> {
     }
 }
 
-/// Resolve Grok-owned direct global hook sources (`reject_symlinks` for sandbox).
+/// Resolve xvora-owned direct global hook sources (`reject_symlinks` for sandbox).
 pub fn resolve_global_hook_sources(
-    grok_home: Option<&Path>,
+    xvora_home: Option<&Path>,
     reject_symlinks: bool,
 ) -> Result<ResolvedGlobalHookSources, GlobalHookSourceError> {
     let mut out = Vec::new();
     let mut configured_error = None;
 
-    if let Some(grok) = grok_home {
-        if reject_symlinks && path_has_symlink_component(grok) {
+    if let Some(xvora) = xvora_home {
+        if reject_symlinks && path_has_symlink_component(xvora) {
             return Err(GlobalHookSourceError::SymlinkedGrokHome {
-                path: grok.to_path_buf(),
+                path: xvora.to_path_buf(),
             });
         }
 
-        let hooks = grok.join("hooks");
-        let hooks_paths = grok.join("hooks-paths");
+        let hooks = xvora.join("hooks");
+        let hooks_paths = xvora.join("hooks-paths");
         if reject_symlinks {
             for p in [&hooks, &hooks_paths] {
                 if path_has_symlink_component(p) {

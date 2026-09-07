@@ -94,7 +94,7 @@ const FILE_REGEX: &str = r"^(?:file://)?([^#]+)(?:#L(\d+)-L?(\d+))?$";
 /// Parses URIs in the format: `file://[path]#L[start]-[end]` or `file://[path]#L[start]-L[end]`
 ///
 /// When content exceeds [`MAX_FILE_TOKENS`], the text is written to
-/// `~/.grok/sessions/{cwd}/{session_id}/pasted/` so the model can `read_file`
+/// `~/.xvora/sessions/{cwd}/{session_id}/pasted/` so the model can `read_file`
 /// specific sections instead of receiving the full content inline.
 ///
 /// Binary blob resources are written to `attachments/` and a path hint is returned.
@@ -224,7 +224,7 @@ async fn render_blob_attachment(blob: &BlobResourceContents) -> Option<String> {
 /// Base directory for Phase-1 session-scoped scratch files; the real session_dir lives in shell persistence.
 /// The PID suffix keeps concurrent test processes sharing `/tmp` from colliding on identical content-hash paths or racing each other's cleanup.
 fn session_scratch_root() -> PathBuf {
-    std::env::temp_dir().join(format!("grok-test-sessions-{}", std::process::id()))
+    std::env::temp_dir().join(format!("xvora-test-sessions-{}", std::process::id()))
 }
 /// The content-hash prefix in the filename dedups: identical content maps to the same path, different content to a unique path.
 async fn write_to_session_subdir(subdir: &str, filename: &str, content: &[u8]) -> Option<PathBuf> {
@@ -501,7 +501,7 @@ mod tests {
     }
     #[tokio::test]
     async fn test_grok_render_embedded_resource_uses_file_contents_tag() {
-        let _info = test_info("grok-text");
+        let _info = test_info("xvora-text");
         let resource = EmbeddedResource::new(EmbeddedResourceResource::TextResourceContents(
             agent_client_protocol::TextResourceContents::new(
                 "const x = 1;\nconst y = 2;\n",
@@ -517,7 +517,7 @@ mod tests {
     }
     #[tokio::test]
     async fn test_grok_render_embedded_resource_full_file_uses_is_full_file() {
-        let _info = test_info("grok-full-file");
+        let _info = test_info("xvora-full-file");
         let resource = EmbeddedResource::new(EmbeddedResourceResource::TextResourceContents(
             agent_client_protocol::TextResourceContents::new(
                 "fn main() {}\n",

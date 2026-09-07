@@ -120,8 +120,8 @@ impl EmitterOrigin {
     /// [`crate::client::event_value`] strips the same prefix to derive the wire `event_value`, so the two must stay in lockstep.
     pub fn event_prefix(self) -> &'static str {
         match self {
-            EmitterOrigin::Shell => "grok-shell-",
-            EmitterOrigin::Workspace => "grok-workspace-",
+            EmitterOrigin::Shell => "xvora-shell-",
+            EmitterOrigin::Workspace => "xvora-workspace-",
         }
     }
 }
@@ -174,7 +174,7 @@ pub fn log_session_event<T: TelemetryEvent>(data: T) {
 }
 
 /// Session lifecycle event tagged with the emitting [`EmitterOrigin`].
-/// Fires in both `Enabled` and `SessionMetrics` modes; the origin selects the analytics event-name prefix (`grok-shell-*` vs `grok-workspace-*`).
+/// Fires in both `Enabled` and `SessionMetrics` modes; the origin selects the analytics event-name prefix (`xvora-shell-*` vs `xvora-workspace-*`).
 /// No external fan-out here: the external stream is Shell-origin only, and workspace-side callers invoke this directly.
 /// An `external = …` macro arm on a workspace-only event therefore has no effect (pinned by a test in `external::tests`).
 pub fn log_session_event_with_origin<T: TelemetryEvent>(origin: EmitterOrigin, data: T) {
@@ -408,7 +408,7 @@ mod tests {
         );
     }
 
-    /// What a command exiting right after emitting (`grok login`) relies on.
+    /// What a command exiting right after emitting (`xvora login`) relies on.
     /// Asserts on the wait, not on the gauge: it is process-global and other tests in this binary emit concurrently.
     #[tokio::test]
     async fn drain_pending_waits_for_in_flight_posts() {
@@ -435,24 +435,24 @@ mod tests {
     /// Event-name prefixes are wire contract: analytics queries match on them, so they must not drift.
     #[test]
     fn event_prefix_is_stable_per_origin() {
-        assert_eq!(EmitterOrigin::Shell.event_prefix(), "grok-shell-");
-        assert_eq!(EmitterOrigin::Workspace.event_prefix(), "grok-workspace-");
+        assert_eq!(EmitterOrigin::Shell.event_prefix(), "xvora-shell-");
+        assert_eq!(EmitterOrigin::Workspace.event_prefix(), "xvora-workspace-");
     }
 
-    /// The `Shell` reroute must reproduce the historical `format!("grok-shell-{suffix}")` event name byte-for-byte.
+    /// The `Shell` reroute must reproduce the historical `format!("xvora-shell-{suffix}")` event name byte-for-byte.
     /// Every existing `log_session_event` / `log_event` / `emit_event` call funnels through `EmitterOrigin::Shell`.
     #[test]
     fn shell_origin_event_name_matches_legacy_format() {
         let suffix = "trace_upload_attempted";
         let rerouted = format!("{}{}", EmitterOrigin::Shell.event_prefix(), suffix);
-        let legacy = format!("grok-shell-{suffix}");
+        let legacy = format!("xvora-shell-{suffix}");
         assert_eq!(rerouted, legacy);
     }
 
     #[test]
     fn workspace_origin_event_name_uses_workspace_prefix() {
         let name = format!("{}turn", EmitterOrigin::Workspace.event_prefix());
-        assert_eq!(name, "grok-workspace-turn");
+        assert_eq!(name, "xvora-workspace-turn");
     }
 
     /// `ALL` must enumerate every variant so the stripper in `client` can recover the `event_value` for any origin the emitter produces.
@@ -536,7 +536,7 @@ mod tests {
                 outcome: crate::events::Outcome::Completed,
                 duration_ms: 10,
                 tool_call_count: 1,
-                model_id: "grok-4".into(),
+                model_id: "xvora-4".into(),
                 cancellation_category: None,
                 error_category: None,
             }

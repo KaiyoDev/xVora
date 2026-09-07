@@ -64,7 +64,7 @@ impl Drop for EnvGuard {
 pub unsafe fn isolate_grok_env(home: &Path) {
     // SAFETY: forwarded to the caller.
     unsafe {
-        std::env::set_var("GROK_HOME", home);
+        std::env::set_var("xvora_home", home);
         std::env::set_var("GROK_TELEMETRY_ENABLED", "false");
         std::env::set_var("GROK_FEEDBACK_ENABLED", "false");
         std::env::set_var("GROK_TRACE_UPLOAD", "false");
@@ -141,7 +141,7 @@ fn ensure_local_grok_binary(binary: &Path) {
     );
 }
 
-/// Resolve grok binary: `GROK_BINARY` env (CI) or a locally built `xvora-pager` binary.
+/// Resolve xvora binary: `GROK_BINARY` env (CI) or a locally built `xvora-pager` binary.
 pub fn grok_binary() -> PathBuf {
     if let Ok(path) = std::env::var("GROK_BINARY") {
         let p = PathBuf::from(path);
@@ -151,7 +151,7 @@ pub fn grok_binary() -> PathBuf {
         return std::path::absolute(&p).unwrap_or(p);
     }
 
-    if let Ok(path) = std::env::var("CARGO_BIN_EXE_xai-grok-pager") {
+    if let Ok(path) = std::env::var("CARGO_BIN_EXE_xai-xvora-pager") {
         let p = PathBuf::from(path);
         if p.exists() {
             return p;

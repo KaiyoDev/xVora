@@ -135,7 +135,7 @@ impl ContentController {
         self.server.url()
     }
 
-    /// Isolated `$HOME` directory that the pager should use (keeps its ~/.grok
+    /// Isolated `$HOME` directory that the pager should use (keeps its ~/.xvora
     /// cache/state out of the real home during tests).
     pub fn home(&self) -> &Path {
         self.sandbox.home()
@@ -338,8 +338,8 @@ mod tests {
         let (path, body) = foreground_request(endpoint);
         reqwest::Client::new()
             .post(format!("{url}{path}"))
-            .header("x-grok-turn-idx", "1")
-            .header("x-grok-req-id", format!("direct-{endpoint:?}"))
+            .header("x-xvora-turn-idx", "1")
+            .header("x-xvora-req-id", format!("direct-{endpoint:?}"))
             .json(&body)
             .send()
             .await

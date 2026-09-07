@@ -59,7 +59,7 @@ static MEMORY_ARCHIVE_BUILDS: std::sync::LazyLock<
 /// dropped (e.g. all turns hit their flush deadline). `MemoryStorage::new`
 /// runs git2 workspace discovery and the build tars+gzips the whole memory
 /// dir — seconds on large workspaces — so both stay on the blocking pool.
-/// `memory_root` overrides the default `~/.grok/memory` root for tests.
+/// `memory_root` overrides the default `~/.xvora/memory` root for tests.
 fn join_or_start_memory_archive_build(
     cwd: String,
     memory_root: Option<std::path::PathBuf>,

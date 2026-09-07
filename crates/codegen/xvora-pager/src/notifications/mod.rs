@@ -196,7 +196,7 @@ impl NotificationService {
     }
 
     pub fn shutdown(&mut self) {
-        // Reset the tab title back to "grok" so it doesn't linger on the last activity label after exit
+        // Reset the tab title back to "xvora" so it doesn't linger on the last activity label after exit
         let title_esc = self.title_manager.reset();
         shell::util::with_locked_stderr(|stderr| {
             use std::io::Write as _;
@@ -459,7 +459,7 @@ mod tests {
         });
         svc.notify(NotificationEvent {
             kind: NotificationEventKind::TurnComplete,
-            title: "Grok".into(),
+            title: "xvora".into(),
             body: "Turn complete".into(),
             session_id: Some("test-session".into()),
         });
@@ -474,7 +474,7 @@ mod tests {
         });
         svc.notify(NotificationEvent {
             kind: NotificationEventKind::SessionReady,
-            title: "Grok".into(),
+            title: "xvora".into(),
             body: "Session ready".into(),
             session_id: None,
         });
@@ -726,7 +726,7 @@ mod tests {
         // This verifies the protocol=None path doesn't crash regardless of suppression state
         svc.notify(NotificationEvent {
             kind: NotificationEventKind::TurnComplete,
-            title: "Grok".into(),
+            title: "xvora".into(),
             body: "Done".into(),
             session_id: None,
         });

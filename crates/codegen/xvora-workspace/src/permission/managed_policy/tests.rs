@@ -9,8 +9,8 @@ use std::path::PathBuf;
 const FOREIGN: PolicySubjectOrigin = PolicySubjectOrigin::Foreign;
 const NATIVE: PolicySubjectOrigin = PolicySubjectOrigin::GrokNative;
 const CLAUDE_PATH: &str = "/test/managed-settings.json";
-const SYS_REQ: &str = "/etc/grok/requirements.toml";
-const USER_REQ: &str = "/home/u/.grok/requirements.toml";
+const SYS_REQ: &str = "/etc/xvora/requirements.toml";
+const USER_REQ: &str = "/home/u/.xvora/requirements.toml";
 /// HTTP server named `name` at `url`.
 fn hs(name: &str, url: &str) -> agent_client_protocol::McpServer {
     agent_client_protocol::McpServer::Http(
@@ -1346,25 +1346,25 @@ fn mcp_verdict_matrix() {
 /// doctor details, enable errors) — pin them and `source()` directly.
 #[test]
 fn mcp_block_reason_display_and_source_are_pinned() {
-    let src = PathBuf::from("/etc/grok/requirements.toml");
+    let src = PathBuf::from("/etc/xvora/requirements.toml");
     let cases = [
         (
             McpBlockReason::Deny {
                 source: src.clone(),
             },
-            "matches deniedMcpServers (/etc/grok/requirements.toml)",
+            "matches deniedMcpServers (/etc/xvora/requirements.toml)",
         ),
         (
             McpBlockReason::NotGranted {
                 source: src.clone(),
             },
-            "not in allowedMcpServers (/etc/grok/requirements.toml)",
+            "not in allowedMcpServers (/etc/xvora/requirements.toml)",
         ),
         (
             McpBlockReason::ProjectPin {
                 source: src.clone(),
             },
-            "project MCP disabled (enableAllProjectMcpServers = false, /etc/grok/requirements.toml)",
+            "project MCP disabled (enableAllProjectMcpServers = false, /etc/xvora/requirements.toml)",
         ),
     ];
     for (reason, want) in cases {
@@ -1810,7 +1810,7 @@ fn assert_expects(label: &str, ms: &ManagedSettings, expects: Vec<Expect>) {
 /// wins, every restricted source must allow — intersection, never union),
 /// pins only tighten and are attributed to the first pinning layer in trust
 /// order, extras names resolve trust-descending regardless of load order,
-/// grok's own TOML layers bind native subjects while the vendor Claude file
+/// xvora's own TOML layers bind native subjects while the vendor Claude file
 /// is advisory (foreign subjects only), and malformed values degrade
 /// per-key, never dropping a layer's healthy pins.
 #[test]
@@ -2029,19 +2029,19 @@ server_url = inf
                 FOREIGN,
                 false,
             ),
-            // grok-native subjects (user/system config.toml, plugins):
+            // xvora-native subjects (user/system config.toml, plugins):
             // advisory — the same servers still run.
             Expect::Allowed("denied", "https://denied.example.com/mcp", NATIVE, true),
             Expect::Allowed("unlisted", "https://unlisted.example.com/mcp", NATIVE, true),
             Expect::MarketUrl("https://github.com/other/repo.git", FOREIGN, false),
             Expect::MarketUrl("https://github.com/other/repo.git", NATIVE, true),
-            // The add/install gate acquires NEW sources — not grok-native
+            // The add/install gate acquires NEW sources — not xvora-native
             // yet, so even an advisory strict list fail-closes it.
             Expect::MarketAddBlocked("https://github.com/other/repo.git", true),
         ],
     );
     assert_expects(
-        "grok's own signed TOML layers bind native subjects too",
+        "xvora's own signed TOML layers bind native subjects too",
         &layered(
             None,
             &[(

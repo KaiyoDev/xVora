@@ -277,7 +277,7 @@ impl SessionActor {
     ///
     /// The classifier fire is invisible to the client, like the memory-flush path.
     /// The sampler call goes through `prepare_chat_completion().conversation_collect()`, which never publishes on the per-session sampler channel.
-    /// The client sees no "Grok is thinking", no streaming token chunks, and no other session update from a fire.
+    /// The client sees no "xvora is thinking", no streaming token chunks, and no other session update from a fire.
     /// A stalled verdict only queues a `<system-reminder>` via `push_system_reminder`; nothing enters `pending_inputs`, so no synthetic turn fires.
     /// The next real user prompt picks up the reminder as context.
     ///

@@ -204,8 +204,8 @@ impl Drop for FetchAttemptGuard {
 
 impl Default for ModelsManager {
     fn default() -> Self {
-        let grok_home = crate::util::grok_home::grok_home();
-        let auth_manager = Arc::new(AuthManager::new(&grok_home, GrokComConfig::default()));
+        let xvora_home = crate::util::xvora_home::xvora_home();
+        let auth_manager = Arc::new(AuthManager::new(&xvora_home, GrokComConfig::default()));
         Self::new(
             None,
             IndexMap::new(),
@@ -815,7 +815,7 @@ impl ModelsManager {
         }
     }
 
-    /// Hot-reload the catalog from `~/.grok/models_cache.json` after an external write (config-watcher detected).
+    /// Hot-reload the catalog from `~/.xvora/models_cache.json` after an external write (config-watcher detected).
     pub(crate) fn reload_from_disk_cache(&self) {
         self.reload_from_cache_manager(&self.inner.cache);
     }

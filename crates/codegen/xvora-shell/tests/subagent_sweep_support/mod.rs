@@ -393,9 +393,9 @@ pub fn sweep_env_init() -> SweepEnv {
         .enable_all()
         .build()
         .expect("mock runtime");
-    let grok_home = TempDir::new().expect("grok home");
+    let xvora_home = TempDir::new().expect("xvora home");
     unsafe {
-        std::env::set_var("GROK_HOME", grok_home.path());
+        std::env::set_var("xvora_home", xvora_home.path());
         std::env::set_var("XAI_API_KEY", "test-key-for-ci");
         std::env::set_var("GROK_TELEMETRY_ENABLED", "false");
         std::env::set_var("GROK_FEEDBACK_ENABLED", "false");
@@ -404,7 +404,7 @@ pub fn sweep_env_init() -> SweepEnv {
     SweepEnv {
         mock_rt,
         deadline: Duration::from_secs(env_usize("GROK_SWEEP_DEADLINE_S", 240) as u64),
-        _grok_home: grok_home,
+        _grok_home: xvora_home,
     }
 }
 

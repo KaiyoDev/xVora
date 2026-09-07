@@ -145,19 +145,19 @@ fn messages_no_spurious_empty_thinking_block() {
 fn messages_per_response_model_reflects_mid_session_switch() {
     let mut r = messages(false);
     let mut out = Vec::new();
-    out.extend(r.reduce(response_started("msg_a", Some("grok-4"), 5)));
+    out.extend(r.reduce(response_started("msg_a", Some("xvora-4"), 5)));
     out.extend(r.reduce(StreamEvent::AgentMessage("from A".into())));
     out.extend(r.reduce(response_completed("msg_a", "end_turn")));
-    out.extend(r.reduce(response_started("msg_b", Some("grok-4-fast"), 6)));
+    out.extend(r.reduce(response_started("msg_b", Some("xvora-4-fast"), 6)));
     out.extend(r.reduce(StreamEvent::AgentMessage("from B".into())));
     out.extend(r.reduce(response_completed("msg_b", "end_turn")));
     out.extend(r.finish(&end_turn()));
     let frames: Vec<&Value> = out.iter().filter(|m| m["type"] == "assistant").collect();
     assert_eq!(frames.len(), 2, "one frame per response: {out:?}");
     assert_eq!(frames[0]["message"]["id"], "msg_a");
-    assert_eq!(frames[0]["message"]["model"], "grok-4");
+    assert_eq!(frames[0]["message"]["model"], "xvora-4");
     assert_eq!(frames[1]["message"]["id"], "msg_b");
-    assert_eq!(frames[1]["message"]["model"], "grok-4-fast");
+    assert_eq!(frames[1]["message"]["model"], "xvora-4-fast");
 }
 
 #[test]
@@ -236,9 +236,9 @@ fn messages_consecutive_text_responses_split_into_frames() {
 fn messages_duplicate_response_started_does_not_merge_content() {
     let mut r = messages(false);
     let mut out = Vec::new();
-    out.extend(r.reduce(response_started("msg_a", Some("grok-4"), 5)));
+    out.extend(r.reduce(response_started("msg_a", Some("xvora-4"), 5)));
     out.extend(r.reduce(StreamEvent::AgentMessage("A".into())));
-    out.extend(r.reduce(response_started("msg_b", Some("grok-4"), 6)));
+    out.extend(r.reduce(response_started("msg_b", Some("xvora-4"), 6)));
     out.extend(r.reduce(StreamEvent::AgentMessage("B".into())));
     out.extend(r.reduce(response_completed("msg_b", "end_turn")));
     out.extend(r.finish(&end_turn()));
@@ -353,9 +353,9 @@ fn messages_compact_completed_maps_to_system_boundary() {
 fn messages_late_response_completed_for_flushed_response_is_dropped() {
     let mut r = messages(false);
     let mut out = Vec::new();
-    out.extend(r.reduce(response_started("msg_a", Some("grok-4"), 1)));
+    out.extend(r.reduce(response_started("msg_a", Some("xvora-4"), 1)));
     out.extend(r.reduce(StreamEvent::AgentMessage("a-text".into())));
-    out.extend(r.reduce(response_started("msg_b", Some("grok-4"), 2)));
+    out.extend(r.reduce(response_started("msg_b", Some("xvora-4"), 2)));
     out.extend(r.reduce(StreamEvent::AgentMessage("b-text".into())));
     out.extend(r.reduce(StreamEvent::ResponseCompleted {
         message_id: Some("msg_a".into()),

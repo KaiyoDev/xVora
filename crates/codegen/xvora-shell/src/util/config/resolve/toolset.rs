@@ -8,7 +8,7 @@ use tools::implementations::grok_build::ask_user_question;
 ///
 /// Pass the **merged** requirements ([`crate::config::load_merged_requirements`])
 /// so an org policy in any requirements layer — not only
-/// `~/.grok/requirements.toml` — is honored. Returns `(find_bfs, grep_ugrep)`,
+/// `~/.xvora/requirements.toml` — is honored. Returns `(find_bfs, grep_ugrep)`,
 /// which the caller bakes into a [`tools::computer::local::SearchShadowConfig`] on the local terminal backend.
 pub(crate) fn resolve_search_tools_enabled(
     requirements: Option<&TomlValue>,

@@ -509,7 +509,7 @@ pub(crate) fn stream_responses_tracked<'a>(
                 // Code interpreter runs server-side, like web/x search
                 // It is emitted the same way x_search is: a generic backend tool call
                 // The shell renders that as a client `tool_use` and `user` `tool_result` split
-                // grok has no HostedTool::CodeInterpreter, so these events never arrive under the current hosted-tool set
+                // xvora has no HostedTool::CodeInterpreter, so these events never arrive under the current hosted-tool set
                 // The started event fires on InProgress; the full payload (code and outputs) rides ResponseOutputItemDone(CodeInterpreterCall) below
                 ResponseStreamEvent::ResponseCodeInterpreterCallInProgress(ev) => {
                     yield SamplingEvent::BackendToolCallStarted {

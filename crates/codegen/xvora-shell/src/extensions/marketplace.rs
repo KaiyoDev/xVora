@@ -781,7 +781,7 @@ fn to_plugin_entry(
     }
 }
 
-/// Add a new git or local-path marketplace source to `~/.grok/config.toml`.
+/// Add a new git or local-path marketplace source to `~/.xvora/config.toml`.
 async fn handle_add_source(url: &str) -> hooks_plugins_types::ActionOutcome {
     use crate::plugin::{self, MarketplaceAddInput};
     use hooks_plugins_types::{ActionOutcome, OutcomeStatus};
@@ -871,7 +871,7 @@ async fn handle_add_source(url: &str) -> hooks_plugins_types::ActionOutcome {
                     status: OutcomeStatus::ValidationError,
                     message: format!(
                         "{e}. Not a reachable git repository — to add it anyway (e.g. a \
-                         VPN-gated host), run: grok plugin marketplace add {url} --force"
+                         VPN-gated host), run: xvora plugin marketplace add {url} --force"
                     ),
                     requires_reload: false,
                     requires_restart: false,
@@ -900,13 +900,13 @@ async fn handle_add_source(url: &str) -> hooks_plugins_types::ActionOutcome {
     };
 
     // Run the write under SAVE_LOCK and the flock, off the reactor
-    let config_path = config::grok_home().join("config.toml");
-    let grok_home = config::grok_home();
+    let config_path = config::xvora_home().join("config.toml");
+    let xvora_home = config::xvora_home();
     let _save_guard = crate::util::config::lock_config_writes().await;
     let write = {
         let name = name.clone();
         tokio::task::spawn_blocking(move || {
-            let _flock = acquire_init_lock(&grok_home).ok();
+            let _flock = acquire_init_lock(&xvora_home).ok();
             add_marketplace_source(&config_path, &name, &input, is_official)
         })
         .await
@@ -1020,7 +1020,7 @@ fn add_marketplace_source(
     crate::util::config::atomic_write_string(config_path, &doc.to_string())
 }
 
-/// Remove a marketplace source from `~/.grok/config.toml` and uninstall all
+/// Remove a marketplace source from `~/.xvora/config.toml` and uninstall all
 /// plugins that were installed from it.
 async fn handle_remove_source(source_url_or_path: &str) -> hooks_plugins_types::ActionOutcome {
     let src = source_url_or_path.to_string();
@@ -1043,13 +1043,13 @@ fn remove_source_locked(source_url_or_path: &str) -> hooks_plugins_types::Action
     use crate::plugin;
     use hooks_plugins_types::{ActionOutcome, OutcomeStatus};
 
-    let grok_home = config::grok_home();
-    let _flock = acquire_init_lock(&grok_home).ok();
+    let xvora_home = config::xvora_home();
+    let _flock = acquire_init_lock(&xvora_home).ok();
 
     let uninstalled = plugin::uninstall_marketplace_source_plugins(source_url_or_path);
 
     // Remove the source and (if official) set the flag in ONE atomic write so a crash can't drop the flag and re-add the source next startup
-    let config_path = grok_home.join("config.toml");
+    let config_path = xvora_home.join("config.toml");
     let is_official = xvora_plugin_marketplace::is_official_source_url(source_url_or_path);
     let mut removed_from_config = false;
     let content = match crate::util::config::read_to_string_or_empty(&config_path) {
@@ -1188,14 +1188,14 @@ fn read_official_marketplace_auto_installed(config_path: &std::path::Path) -> bo
     read_marketplace_bool_flag(config_path, "official_marketplace_auto_installed")
 }
 
-/// Acquire an advisory exclusive `flock` on `<grok_home>/.config-init.lock`, retrying briefly under contention.
+/// Acquire an advisory exclusive `flock` on `<xvora_home>/.config-init.lock`, retrying briefly under contention.
 /// It serializes first-run auto-register across processes.
 /// Only `WouldBlock` retries; other I/O errors return early.
 /// The lock file is intentionally never removed (flock releases on exit).
-fn acquire_init_lock(grok_home: &std::path::Path) -> std::io::Result<std::fs::File> {
+fn acquire_init_lock(xvora_home: &std::path::Path) -> std::io::Result<std::fs::File> {
     use fs2::FileExt;
-    let _ = std::fs::create_dir_all(grok_home);
-    let lock_path = grok_home.join(".config-init.lock");
+    let _ = std::fs::create_dir_all(xvora_home);
+    let lock_path = xvora_home.join(".config-init.lock");
     let file = std::fs::OpenOptions::new()
         .create(true)
         .write(true)
@@ -1246,8 +1246,8 @@ fn read_default_skills_installs_purged(config_path: &std::path::Path) -> bool {
 /// One-shot purge of legacy marketplace `default-skills` installs.
 /// Gated by the sticky `default_skills_installs_purged` flag in config.toml.
 /// Best-effort: errors are logged and never block startup.
-pub(crate) fn purge_default_skills_installs(grok_home: &std::path::Path) {
-    purge_default_skills_installs_impl(grok_home, || {
+pub(crate) fn purge_default_skills_installs(xvora_home: &std::path::Path) {
+    purge_default_skills_installs_impl(xvora_home, || {
         agent::plugins::install_registry::InstallRegistry::try_load_from(
             agent::plugins::install_registry::InstallRegistry::resolve_install_dir(),
         )
@@ -1255,24 +1255,24 @@ pub(crate) fn purge_default_skills_installs(grok_home: &std::path::Path) {
 }
 
 fn purge_default_skills_installs_impl(
-    grok_home: &std::path::Path,
+    xvora_home: &std::path::Path,
     load_registry: impl FnOnce() -> Result<
         agent::plugins::install_registry::InstallRegistry,
         agent::plugins::install_registry::InstallError,
     >,
 ) {
-    let config_path = grok_home.join("config.toml");
+    let config_path = xvora_home.join("config.toml");
 
     if read_default_skills_installs_purged(&config_path) {
         return;
     }
 
-    let _lock = match acquire_init_lock(grok_home) {
+    let _lock = match acquire_init_lock(xvora_home) {
         Ok(f) => f,
         Err(e) => {
             tracing::warn!(
                 error = %e,
-                path = %grok_home.join(".config-init.lock").display(),
+                path = %xvora_home.join(".config-init.lock").display(),
                 "skipping default-skills purge: failed to acquire init lock"
             );
             return;
@@ -1345,19 +1345,19 @@ fn purge_default_skills_installs_impl(
 /// No-op once `official_marketplace_auto_installed` is set.
 /// Under a process-wide flock it adds the source (or just sets the flag if it's already present in config.toml or a JSON store).
 /// Best-effort: errors are logged and never block startup.
-pub(crate) fn ensure_official_marketplace_source(grok_home: &std::path::Path) {
-    let config_path = grok_home.join("config.toml");
+pub(crate) fn ensure_official_marketplace_source(xvora_home: &std::path::Path) {
+    let config_path = xvora_home.join("config.toml");
 
     if read_official_marketplace_auto_installed(&config_path) {
         return;
     }
 
-    let _lock = match acquire_init_lock(grok_home) {
+    let _lock = match acquire_init_lock(xvora_home) {
         Ok(f) => f,
         Err(e) => {
             tracing::warn!(
                 error = %e,
-                path = %grok_home.join(".config-init.lock").display(),
+                path = %xvora_home.join(".config-init.lock").display(),
                 "skipping official marketplace auto-register: failed to acquire init lock"
             );
             return;
@@ -1384,13 +1384,13 @@ pub(crate) fn ensure_official_marketplace_source(grok_home: &std::path::Path) {
         }
     };
 
-    // "Already present" means the official URL is in the config.toml sources or in a JSON store (settings.json, known_marketplaces.json) under grok_home
-    // The scan is scoped to grok_home only (not ~/.claude) to keep tests hermetic
+    // "Already present" means the official URL is in the config.toml sources or in a JSON store (settings.json, known_marketplaces.json) under xvora_home
+    // The scan is scoped to xvora_home only (not ~/.claude) to keep tests hermetic
     // A user with the URL solely in ~/.claude gets one duplicate entry that the UI dedupes by URL
     let toml_sources = xvora_plugin_marketplace::load_sources(&parsed);
     let json_sources = xvora_plugin_marketplace::load_extra_sources_from_settings_in(
         &toml_sources,
-        std::slice::from_ref(&grok_home.to_path_buf()),
+        std::slice::from_ref(&xvora_home.to_path_buf()),
     );
     let already_present = toml_sources.iter().chain(json_sources.iter()).any(|s| {
         matches!(&s.kind, xvora_plugin_marketplace::SourceKind::Git { url, .. }

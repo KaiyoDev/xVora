@@ -26,7 +26,7 @@ const LOGO_H_PAD: u16 = 3;
 /// Reserved on top of the announcement text rows so the message never paints over the button.
 const UPGRADE_CTA_ROWS: u16 = 2;
 
-const HERO_SUBTITLE: &str = "Thanks for trying Grok Build, give feedback with /feedback!";
+const HERO_SUBTITLE: &str = "Thanks for trying xvora build, give feedback with /feedback!";
 
 use super::{PROMPT_HEIGHT, VERSION_GAP};
 
@@ -902,7 +902,7 @@ managed devices and accounts. Report security incidents";
     #[test]
     fn upgrade_cta_reserves_rows_and_returns_button_rect() {
         let area = Rect::new(0, 0, 40, 8);
-        let a = ann(None, Some("Grok 4.5 is here. Upgrade now."));
+        let a = ann(None, Some("xvora 4.5 is here. Upgrade now."));
         let text_rows = announcement_text_rows(&a, area.width, false);
         assert_eq!(
             announcement_desired_rows(&a, area.width, false, true),
@@ -915,11 +915,11 @@ managed devices and accounts. Report security incidents";
         );
 
         // Pinned promo with a configured caption: the button with the dim caption below
-        let mut pinned = ann(None, Some("Grok 4.5 is here. Upgrade now."));
+        let mut pinned = ann(None, Some("xvora 4.5 is here. Upgrade now."));
         pinned.dismissible = Some(false);
         pinned.cta = Some(announcements::AnnouncementCta {
             label: Some("Upgrade Account".into()),
-            url: Some("https://x.ai/grok".into()),
+            url: Some("https://x.ai/xvora".into()),
             caption: Some("or use Ctrl+O".into()),
         });
         let mut buf = Buffer::empty(area);
@@ -966,10 +966,10 @@ managed devices and accounts. Report security incidents";
         assert_eq!(row, "[Upgrade Account]", "absent caption stays bare");
 
         // Dismissible promo: bare button even with a configured caption.
-        let mut dismissible = ann(None, Some("Grok 4.5 is here. Upgrade now."));
+        let mut dismissible = ann(None, Some("xvora 4.5 is here. Upgrade now."));
         dismissible.cta = Some(announcements::AnnouncementCta {
             label: Some("Upgrade Account".into()),
-            url: Some("https://x.ai/grok".into()),
+            url: Some("https://x.ai/xvora".into()),
             caption: Some("or use Ctrl+O".into()),
         });
         let mut buf = Buffer::empty(area);

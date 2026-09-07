@@ -1,5 +1,5 @@
-//! Searches `.grok/agents/` and `.claude/agents/` from cwd to repo root,
-//! then `~/.grok/agents/`, then `~/.claude/agents/`. Name-based dedup keeps
+//! Searches `.xvora/agents/` and `.claude/agents/` from cwd to repo root,
+//! then `~/.xvora/agents/`, then `~/.claude/agents/`. Name-based dedup keeps
 //! highest priority.
 
 use std::collections::HashMap;
@@ -12,10 +12,10 @@ use crate::config::{AgentDefinition, AgentScope, BuiltinAgentName};
 use crate::error::AgentBuildError;
 use crate::prompt::context::TemplateOverride;
 
-/// Project-level agent directories to scan (`.grok/agents/` plus `.claude/agents/` for compat).
-const PROJECT_AGENT_SUBDIRS: &[&str] = &[".grok/agents", ".claude/agents"];
+/// Project-level agent directories to scan (`.xvora/agents/` plus `.claude/agents/` for compat).
+const PROJECT_AGENT_SUBDIRS: &[&str] = &[".xvora/agents", ".claude/agents"];
 
-/// Existing project-level agent dirs (`.grok/agents` / `.claude/agents`), walked from `cwd` up to the git worktree root (inclusive).
+/// Existing project-level agent dirs (`.xvora/agents` / `.claude/agents`), walked from `cwd` up to the git worktree root (inclusive).
 /// Returns `(existing dirs, git_root)`.
 /// Mirrors [`crate::plugins::project_plugin_dirs`].
 pub fn project_agent_dirs(cwd: Option<&Path>) -> (Vec<PathBuf>, Option<PathBuf>) {
@@ -26,7 +26,7 @@ pub fn project_agent_dirs(cwd: Option<&Path>) -> (Vec<PathBuf>, Option<PathBuf>)
     (project_agent_dirs_in(&chain.dirs), chain.git_root)
 }
 
-/// Existing project agent dirs (`.grok/agents` / `.claude/agents`) under each dir of a cwd-to-git-root chain ([`crate::repo::RepoDirChain`]).
+/// Existing project agent dirs (`.xvora/agents` / `.claude/agents`) under each dir of a cwd-to-git-root chain ([`crate::repo::RepoDirChain`]).
 ///
 /// This is the only place that walks `PROJECT_AGENT_SUBDIRS`.
 /// The folder-trust detector (`repo_configs_present`) reuses it, so trust detection can never drift from discovery.
@@ -62,17 +62,17 @@ pub enum SubagentSource {
 /// Project-level agents shadow built-ins with the same name.
 /// User-level and bundled agents with built-in names are skipped, keeping `visible == callable`.
 pub fn all_subagents(cwd: &Path, toggle: &HashMap<String, bool>) -> Vec<SubagentEntry> {
-    let grok = config::user_grok_home();
-    all_subagents_with_home(cwd, toggle, dirs::home_dir().as_deref(), grok.as_deref())
+    let xvora = config::user_grok_home();
+    all_subagents_with_home(cwd, toggle, dirs::home_dir().as_deref(), xvora.as_deref())
 }
 
 fn all_subagents_with_home(
     cwd: &Path,
     toggle: &HashMap<String, bool>,
     home: Option<&Path>,
-    grok_home: Option<&Path>,
+    xvora_home: Option<&Path>,
 ) -> Vec<SubagentEntry> {
-    let discovered = discover_with_home(cwd, home, grok_home);
+    let discovered = discover_with_home(cwd, home, xvora_home);
     merge_subagents(discovered, toggle)
 }
 
@@ -113,7 +113,7 @@ fn merge_subagents(
     // This matches the runtime spawn precedence in by_name_in_cwd():
     //   project > built-in > user > bundled
     //
-    // A user-level ~/.grok/agents/explore.md does NOT shadow built-in explore
+    // A user-level ~/.xvora/agents/explore.md does NOT shadow built-in explore
     // at spawn time, so it must not shadow it in the visible list either.
     // Otherwise the `visible == callable` guarantee breaks
     for def in discovered {
@@ -171,29 +171,29 @@ fn merge_subagents(
 /// Discover all agent definitions from the filesystem.
 ///
 /// Search order (highest priority first):
-/// 1. `.grok/agents/` walking from `cwd` up to repo root
-/// 2. `~/.grok/agents/` (user-level)
+/// 1. `.xvora/agents/` walking from `cwd` up to repo root
+/// 2. `~/.xvora/agents/` (user-level)
 /// 3. `~/.claude/agents/` (compat user-level)
-/// 4. `~/.grok/bundled/agents/` (bundled, lowest priority)
+/// 4. `~/.xvora/bundled/agents/` (bundled, lowest priority)
 ///
 /// Deduplicates by name; higher-priority definitions win.
-/// User-level agent directories in priority order: user grok agents, `.claude`
-/// compat agents, then bundled. `.grok` dirs resolve from `grok_home`
-/// (GROK_HOME-aware) plus the legacy literal `~/.grok` when GROK_HOME points
+/// User-level agent directories in priority order: user xvora agents, `.claude`
+/// compat agents, then bundled. `.xvora` dirs resolve from `xvora_home`
+/// (xvora_home-aware) plus the legacy literal `~/.xvora` when xvora_home points
 /// elsewhere; `.claude` resolves from `home`.
 pub(crate) fn user_agent_dirs(
     home: Option<&Path>,
-    grok_home: Option<&Path>,
+    xvora_home: Option<&Path>,
 ) -> Vec<(std::path::PathBuf, AgentScope)> {
-    // Legacy literal ~/.grok, included only when it differs from grok_home
-    // (i.e. GROK_HOME points elsewhere) so agents left in the old location are
+    // Legacy literal ~/.xvora, included only when it differs from xvora_home
+    // (i.e. xvora_home points elsewhere) so agents left in the old location are
     // still discovered and stay consistent with scope_from_path classification.
     let legacy_grok = home
-        .map(|h| h.join(".grok"))
-        .filter(|legacy| grok_home != Some(legacy.as_path()));
+        .map(|h| h.join(".xvora"))
+        .filter(|legacy| xvora_home != Some(legacy.as_path()));
 
     let mut dirs = Vec::new();
-    if let Some(g) = grok_home {
+    if let Some(g) = xvora_home {
         dirs.push((g.join("agents"), AgentScope::User));
     }
     if let Some(l) = &legacy_grok {
@@ -202,7 +202,7 @@ pub(crate) fn user_agent_dirs(
     if let Some(h) = home {
         dirs.push((h.join(".claude").join("agents"), AgentScope::User));
     }
-    if let Some(g) = grok_home {
+    if let Some(g) = xvora_home {
         dirs.push((g.join("bundled").join("agents"), AgentScope::Bundled));
     }
     if let Some(l) = &legacy_grok {
@@ -212,21 +212,21 @@ pub(crate) fn user_agent_dirs(
 }
 
 pub fn discover(cwd: &Path) -> Vec<AgentDefinition> {
-    let grok = config::user_grok_home();
-    discover_with_home(cwd, dirs::home_dir().as_deref(), grok.as_deref())
+    let xvora = config::user_grok_home();
+    discover_with_home(cwd, dirs::home_dir().as_deref(), xvora.as_deref())
 }
 
 fn discover_with_home(
     cwd: &Path,
     home: Option<&Path>,
-    grok_home: Option<&Path>,
+    xvora_home: Option<&Path>,
 ) -> Vec<AgentDefinition> {
     let mut definitions = Vec::new();
     let mut seen_names = std::collections::HashSet::new();
 
     load_project_definitions(cwd, &mut definitions, &mut seen_names);
 
-    for (dir, scope) in user_agent_dirs(home, grok_home) {
+    for (dir, scope) in user_agent_dirs(home, xvora_home) {
         if dir.is_dir() {
             load_definitions_from_dir(&dir, scope, &mut definitions, &mut seen_names);
         }
@@ -237,21 +237,21 @@ fn discover_with_home(
 
 /// Checks built-ins first, then user-level dirs, then bundled.
 pub fn by_name(name: &str) -> Option<AgentDefinition> {
-    let grok = config::user_grok_home();
-    by_name_with_home(name, dirs::home_dir().as_deref(), grok.as_deref())
+    let xvora = config::user_grok_home();
+    by_name_with_home(name, dirs::home_dir().as_deref(), xvora.as_deref())
 }
 
 fn by_name_with_home(
     name: &str,
     home: Option<&Path>,
-    grok_home: Option<&Path>,
+    xvora_home: Option<&Path>,
 ) -> Option<AgentDefinition> {
     if let Ok(builtin) = BuiltinAgentName::from_str(name) {
         return Some(builtin.definition());
     }
 
     {
-        let home_dirs = user_agent_dirs(home, grok_home);
+        let home_dirs = user_agent_dirs(home, xvora_home);
         for (agents_dir, scope) in home_dirs {
             if let Some(def) = load_definition_by_name(
                 &agents_dir,
@@ -267,23 +267,23 @@ fn by_name_with_home(
     None
 }
 
-/// Project-level `.grok/agents/` has highest priority, then falls back to built-ins, user-level, and finally bundled definitions.
+/// Project-level `.xvora/agents/` has highest priority, then falls back to built-ins, user-level, and finally bundled definitions.
 pub fn by_name_in_cwd(name: &str, cwd: &Path) -> Option<AgentDefinition> {
-    let grok = config::user_grok_home();
-    by_name_in_cwd_with_home(name, cwd, dirs::home_dir().as_deref(), grok.as_deref())
+    let xvora = config::user_grok_home();
+    by_name_in_cwd_with_home(name, cwd, dirs::home_dir().as_deref(), xvora.as_deref())
 }
 
 fn by_name_in_cwd_with_home(
     name: &str,
     cwd: &Path,
     home: Option<&Path>,
-    grok_home: Option<&Path>,
+    xvora_home: Option<&Path>,
 ) -> Option<AgentDefinition> {
     if let Some(def) = load_project_definition_by_name(name, cwd) {
         return Some(def);
     }
 
-    by_name_with_home(name, home, grok_home)
+    by_name_with_home(name, home, xvora_home)
 }
 
 /// These are the pre-defined agent profiles (`general-purpose`, `explore`, `plan`) that the Task tool can launch.
@@ -379,13 +379,13 @@ pub fn all_subagents_with_plugins(
     toggle: &HashMap<String, bool>,
     plugins: Option<&crate::plugins::PluginRegistry>,
 ) -> Vec<SubagentEntry> {
-    let grok = config::user_grok_home();
+    let xvora = config::user_grok_home();
     all_subagents_with_plugins_and_home(
         cwd,
         toggle,
         plugins,
         dirs::home_dir().as_deref(),
-        grok.as_deref(),
+        xvora.as_deref(),
     )
 }
 
@@ -394,9 +394,9 @@ fn all_subagents_with_plugins_and_home(
     toggle: &HashMap<String, bool>,
     plugins: Option<&crate::plugins::PluginRegistry>,
     home: Option<&Path>,
-    grok_home: Option<&Path>,
+    xvora_home: Option<&Path>,
 ) -> Vec<SubagentEntry> {
-    let discovered = discover_with_home(cwd, home, grok_home);
+    let discovered = discover_with_home(cwd, home, xvora_home);
     let mut entries = merge_subagents(discovered, toggle);
 
     // Append plugin agents under qualified names
@@ -436,13 +436,13 @@ pub fn by_name_in_cwd_with_plugins(
     cwd: &Path,
     plugins: Option<&crate::plugins::PluginRegistry>,
 ) -> Option<AgentDefinition> {
-    let grok = config::user_grok_home();
+    let xvora = config::user_grok_home();
     by_name_in_cwd_with_plugins_and_home(
         name,
         cwd,
         plugins,
         dirs::home_dir().as_deref(),
-        grok.as_deref(),
+        xvora.as_deref(),
     )
 }
 
@@ -451,10 +451,10 @@ fn by_name_in_cwd_with_plugins_and_home(
     cwd: &Path,
     plugins: Option<&crate::plugins::PluginRegistry>,
     home: Option<&Path>,
-    grok_home: Option<&Path>,
+    xvora_home: Option<&Path>,
 ) -> Option<AgentDefinition> {
     // First try native resolution (project > built-in > user > bundled)
-    if let Some(def) = by_name_in_cwd_with_home(name, cwd, home, grok_home) {
+    if let Some(def) = by_name_in_cwd_with_home(name, cwd, home, xvora_home) {
         return Some(def);
     }
 
@@ -536,7 +536,7 @@ fn load_plugin_agent_definition(
     }
 }
 
-/// Expand `${CLAUDE_PLUGIN_ROOT}` / `${CLAUDE_PLUGIN_DATA}` (and the Grok aliases) in a plugin agent's body so the model receives absolute paths.
+/// Expand `${CLAUDE_PLUGIN_ROOT}` / `${CLAUDE_PLUGIN_DATA}` (and the xvora aliases) in a plugin agent's body so the model receives absolute paths.
 fn substitute_plugin_vars(def: &mut AgentDefinition, plugin: &crate::plugins::LoadedPlugin) {
     // Untrusted plugins are loaded frontmatter-only (body is None), and most agents use a built-in system prompt
     // Skip computing root/data paths when there is nothing to expand
@@ -557,7 +557,7 @@ fn substitute_plugin_vars(def: &mut AgentDefinition, plugin: &crate::plugins::Lo
     }
 }
 
-/// Load project agent definitions from every `.grok/agents` / `.claude/agents` dir that [`project_agent_dirs`] finds along the cwd-to-git-root walk.
+/// Load project agent definitions from every `.xvora/agents` / `.claude/agents` dir that [`project_agent_dirs`] finds along the cwd-to-git-root walk.
 fn load_project_definitions(
     cwd: &Path,
     definitions: &mut Vec<AgentDefinition>,
@@ -752,29 +752,29 @@ mod tests {
     #[test]
     fn user_agent_dirs_includes_legacy_grok_when_grok_home_differs() {
         let home = Path::new("/home/u");
-        let grok = Path::new("/custom/grokhome");
-        let paths: Vec<_> = user_agent_dirs(Some(home), Some(grok))
+        let xvora = Path::new("/custom/grokhome");
+        let paths: Vec<_> = user_agent_dirs(Some(home), Some(xvora))
             .into_iter()
             .map(|(p, _)| p)
             .collect();
-        assert!(paths.contains(&grok.join("agents")));
-        assert!(paths.contains(&home.join(".grok").join("agents")));
+        assert!(paths.contains(&xvora.join("agents")));
+        assert!(paths.contains(&home.join(".xvora").join("agents")));
         assert!(paths.contains(&home.join(".claude").join("agents")));
-        assert!(paths.contains(&grok.join("bundled").join("agents")));
-        assert!(paths.contains(&home.join(".grok").join("bundled").join("agents")));
+        assert!(paths.contains(&xvora.join("bundled").join("agents")));
+        assert!(paths.contains(&home.join(".xvora").join("bundled").join("agents")));
     }
 
     #[test]
     fn user_agent_dirs_dedups_legacy_when_grok_home_is_dot_grok() {
         let home = Path::new("/home/u");
-        let grok = home.join(".grok");
-        let count = user_agent_dirs(Some(home), Some(&grok))
+        let xvora = home.join(".xvora");
+        let count = user_agent_dirs(Some(home), Some(&xvora))
             .into_iter()
-            .filter(|(p, _)| *p == grok.join("agents"))
+            .filter(|(p, _)| *p == xvora.join("agents"))
             .count();
         assert_eq!(
             count, 1,
-            "no duplicate ~/.grok/agents when grok_home == ~/.grok"
+            "no duplicate ~/.xvora/agents when xvora_home == ~/.xvora"
         );
     }
 
@@ -794,9 +794,9 @@ mod tests {
 
     #[test]
     fn test_by_name_builtin_grok_build() {
-        let def = by_name("grok-build");
+        let def = by_name("xvora-build");
         assert!(def.is_some());
-        assert_eq!(def.unwrap().name, "grok-build");
+        assert_eq!(def.unwrap().name, "xvora-build");
     }
 
     #[test]
@@ -815,7 +815,7 @@ mod tests {
     #[test]
     fn test_discover_finds_md_files() {
         let tmp = tempfile::tempdir().unwrap();
-        let agents_dir = tmp.path().join(".grok").join("agents");
+        let agents_dir = tmp.path().join(".xvora").join("agents");
         fs::create_dir_all(&agents_dir).unwrap();
 
         write_agent_file(&agents_dir, "test-agent.md", "test-agent", "A test");
@@ -831,7 +831,7 @@ mod tests {
     #[test]
     fn test_discover_ignores_non_md_files() {
         let tmp = tempfile::tempdir().unwrap();
-        let agents_dir = tmp.path().join(".grok").join("agents");
+        let agents_dir = tmp.path().join(".xvora").join("agents");
         fs::create_dir_all(&agents_dir).unwrap();
 
         write_agent_file(&agents_dir, "valid.md", "valid", "Valid agent");
@@ -846,7 +846,7 @@ mod tests {
     #[test]
     fn test_discover_invalid_md_logged_not_error() {
         let tmp = tempfile::tempdir().unwrap();
-        let agents_dir = tmp.path().join(".grok").join("agents");
+        let agents_dir = tmp.path().join(".xvora").join("agents");
         fs::create_dir_all(&agents_dir).unwrap();
 
         write_agent_file(&agents_dir, "good.md", "good", "Good agent");
@@ -865,8 +865,8 @@ mod tests {
         let inner_dir = tmp.path().join("subdir");
         fs::create_dir_all(&inner_dir).unwrap();
 
-        let agents_dir_1 = tmp.path().join(".grok").join("agents");
-        let agents_dir_2 = inner_dir.join(".grok").join("agents");
+        let agents_dir_1 = tmp.path().join(".xvora").join("agents");
+        let agents_dir_2 = inner_dir.join(".xvora").join("agents");
         fs::create_dir_all(&agents_dir_1).unwrap();
         fs::create_dir_all(&agents_dir_2).unwrap();
 
@@ -884,7 +884,7 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let cwd = tmp.path().join("workspace");
         let home = tmp.path().join("home");
-        let bundled_dir = home.join(".grok").join("bundled").join("agents");
+        let bundled_dir = home.join(".xvora").join("bundled").join("agents");
         fs::create_dir_all(&cwd).unwrap();
         fs::create_dir_all(&bundled_dir).unwrap();
 
@@ -895,7 +895,7 @@ mod tests {
             "Bundled agent",
         );
 
-        let defs = discover_with_home(&cwd, Some(&home), Some(&home.join(".grok")));
+        let defs = discover_with_home(&cwd, Some(&home), Some(&home.join(".xvora")));
         assert_eq!(defs.len(), 1);
         assert_eq!(defs[0].name, "bundled-agent");
         assert_eq!(defs[0].scope, AgentScope::Bundled);
@@ -906,7 +906,7 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let cwd = tmp.path().join("workspace");
         let home = tmp.path().join("home");
-        let bundled_dir = home.join(".grok").join("bundled").join("agents");
+        let bundled_dir = home.join(".xvora").join("bundled").join("agents");
         fs::create_dir_all(&cwd).unwrap();
         fs::create_dir_all(&bundled_dir).unwrap();
 
@@ -917,9 +917,13 @@ mod tests {
             "Bundled only",
         );
 
-        let def =
-            by_name_in_cwd_with_home("bundled-only", &cwd, Some(&home), Some(&home.join(".grok")))
-                .unwrap();
+        let def = by_name_in_cwd_with_home(
+            "bundled-only",
+            &cwd,
+            Some(&home),
+            Some(&home.join(".xvora")),
+        )
+        .unwrap();
         assert_eq!(def.scope, AgentScope::Bundled);
         assert_eq!(def.description, "Bundled only");
     }
@@ -929,8 +933,8 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let cwd = tmp.path().join("workspace");
         let home = tmp.path().join("home");
-        let user_dir = home.join(".grok").join("agents");
-        let bundled_dir = home.join(".grok").join("bundled").join("agents");
+        let user_dir = home.join(".xvora").join("agents");
+        let bundled_dir = home.join(".xvora").join("bundled").join("agents");
         fs::create_dir_all(&cwd).unwrap();
         fs::create_dir_all(&user_dir).unwrap();
         fs::create_dir_all(&bundled_dir).unwrap();
@@ -939,7 +943,7 @@ mod tests {
         write_agent_file(&bundled_dir, "reviewer.md", "reviewer", "Bundled reviewer");
 
         let def =
-            by_name_in_cwd_with_home("reviewer", &cwd, Some(&home), Some(&home.join(".grok")))
+            by_name_in_cwd_with_home("reviewer", &cwd, Some(&home), Some(&home.join(".xvora")))
                 .unwrap();
         assert_eq!(def.scope, AgentScope::User);
         assert_eq!(def.description, "User reviewer");
@@ -950,14 +954,15 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let cwd = tmp.path().join("workspace");
         let home = tmp.path().join("home");
-        let bundled_dir = home.join(".grok").join("bundled").join("agents");
+        let bundled_dir = home.join(".xvora").join("bundled").join("agents");
         fs::create_dir_all(&cwd).unwrap();
         fs::create_dir_all(&bundled_dir).unwrap();
 
         write_agent_file(&bundled_dir, "explore.md", "explore", "Bundled explore");
 
-        let def = by_name_in_cwd_with_home("explore", &cwd, Some(&home), Some(&home.join(".grok")))
-            .unwrap();
+        let def =
+            by_name_in_cwd_with_home("explore", &cwd, Some(&home), Some(&home.join(".xvora")))
+                .unwrap();
         assert_eq!(def.scope, AgentScope::BuiltIn);
         assert_ne!(def.description, "Bundled explore");
     }
@@ -967,8 +972,8 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let cwd = tmp.path().join("workspace");
         let home = tmp.path().join("home");
-        let project_dir = cwd.join(".grok").join("agents");
-        let bundled_dir = home.join(".grok").join("bundled").join("agents");
+        let project_dir = cwd.join(".xvora").join("agents");
+        let bundled_dir = home.join(".xvora").join("bundled").join("agents");
         fs::create_dir_all(&project_dir).unwrap();
         fs::create_dir_all(&bundled_dir).unwrap();
 
@@ -976,7 +981,7 @@ mod tests {
         write_agent_file(&bundled_dir, "reviewer.md", "reviewer", "Bundled reviewer");
 
         let def =
-            by_name_in_cwd_with_home("reviewer", &cwd, Some(&home), Some(&home.join(".grok")))
+            by_name_in_cwd_with_home("reviewer", &cwd, Some(&home), Some(&home.join(".xvora")))
                 .unwrap();
         assert_eq!(def.scope, AgentScope::Project);
         assert_eq!(def.description, "Project reviewer");
@@ -985,33 +990,33 @@ mod tests {
     #[test]
     fn test_by_name_in_cwd_project_shadows_builtin() {
         let tmp = tempfile::tempdir().unwrap();
-        let agents_dir = tmp.path().join(".grok").join("agents");
+        let agents_dir = tmp.path().join(".xvora").join("agents");
         fs::create_dir_all(&agents_dir).unwrap();
 
-        // Create a project-level "grok-build" that shadows the built-in
+        // Create a project-level "xvora-build" that shadows the built-in
         write_agent_file(
             &agents_dir,
-            "grok-build.md",
-            "grok-build",
-            "Custom grok-build",
+            "xvora-build.md",
+            "xvora-build",
+            "Custom xvora-build",
         );
 
-        let def = by_name_in_cwd("grok-build", tmp.path());
+        let def = by_name_in_cwd("xvora-build", tmp.path());
         assert!(def.is_some());
         let def = def.unwrap();
-        assert_eq!(def.name, "grok-build");
-        assert_eq!(def.description, "Custom grok-build");
+        assert_eq!(def.name, "xvora-build");
+        assert_eq!(def.description, "Custom xvora-build");
     }
 
     #[test]
     fn test_by_name_in_cwd_falls_back_to_builtin() {
         let tmp = tempfile::tempdir().unwrap();
-        // No .grok/agents/ directory, so lookup falls back to the built-in
+        // No .xvora/agents/ directory, so lookup falls back to the built-in
 
-        let def = by_name_in_cwd("grok-build", tmp.path());
+        let def = by_name_in_cwd("xvora-build", tmp.path());
         assert!(def.is_some());
         let def = def.unwrap();
-        assert_eq!(def.name, "grok-build");
+        assert_eq!(def.name, "xvora-build");
         assert_eq!(def.scope, AgentScope::BuiltIn);
     }
 
@@ -1030,11 +1035,11 @@ mod tests {
     #[test]
     fn test_orchestrator_from_str_resolves() {
         use std::str::FromStr;
-        let variant = BuiltinAgentName::from_str("grok-build-orchestrator")
-            .expect("from_str must resolve grok-build-orchestrator");
+        let variant = BuiltinAgentName::from_str("xvora-build-orchestrator")
+            .expect("from_str must resolve xvora-build-orchestrator");
         assert_eq!(variant, BuiltinAgentName::GrokBuildOrchestrator);
         let def = variant.definition();
-        assert_eq!(def.name, "grok-build-orchestrator");
+        assert_eq!(def.name, "xvora-build-orchestrator");
         assert!(
             def.prompt_body.is_some(),
             "orchestrator must have prompt_body"
@@ -1044,9 +1049,9 @@ mod tests {
     #[test]
     fn test_orchestrator_by_name_in_cwd() {
         let tmp = tempfile::tempdir().unwrap();
-        let def = by_name_in_cwd("grok-build-orchestrator", tmp.path())
-            .expect("by_name_in_cwd must find grok-build-orchestrator");
-        assert_eq!(def.name, "grok-build-orchestrator");
+        let def = by_name_in_cwd("xvora-build-orchestrator", tmp.path())
+            .expect("by_name_in_cwd must find xvora-build-orchestrator");
+        assert_eq!(def.name, "xvora-build-orchestrator");
         assert!(def.prompt_body.is_some());
     }
 
@@ -1149,7 +1154,7 @@ mod tests {
 
     #[test]
     fn test_merge_user_level_builtin_name_is_skipped() {
-        // A user-level (~/.grok/agents/) agent named "explore" should NOT shadow
+        // A user-level (~/.xvora/agents/) agent named "explore" should NOT shadow
         // the built-in — only project-level can do that.
         let discovered = vec![synthetic_agent(
             "explore",
@@ -1284,7 +1289,7 @@ mod tests {
     #[test]
     fn test_all_subagents_with_project_agent_file() {
         let tmp = tempfile::tempdir().unwrap();
-        let agents_dir = tmp.path().join(".grok").join("agents");
+        let agents_dir = tmp.path().join(".xvora").join("agents");
         fs::create_dir_all(&agents_dir).unwrap();
 
         write_agent_file(
@@ -1308,8 +1313,8 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let cwd = tmp.path().join("workspace");
         let home = tmp.path().join("home");
-        let user_dir = home.join(".grok").join("agents");
-        let bundled_dir = home.join(".grok").join("bundled").join("agents");
+        let user_dir = home.join(".xvora").join("agents");
+        let bundled_dir = home.join(".xvora").join("bundled").join("agents");
         fs::create_dir_all(&cwd).unwrap();
         fs::create_dir_all(&user_dir).unwrap();
         fs::create_dir_all(&bundled_dir).unwrap();
@@ -1328,7 +1333,7 @@ mod tests {
             &HashMap::new(),
             Some(&registry),
             Some(&home),
-            Some(&home.join(".grok")),
+            Some(&home.join(".xvora")),
         );
 
         let native = entries.iter().find(|e| e.name == "reviewer").unwrap();
@@ -1363,7 +1368,7 @@ mod tests {
             &toggle,
             Some(&registry),
             Some(&home),
-            Some(&home.join(".grok")),
+            Some(&home.join(".xvora")),
         );
         assert!(
             !entries.iter().any(|e| e.name == "plugin-one:reviewer"),
@@ -1375,7 +1380,7 @@ mod tests {
             &HashMap::new(),
             Some(&registry),
             Some(&home),
-            Some(&home.join(".grok")),
+            Some(&home.join(".xvora")),
         );
         assert!(entries.iter().any(|e| e.name == "plugin-one:reviewer"));
     }
@@ -1403,7 +1408,7 @@ mod tests {
             &HashMap::new(),
             Some(&registry),
             Some(&home),
-            Some(&home.join(".grok")),
+            Some(&home.join(".xvora")),
         );
         assert!(entries.iter().any(|e| e.name == "plugin-one:painter"));
 
@@ -1412,7 +1417,7 @@ mod tests {
             &cwd,
             Some(&registry),
             Some(&home),
-            Some(&home.join(".grok")),
+            Some(&home.join(".xvora")),
         )
         .expect("agent must resolve despite the unrecognized color");
         assert_eq!(def.color, None, "unrecognized color must be dropped");
@@ -1423,7 +1428,7 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let cwd = tmp.path().join("workspace");
         let home = tmp.path().join("home");
-        let bundled_dir = home.join(".grok").join("bundled").join("agents");
+        let bundled_dir = home.join(".xvora").join("bundled").join("agents");
         fs::create_dir_all(&cwd).unwrap();
         fs::create_dir_all(&bundled_dir).unwrap();
         write_agent_file(&bundled_dir, "reviewer.md", "reviewer", "Bundled reviewer");
@@ -1439,7 +1444,7 @@ mod tests {
             &cwd,
             Some(&registry),
             Some(&home),
-            Some(&home.join(".grok")),
+            Some(&home.join(".xvora")),
         )
         .unwrap();
 
@@ -1474,7 +1479,7 @@ mod tests {
             &cwd,
             Some(&registry),
             Some(&home),
-            Some(&home.join(".grok")),
+            Some(&home.join(".xvora")),
         )
         .unwrap();
         let bare_body = bare.prompt_body.as_deref().unwrap();
@@ -1493,7 +1498,7 @@ mod tests {
             &cwd,
             Some(&registry),
             Some(&home),
-            Some(&home.join(".grok")),
+            Some(&home.join(".xvora")),
         )
         .unwrap();
         let qualified_body = qualified.prompt_body.as_deref().unwrap();
@@ -1533,7 +1538,7 @@ mod tests {
     #[test]
     fn test_all_subagents_toggle_filters_project_agent() {
         let tmp = tempfile::tempdir().unwrap();
-        let agents_dir = tmp.path().join(".grok").join("agents");
+        let agents_dir = tmp.path().join(".xvora").join("agents");
         fs::create_dir_all(&agents_dir).unwrap();
 
         write_agent_file(

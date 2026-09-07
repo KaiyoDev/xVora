@@ -72,7 +72,7 @@ fn dismiss_campaign_ids_at(
     use fs2::FileExt as _;
     let _guard = DISMISS_LOCK.lock().unwrap_or_else(|p| p.into_inner());
     let path = campaigns_state_path(home);
-    // Cross-process advisory lock over the read-modify-write: in leader mode several grok processes share `$GROK_HOME`
+    // Cross-process advisory lock over the read-modify-write: in leader mode several xvora processes share `$xvora_home`
     // The in-process mutex alone would let one process overwrite another's update
     // The lock is best-effort; a lock failure still proceeds
     let lock = std::fs::OpenOptions::new()
@@ -245,7 +245,7 @@ pub fn campaign_driven_models_default() -> Option<CampaignModelsDefault> {
     campaign_driven_models_default_from(&layers, &cached_remote_campaigns(), &load_dismissed_ids())
 }
 
-/// Env-free resolution core of [`campaign_driven_models_default`] (unit-testable without touching `GROK_HOME` or the process-global cache).
+/// Env-free resolution core of [`campaign_driven_models_default`] (unit-testable without touching `xvora_home` or the process-global cache).
 fn campaign_driven_models_default_from(
     layers: &ConfigLayers,
     remote: &[CampaignEntry],

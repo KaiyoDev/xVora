@@ -591,7 +591,7 @@ fn lock_path_for_args_buckets_grok_build_and_compat_to_same_lock_for_same_file()
     // That mix is possible if the harness ever exposes both toolsets, or during a toolset migration
     // file_path takes precedence over path when both are present, but neither tool emits both keys today
     // So this asserts that both toolsets' path keys normalize to the same lock
-    let grok = serde_json::json!({
+    let xvora = serde_json::json!({
         "file_path": "/repo/src/main.rs",
         "old_string": "a",
         "new_string": "b",
@@ -602,7 +602,7 @@ fn lock_path_for_args_buckets_grok_build_and_compat_to_same_lock_for_same_file()
         "new_string": "d",
     });
     assert_eq!(
-        lock_path_for_args(&grok, Path::new("/cwd")),
+        lock_path_for_args(&xvora, Path::new("/cwd")),
         lock_path_for_args(&compat, Path::new("/cwd"))
     );
 }

@@ -119,7 +119,7 @@ mod tests {
             mcp_server_count: 6,
             mcp_tools_registered: 42,
             mcp_strategy: McpInitStrategy::Blocking,
-            model_id: "grok-test".to_string(),
+            model_id: "xvora-test".to_string(),
             ttft_ms: None,
             ttlb_ms: 4500,
             attempts: 2,
@@ -138,7 +138,7 @@ mod tests {
                 "mcp_server_count": 6,
                 "mcp_tools_registered": 42,
                 "mcp_strategy": "blocking",
-                "model_id": "grok-test",
+                "model_id": "xvora-test",
                 "ttlb_ms": 4500,
                 "attempts": 2,
             })

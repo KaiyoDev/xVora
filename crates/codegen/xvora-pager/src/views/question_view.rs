@@ -45,7 +45,7 @@ fn hovered_bg(theme: &Theme) -> ratatui::style::Color {
     theme.bg_hover
 }
 
-// ── Enums ──────────────────────────────────────────────────────────────
+// â”€â”€ Enums â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Per-question selection state.
 #[derive(Debug, Clone)]
@@ -142,12 +142,12 @@ pub enum LocalQuestionKind {
 }
 
 /// Bare `/feedback` pane label (first paragraph of the question chrome).
-pub const FEEDBACK_QUESTION_LABEL: &str = "How can we improve Grok Build?";
+pub const FEEDBACK_QUESTION_LABEL: &str = "How can we improve xvora build?";
 
 /// Trace-consent question shown after the report is submitted.
 /// The wording comes from legal review: it discloses retention/training scope, not just debugging.
 pub const FEEDBACK_TRACE_QUESTION_LABEL: &str = "Opt-in to provide your trace for debugging \
-     purposes. This will also provide SpaceXAI the ability to retain and train on coding data, \
+     purposes. This will also provide xVora the ability to retain and train on coding data, \
      e.g., prompts, traces, & metrics.";
 
 /// Option ids for the trace-consent question; the submit handler maps ids (never positions) back to a [`crate::app::actions::FeedbackTraceChoice`].
@@ -155,7 +155,7 @@ pub const FEEDBACK_TRACE_OPTION_OPT_IN: &str = "always_upload";
 pub const FEEDBACK_TRACE_OPTION_OPT_OUT: &str = "no_upload";
 pub const FEEDBACK_TRACE_OPTION_NEVER_ASK: &str = "never_ask";
 
-// ── State ──────────────────────────────────────────────────────────────
+// â”€â”€ State â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Complete state for the question view overlay.
 ///
@@ -192,13 +192,13 @@ pub struct QuestionViewState {
     /// Independent of the text content; text is preserved on untoggle.
     pub per_question_freeform_selected: Vec<bool>,
 
-    // ── Cached chrome caps (recomputed on resize / question switch) ──
+    // â”€â”€ Cached chrome caps (recomputed on resize / question switch) â”€â”€
     /// Cached cap on description lines in chrome (capped in non-fullscreen).
     pub cached_desc_cap: u16,
     /// Cached cap on preview lines in chrome (capped in non-fullscreen).
     pub cached_preview_cap: u16,
 
-    // ── ACP response channel ──
+    // â”€â”€ ACP response channel â”€â”€
     /// Stashed ACP response sender.
     /// When the user submits/cancels, the pager serializes the response and sends it here.
     /// `take()` ensures we never send twice.
@@ -233,7 +233,7 @@ pub struct QuestionViewState {
     pub feedback_offer_reenables_sharing: bool,
 }
 
-// ── Constructor & basic helpers ────────────────────────────────────────
+// â”€â”€ Constructor & basic helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 impl QuestionViewState {
     /// Initializes per-question vectors (selections, cursors, scroll) based on each question's type (single vs multi-select).
@@ -596,13 +596,13 @@ pub fn item_index_at_screen_row(
     ))
 }
 
-// ── Layout helpers ─────────────────────────────────────────────────────
+// â”€â”€ Layout helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Compute the aligned label column width.
 ///
 /// The column fits the longest label, capped at 60% of the available width.
-/// Labels stay visible while the collapsed description (with its `…` affordance) keeps the remaining space.
-/// Labels longer than the cap are truncated with `…` on unfocused rows and get stacked/wrapped layout when focused.
+/// Labels stay visible while the collapsed description (with its `â€¦` affordance) keeps the remaining space.
+/// Labels longer than the cap are truncated with `â€¦` on unfocused rows and get stacked/wrapped layout when focused.
 pub fn compute_max_label_w(options: &[QuestionOption], content_w: usize) -> usize {
     let cap = content_w * 3 / 5;
     options
@@ -615,7 +615,7 @@ pub fn compute_max_label_w(options: &[QuestionOption], content_w: usize) -> usiz
 
 /// Visual height of a single option row.
 ///
-/// - Unfocused: always 1 line (collapsed `label  description…`).
+/// - Unfocused: always 1 line (collapsed `label  descriptionâ€¦`).
 /// - Focused: full description. The label shares the first description line when it fits the column (description wrapped in the column to its right).
 ///   An overflowing label wraps full-width with the description stacked below it, both indented at `prefix_w`.
 pub fn option_visual_height(
@@ -740,7 +740,7 @@ fn split_question_label_desc(text: &str) -> (&str, &str) {
     }
 }
 
-// ── Selection helpers ──────────────────────────────────────────────────
+// â”€â”€ Selection helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 impl QuestionViewState {
     /// Toggle an option for a question.
@@ -957,7 +957,7 @@ impl QuestionViewState {
     }
 }
 
-// ── ACP response builders ──────────────────────────────────────────────
+// â”€â”€ ACP response builders â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 impl QuestionViewState {
     /// Build the `Accepted` ext-method response from the current state.
@@ -1064,7 +1064,7 @@ impl QuestionViewState {
     }
 }
 
-// ── Tab cycling ────────────────────────────────────────────────────────
+// â”€â”€ Tab cycling â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 impl QuestionViewState {
     /// Advance to the next question (clamped, no wrap).
@@ -1080,7 +1080,7 @@ impl QuestionViewState {
     }
 }
 
-// ── Rendering ──────────────────────────────────────────────────────────
+// â”€â”€ Rendering â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Desired height for the question view overlay.
 ///
@@ -1230,8 +1230,8 @@ pub const QUESTION_VIEW_HPAD: u16 = 5;
 ///
 /// The shortcut column is always 1 character wide (1-9, a-z), followed by a
 /// space, then the marker/radio/checkbox, then a space:
-///   Multi:  `X [✓] ` = 1 + 1 + 3 + 1 = 6
-///   Single: `X (●) ` = 1 + 1 + 3 + 1 = 6
+///   Multi:  `X [âœ“] ` = 1 + 1 + 3 + 1 = 6
+///   Single: `X (â—) ` = 1 + 1 + 3 + 1 = 6
 pub fn option_prefix_w(_question: &Question) -> usize {
     6 // both multi and single use 3-char markers
 }
@@ -1283,13 +1283,13 @@ pub mod feedback_input {
 /// Width available for inline prompt text given the full area width.
 ///
 /// Subtracts left padding (accent col + 2 = 3), the option prefix
-/// (`"z [x] "` = 6 chars), and the prompt indicator (`"❯ "` = 2 chars).
+/// (`"z [x] "` = 6 chars), and the prompt indicator (`"â¯ "` = 2 chars).
 /// Matches the `text_w` computed during rendering so `desired_height`
 /// wraps at the same width as the draw area.
 pub fn inline_text_width(area_width: u16) -> u16 {
     const LEFT_PAD: u16 = 3; // accent column + 2 padding
     const OPTION_PREFIX_W: u16 = 6; // shortcut + marker ("z [x] ")
-    const PROMPT_INDICATOR_W: u16 = 2; // "❯ "
+    const PROMPT_INDICATOR_W: u16 = 2; // "â¯ "
     area_width.saturating_sub(LEFT_PAD + OPTION_PREFIX_W + PROMPT_INDICATOR_W)
 }
 
@@ -1453,7 +1453,7 @@ fn build_indented_desc_line(
     .style(Style::default().bg(row_bg))
 }
 
-/// A collapsed description: one visual line that still shows a trailing `…` affordance whenever content is hidden.
+/// A collapsed description: one visual line that still shows a trailing `â€¦` affordance whenever content is hidden.
 fn collapsed_description_spans(
     option: &QuestionOption,
     width: usize,
@@ -1570,10 +1570,10 @@ fn build_single_option_lines(
             Span::styled(format!("{checkbox} "), cb_style),
         ]
     } else {
-        // Single-select: radio buttons (●) / (○)
+        // Single-select: radio buttons (â—) / (â—‹)
         let (radio, radio_style) = if is_selected {
             (
-                format!("({})", crate::glyphs::filled_dot()), // (●) falls back to (•) on legacy ConHost
+                format!("({})", crate::glyphs::filled_dot()), // (â—) falls back to (â€¢) on legacy ConHost
                 Style::default()
                     .fg(fg(theme.text_primary))
                     .bg(row_bg)
@@ -1581,7 +1581,7 @@ fn build_single_option_lines(
             )
         } else {
             (
-                "(\u{25cb})".to_string(), // (○)
+                "(\u{25cb})".to_string(), // (â—‹)
                 Style::default().fg(fg(theme.gray)).bg(row_bg),
             )
         };
@@ -1673,7 +1673,7 @@ fn build_freeform_line(
         None => theme.bg_light,
     };
 
-    // Multi-select: [x]/[ ] checkboxes.  Single-select: (●)/(○) radio buttons.
+    // Multi-select: [x]/[ ] checkboxes.  Single-select: (â—)/(â—‹) radio buttons.
     // Both are 3 display cells, same as option rows
     let marker: String = if is_multi {
         (if is_selected { "[x]" } else { "[ ]" }).to_string()
@@ -1725,7 +1725,7 @@ fn build_freeform_line(
         Span::styled(format!("{num_str} "), num_style),
         Span::styled(marker_with_space, marker_style),
     ];
-    // Show ❯ prompt indicator only when there's text (not on placeholder).
+    // Show â¯ prompt indicator only when there's text (not on placeholder).
     if has_text {
         spans.push(Span::styled(
             crate::glyphs::prompt_arrow(),
@@ -1740,7 +1740,7 @@ fn build_freeform_line(
 /// Render the complete question view into the given area.
 ///
 /// `area` is the region above the textarea allocated for the question chrome and option rows.
-/// The accent `┃` line and background are rendered here.
+/// The accent `â”ƒ` line and background are rendered here.
 /// Return value from [`render_question_view`] with layout info for mouse handling.
 pub struct QuestionViewRenderResult {
     /// Y coordinate where the scrollable options area starts (after chrome header).
@@ -1778,11 +1778,11 @@ pub fn render_question_view(
     let bg = Style::default().bg(theme.bg_light);
     buf.set_style(area, bg);
 
-    // Accent line ┃ on the left column, blue to match the shortcut key color
+    // Accent line â”ƒ on the left column, blue to match the shortcut key color
     let accent_style = Style::default().fg(theme.accent_user);
     for row in area.y..area.y + area.height {
         if let Some(cell) = buf.cell_mut((area.x, row)) {
-            cell.set_symbol(crate::glyphs::accent_bar()); // ┃ falls back to │ on legacy ConHost
+            cell.set_symbol(crate::glyphs::accent_bar()); // â”ƒ falls back to â”‚ on legacy ConHost
             cell.set_style(accent_style);
         }
     }
@@ -1795,7 +1795,7 @@ pub fn render_question_view(
     // Vertical padding at the top.
     y += 1;
 
-    // ── Question chrome (label, counter, description) ──
+    // â”€â”€ Question chrome (label, counter, description) â”€â”€
     // Clip to the panel bottom: the accounted height and the rendered height can disagree (wrap-width drift, stale caps)
     // The chrome must degrade to truncation instead of writing past the area; set_line past the buffer bottom aborts the TUI
     y = render_question_chrome(
@@ -1812,12 +1812,12 @@ pub fn render_question_view(
         state.cached_preview_cap,
     );
 
-    // ── Gap ──
+    // â”€â”€ Gap â”€â”€
     y += 1;
 
     let options_start_y = y;
 
-    // ── Option rows (scrollable) + sticky freeform row ──
+    // â”€â”€ Option rows (scrollable) + sticky freeform row â”€â”€
     let visible_bottom = area.y + area.height;
     let scroll = state.per_question_scroll.get(q_idx).copied().unwrap_or(0) as usize;
     let cursor = state.cursor();
@@ -1869,7 +1869,7 @@ pub fn render_question_view(
         y += 1;
     }
 
-    // ── Sticky freeform row at the bottom ──
+    // â”€â”€ Sticky freeform row at the bottom â”€â”€
     if sticky_freeform {
         let freeform_y = visible_bottom.saturating_sub(1);
         if freeform_y >= y {
@@ -2002,7 +2002,7 @@ fn render_question_chrome(
     // Split into label (first paragraph) and description (rest).
     let (label_text, desc_text) = split_question_label_desc(&question.question);
 
-    // ── Label (bold, primary text, word-wrapped) ──
+    // â”€â”€ Label (bold, primary text, word-wrapped) â”€â”€
     let label_style = Style::default()
         .fg(theme.text_primary)
         .add_modifier(Modifier::BOLD);
@@ -2022,7 +2022,7 @@ fn render_question_chrome(
         cur_y += 1;
     }
 
-    // ── Description (dimmed, markdown-rendered) ──
+    // â”€â”€ Description (dimmed, markdown-rendered) â”€â”€
     if !desc_text.is_empty() {
         let desc_lines = styled_description_lines(
             &QuestionOption {
@@ -2061,7 +2061,7 @@ fn render_question_chrome(
         }
     }
 
-    // ── Preview for focused option (dimmed, word-wrapped) ──
+    // â”€â”€ Preview for focused option (dimmed, word-wrapped) â”€â”€
     if let Some(preview_text) = state.focused_preview()
         && !preview_text.is_empty()
     {
@@ -2124,7 +2124,7 @@ fn render_question_chrome(
     cur_y
 }
 
-// ── Tests ──────────────────────────────────────────────────────────────
+// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[cfg(test)]
 mod tests {
@@ -2432,7 +2432,7 @@ mod tests {
         );
     }
 
-    // ── new() ──────────────────────────────────────────────────────────
+    // â”€â”€ new() â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     #[test]
     fn new_initializes_vectors_correctly() {
@@ -2474,7 +2474,7 @@ mod tests {
         assert!(state.per_question_scroll.iter().all(|&s| s == 0));
     }
 
-    // ── toggle_option ──────────────────────────────────────────────────
+    // â”€â”€ toggle_option â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     #[test]
     fn toggle_option_multi_toggles_in_out() {
@@ -2496,7 +2496,7 @@ mod tests {
         assert_eq!(state.selected_labels(0), vec!["A"]);
     }
 
-    // ── select_option ──────────────────────────────────────────────────
+    // â”€â”€ select_option â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     #[test]
     fn select_option_single_replaces_previous() {
@@ -2510,7 +2510,7 @@ mod tests {
         assert_eq!(state.selected_labels(0), vec!["C"]);
     }
 
-    // ── selected_labels ────────────────────────────────────────────────
+    // â”€â”€ selected_labels â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     #[test]
     fn selected_labels_mixed_selections() {
@@ -2528,7 +2528,7 @@ mod tests {
         assert_eq!(multi, vec!["P", "R"]);
     }
 
-    // ── next_question / prev_question ──────────────────────────────────
+    // â”€â”€ next_question / prev_question â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     #[test]
     fn question_cycling_clamps_at_boundaries() {
@@ -2555,7 +2555,7 @@ mod tests {
         assert_eq!(state.active_tab, 0); // clamped at start
     }
 
-    // ── compute_max_label_w ────────────────────────────────────────────
+    // â”€â”€ compute_max_label_w â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     #[test]
     fn compute_max_label_w_caps_long_labels_at_60_percent() {
@@ -2723,7 +2723,7 @@ mod tests {
         assert_eq!(heights as usize, lines.len());
     }
 
-    // ── is_on_freeform_row ─────────────────────────────────────────────
+    // â”€â”€ is_on_freeform_row â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     #[test]
     fn is_on_freeform_row_returns_true_at_end() {
@@ -2738,7 +2738,7 @@ mod tests {
         assert!(state.is_on_freeform_row());
     }
 
-    // ── cursor / set_cursor ────────────────────────────────────────────
+    // â”€â”€ cursor / set_cursor â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     #[test]
     fn set_cursor_clamps_to_valid_range() {
@@ -2753,7 +2753,7 @@ mod tests {
         assert_eq!(state.cursor(), 0);
     }
 
-    // ── total_items ────────────────────────────────────────────────────
+    // â”€â”€ total_items â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     #[test]
     fn total_items_counts_options_plus_freeform() {
@@ -2762,7 +2762,7 @@ mod tests {
         assert_eq!(state.total_items(0), 4); // 3 options + 1 freeform
     }
 
-    // ── no_freeform ────────────────────────────────────────────────────
+    // â”€â”€ no_freeform â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /// `no_freeform` questions (e.g. the SuperGrok upsell) have no "Other" row, so activating freeform input must be impossible.
     /// Focus stays in Navigation and nothing gets marked selected.
@@ -2812,7 +2812,7 @@ mod tests {
         assert_eq!(h_with, h_without + 1);
     }
 
-    // ── option_visual_height ───────────────────────────────────────────
+    // â”€â”€ option_visual_height â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     #[test]
     fn option_visual_height_unfocused_always_1() {
@@ -2838,7 +2838,7 @@ mod tests {
         assert!(h >= 3, "expected >= 3, got {h}");
     }
 
-    // ── chrome_height ──────────────────────────────────────────────────
+    // â”€â”€ chrome_height â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     #[test]
     fn split_question_label_desc_no_break() {
@@ -2875,7 +2875,7 @@ mod tests {
     #[test]
     fn chrome_height_option_less_question_drops_the_label_gap() {
         // Nothing under the label to separate it from, so the gap goes: vpad(1) + label(1) + gap(1) = 3. This is the bare `/feedback` card.
-        let q = make_question("How can we improve Grok Build?", &[], false);
+        let q = make_question("How can we improve xvora build?", &[], false);
         assert_eq!(
             chrome_height(
                 &q,
@@ -2951,22 +2951,22 @@ mod tests {
         // 150-char question wraps across multiple lines depending on width.
         //
         // At width 75 (typical terminal with chrome):
-        //   ┃  Given the requirements for high availability, horizontal
-        //   ┃  scaling, and strict ACID compliance, which database engine
-        //   ┃  and replication topology should we adopt for the user
-        //   ┃  accounts microservice?
-        //   ┃
-        //   ┃  1 [ ] PostgreSQL   ...
+        //   â”ƒ  Given the requirements for high availability, horizontal
+        //   â”ƒ  scaling, and strict ACID compliance, which database engine
+        //   â”ƒ  and replication topology should we adopt for the user
+        //   â”ƒ  accounts microservice?
+        //   â”ƒ
+        //   â”ƒ  1 [ ] PostgreSQL   ...
         //
         // At width 40 (narrow):
-        //   ┃  Given the requirements for high
-        //   ┃  availability, horizontal scaling,
-        //   ┃  and strict ACID compliance, which
-        //   ┃  database engine and replication
-        //   ┃  topology should we adopt for the
-        //   ┃  user accounts microservice?
-        //   ┃
-        //   ┃  1 [ ] PostgreSQL   ...
+        //   â”ƒ  Given the requirements for high
+        //   â”ƒ  availability, horizontal scaling,
+        //   â”ƒ  and strict ACID compliance, which
+        //   â”ƒ  database engine and replication
+        //   â”ƒ  topology should we adopt for the
+        //   â”ƒ  user accounts microservice?
+        //   â”ƒ
+        //   â”ƒ  1 [ ] PostgreSQL   ...
         let q = make_question(
             "Given the requirements for high availability, horizontal scaling, \
              and strict ACID compliance, which database engine and replication \
@@ -3095,7 +3095,7 @@ mod tests {
         );
     }
 
-    // ── focused_preview ──────────────────────────────────────────────
+    // â”€â”€ focused_preview â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     #[test]
     fn focused_preview_returns_preview_when_on_option() {
@@ -3132,7 +3132,7 @@ mod tests {
         assert_eq!(state.focused_preview(), None);
     }
 
-    // ── toggle on Single ───────────────────────────────────────────────
+    // â”€â”€ toggle on Single â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     #[test]
     fn toggle_option_single_deselects_when_same() {
@@ -3199,7 +3199,7 @@ mod tests {
         assert_eq!(state.per_question_scroll[0], expected_max);
     }
 
-    // ── truncation cap tests ───────────────────────────────────────────
+    // â”€â”€ truncation cap tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     #[test]
     fn chrome_height_caps_long_description() {
@@ -3255,7 +3255,7 @@ mod tests {
         assert_eq!(h, 5);
     }
 
-    // ── question_view_height / minimum visible option rows ─────────────
+    // â”€â”€ question_view_height / minimum visible option rows â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /// Helper: build a QuestionViewState for height tests.
     fn make_state_for_height(
@@ -3345,7 +3345,7 @@ mod tests {
         assert_eq!(state.cached_preview_cap, u16::MAX);
     }
 
-    // ── focus-driven option height ─────────────────────────────────────
+    // â”€â”€ focus-driven option height â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     #[test]
     fn unfocused_option_is_one_line_focused_is_full() {

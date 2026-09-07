@@ -1,4 +1,4 @@
-use super::{build_minimal_agent_for_tests, make_test_handle};
+﻿use super::{build_minimal_agent_for_tests, make_test_handle};
 use agent_client_protocol as acp;
 use acp_lib::AcpAgentGatewaySender as GatewaySender;
 #[tokio::test]
@@ -321,8 +321,8 @@ fn run_shell_child_passes_parent_compaction_pins_into_spawn() {
         SubagentSpawnContext::snapshot_parent_compaction_pins(
             CompactionMode::default(),
             true,
-            Some("grok-build"),
-            Some("grok-build"),
+            Some("xvora-build"),
+            Some("xvora-build"),
             std::path::Path::new("/tmp"),
         ),
         CompactionPins {

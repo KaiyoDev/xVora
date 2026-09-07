@@ -5,7 +5,7 @@ fn test_manager() -> ModelsManager {
         .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
         .with_test_writer()
         .try_init();
-    let tmp = std::env::temp_dir().join("grok-test-models-manager");
+    let tmp = std::env::temp_dir().join("xvora-test-models-manager");
     let auth_manager = Arc::new(AuthManager::new(&tmp, GrokComConfig::default()));
     ModelsManagerBuilder::new(
         None,
@@ -104,7 +104,7 @@ async fn catalog_retry_recovers_after_endpoint_returns() {
     }
 
     let calls = Arc::new(AtomicUsize::new(0));
-    let tmp = std::env::temp_dir().join("grok-test-catalog-retry");
+    let tmp = std::env::temp_dir().join("xvora-test-catalog-retry");
     let auth_manager = Arc::new(AuthManager::new(&tmp, GrokComConfig::default()));
     let mgr = ModelsManagerBuilder::new(
         None,
@@ -115,7 +115,7 @@ async fn catalog_retry_recovers_after_endpoint_returns() {
     )
     .endpoint(Arc::new(RecoveringEndpoint {
         calls: calls.clone(),
-        catalog: make_prefetched(&["grok-4"]),
+        catalog: make_prefetched(&["xvora-4"]),
     }))
     .build();
     assert!(!mgr.has_fetched_real_catalog());
@@ -137,7 +137,7 @@ async fn catalog_retry_recovers_after_endpoint_returns() {
         recovered,
         "catalog retry did not recover after the endpoint returned"
     );
-    assert!(mgr.models().contains_key("grok-4"));
+    assert!(mgr.models().contains_key("xvora-4"));
     assert!(
         calls.load(Ordering::SeqCst) >= 2,
         "expected a failed attempt then a success",
@@ -226,7 +226,7 @@ async fn auth_refresh_watcher_refetches_on_notify() {
     }
 
     let calls = Arc::new(AtomicUsize::new(0));
-    let tmp = std::env::temp_dir().join("grok-test-auth-refresh-watcher");
+    let tmp = std::env::temp_dir().join("xvora-test-auth-refresh-watcher");
     let auth_manager = Arc::new(AuthManager::new(&tmp, GrokComConfig::default()));
     let mgr = ModelsManagerBuilder::new(
         None,
@@ -237,7 +237,7 @@ async fn auth_refresh_watcher_refetches_on_notify() {
     )
     .endpoint(Arc::new(NotifyEndpoint {
         calls: calls.clone(),
-        catalog: make_prefetched(&["grok-4"]),
+        catalog: make_prefetched(&["xvora-4"]),
     }))
     .build();
     assert!(!mgr.has_fetched_real_catalog());
@@ -255,7 +255,7 @@ async fn auth_refresh_watcher_refetches_on_notify() {
         tokio::time::sleep(std::time::Duration::from_millis(10)).await;
     }
     assert!(updated, "watcher did not re-fetch the catalog on notify");
-    assert!(mgr.models().contains_key("grok-4"));
+    assert!(mgr.models().contains_key("xvora-4"));
     assert!(calls.load(Ordering::SeqCst) >= 1);
 }
 
@@ -281,7 +281,7 @@ async fn slow_fetch_within_timeout_still_applies() {
     let mgr = cold_manager(
         config::Config::default(),
         Arc::new(SlowEndpoint {
-            catalog: make_prefetched(&["grok-4"]),
+            catalog: make_prefetched(&["xvora-4"]),
             delay: crate::http::STARTUP_FETCH_TIMEOUT / 2,
         }),
     );
@@ -292,7 +292,7 @@ async fn slow_fetch_within_timeout_still_applies() {
         mgr.has_fetched_real_catalog(),
         "a fetch within the timeout must apply, not degrade",
     );
-    assert!(mgr.models().contains_key("grok-4"));
+    assert!(mgr.models().contains_key("xvora-4"));
 }
 
 #[tokio::test(start_paused = true)]
@@ -370,7 +370,7 @@ async fn first_catalog_wait_unblocks_on_fetch_and_skips_dead_dwell() {
     let mgr = cold_manager(
         config_from_toml("[endpoints]\ndeployment_key = \"deploy-key\""),
         Arc::new(SlowEndpoint {
-            catalog: make_prefetched(&["grok-4"]),
+            catalog: make_prefetched(&["xvora-4"]),
             delay: crate::http::STARTUP_FETCH_TIMEOUT / 2,
         }),
     );
@@ -398,7 +398,7 @@ async fn first_catalog_wait_unblocks_on_fetch_and_skips_dead_dwell() {
             .await,
         "the wait must observe the completed fetch",
     );
-    assert!(mgr.models().contains_key("grok-4"));
+    assert!(mgr.models().contains_key("xvora-4"));
 
     // Warm: an already-loaded catalog returns immediately.
     let start = tokio::time::Instant::now();
@@ -461,7 +461,7 @@ async fn first_catalog_wait_observes_inline_fetch() {
     let mgr = cold_manager(
         config_from_toml("[endpoints]\ndeployment_key = \"deploy-key\""),
         Arc::new(SlowEndpoint {
-            catalog: make_prefetched(&["grok-4"]),
+            catalog: make_prefetched(&["xvora-4"]),
             delay: crate::http::STARTUP_FETCH_TIMEOUT / 2,
         }),
     );
@@ -650,13 +650,13 @@ fn validate_selectable_rejects_bad_allowlists() {
         r#"
             [models]
             default = "grok-3"
-            allowed_models = ["grok-4*"]
+            allowed_models = ["xvora-4*"]
             [model.grok-3]
             model = "grok-3"
             base_url = "https://api.x.ai/v1"
             context_window = 256000
-            [model.grok-4]
-            model = "grok-4"
+            [model.xvora-4]
+            model = "xvora-4"
             base_url = "https://api.x.ai/v1"
             context_window = 256000
             "#,
@@ -672,8 +672,8 @@ fn validate_selectable_rejects_bad_allowlists() {
         r#"
             [models]
             allowed_models = ["nomatch-*"]
-            [model.grok-4]
-            model = "grok-4"
+            [model.xvora-4]
+            model = "xvora-4"
             base_url = "https://api.x.ai/v1"
             context_window = 256000
             "#,
@@ -713,8 +713,8 @@ fn set_session_model_fleet_deny_uses_organization_message() {
             model = "grok-3"
             base_url = "https://api.x.ai/v1"
             context_window = 256000
-            [model.grok-4]
-            model = "grok-4"
+            [model.xvora-4]
+            model = "xvora-4"
             base_url = "https://api.x.ai/v1"
             context_window = 256000
             "#,
@@ -722,7 +722,7 @@ fn set_session_model_fleet_deny_uses_organization_message() {
     .unwrap();
     let mut cfg = config::Config::new_from_toml_cfg(&raw).unwrap();
     cfg.requirements.allowed_models.pin(
-        crate::agent::config::AllowlistPin::List(vec!["grok-4".into()]),
+        crate::agent::config::AllowlistPin::List(vec!["xvora-4".into()]),
         crate::config::RequirementSource::Unknown,
     );
     let catalog = resolve_model_catalog(&cfg, None);
@@ -766,7 +766,7 @@ async fn set_current_model_id_change_fires_watch_to_all_subscribers() {
         "set_current_model_id(same id) must NOT bump the watch generation",
     );
 
-    mgr.set_current_model_id(acp::ModelId::new("grok-4"));
+    mgr.set_current_model_id(acp::ModelId::new("xvora-4"));
     tokio::time::timeout(std::time::Duration::from_millis(100), rx_a.changed())
         .await
         .expect("rx_a saw the switch")
@@ -784,9 +784,9 @@ async fn set_current_model_id_change_fires_watch_to_all_subscribers() {
 async fn model_switch_generation_snapshot_reflects_current_state() {
     let mgr = test_manager();
     let start = mgr.model_switch_generation();
-    mgr.set_current_model_id(acp::ModelId::new("grok-4"));
+    mgr.set_current_model_id(acp::ModelId::new("xvora-4"));
     assert_eq!(mgr.model_switch_generation(), start + 1);
-    mgr.set_current_model_id(acp::ModelId::new("grok-4"));
+    mgr.set_current_model_id(acp::ModelId::new("xvora-4"));
     assert_eq!(mgr.model_switch_generation(), start + 1);
     mgr.set_current_model_id(acp::ModelId::new("grok-3"));
     assert_eq!(mgr.model_switch_generation(), start + 2);
@@ -797,7 +797,7 @@ fn first_catalog_reselect_bumps_model_switch_watch() {
     let mgr = test_manager();
     let start = mgr.model_switch_generation();
     let cfg = config_from_toml("[models]\ndefault = \"grok-4.5\"");
-    mgr.apply_refresh_result(&cfg, Some(make_prefetched(&["grok-4.5", "grok-4"])), None);
+    mgr.apply_refresh_result(&cfg, Some(make_prefetched(&["grok-4.5", "xvora-4"])), None);
     assert_eq!(mgr.current_model_id().0.as_ref(), "grok-4.5");
     assert!(
         mgr.model_switch_generation() > start,
@@ -809,12 +809,12 @@ fn first_catalog_reselect_bumps_model_switch_watch() {
 fn reselect_missing_current_model_bumps_watch() {
     let mgr = test_manager();
     let cfg = config::Config::default();
-    mgr.apply_refresh_result(&cfg, Some(make_prefetched(&["grok-4", "grok-3"])), None);
-    mgr.set_current_model_id(acp::ModelId::new("grok-4"));
+    mgr.apply_refresh_result(&cfg, Some(make_prefetched(&["xvora-4", "grok-3"])), None);
+    mgr.set_current_model_id(acp::ModelId::new("xvora-4"));
     let start = mgr.model_switch_generation();
     // A later catalog drops the current model, so reselect_current_model_if_missing runs
     mgr.apply_refresh_result(&cfg, Some(make_prefetched(&["grok-3"])), None);
-    assert_ne!(mgr.current_model_id().0.as_ref(), "grok-4");
+    assert_ne!(mgr.current_model_id().0.as_ref(), "xvora-4");
     assert!(
         mgr.model_switch_generation() > start,
         "reselecting away from a removed current model must fire the watch",
@@ -862,7 +862,7 @@ fn current_reasoning_effort_round_trip() {
 
 #[test]
 fn current_reasoning_effort_seeded_from_config() {
-    let tmp = std::env::temp_dir().join("grok-test-models-manager-seed");
+    let tmp = std::env::temp_dir().join("xvora-test-models-manager-seed");
     let auth_manager = Arc::new(AuthManager::new(&tmp, GrokComConfig::default()));
     let mut cfg = config::Config::default();
     cfg.models.default_reasoning_effort = Some(ReasoningEffort::Xhigh);
@@ -1024,7 +1024,7 @@ fn config_menu_only_model_derives_support_and_default() {
     assert!(!catalog["plain"].info.supports_reasoning_effort);
     assert_eq!(catalog["plain"].info.reasoning_effort, None);
 
-    let tmp = std::env::temp_dir().join("grok-test-models-manager-menu-only");
+    let tmp = std::env::temp_dir().join("xvora-test-models-manager-menu-only");
     let auth_manager = Arc::new(AuthManager::new(&tmp, GrokComConfig::default()));
     let mgr = ModelsManager::new(
         None,
@@ -1171,7 +1171,7 @@ async fn spawn_background_refresh_never_blocks_on_a_hanging_endpoint() {
     let auth_manager = Arc::new(AuthManager::new(tmp.path(), GrokComConfig::default()));
     let mgr = ModelsManagerBuilder::new(
         None,
-        make_prefetched(&["grok-4", "grok-4.5"]),
+        make_prefetched(&["xvora-4", "grok-4.5"]),
         acp::ModelId::new("grok-4.5"),
         auth_manager,
         config_from_toml("[models]\ndefault = \"grok-4.5\""),
@@ -1223,7 +1223,7 @@ async fn sign_out_clears_catalog_rebuilds_bundled_without_fetching() {
     let auth_manager = Arc::new(AuthManager::new(tmp.path(), GrokComConfig::default()));
     let mgr = ModelsManagerBuilder::new(
         None,
-        make_prefetched(&["grok-4", "grok-4.5"]),
+        make_prefetched(&["xvora-4", "grok-4.5"]),
         acp::ModelId::new("grok-4.5"),
         auth_manager,
         config_from_toml("[models]\ndefault = \"grok-4.5\""),
@@ -1301,7 +1301,7 @@ fn first_apply_refresh_reselects_default_model() {
 
     assert!(!mgr.has_fetched_real_catalog());
 
-    let prefetched = make_prefetched(&["grok-3", "grok-4"]);
+    let prefetched = make_prefetched(&["grok-3", "xvora-4"]);
     mgr.apply_refresh_result(&cfg, Some(prefetched), None);
 
     assert!(mgr.has_fetched_real_catalog());
@@ -1314,19 +1314,19 @@ fn subsequent_apply_refresh_preserves_user_model() {
     let mut cfg = config::Config::default();
     cfg.models.default = Some("grok-3".to_string());
 
-    let prefetched = make_prefetched(&["grok-3", "grok-4"]);
+    let prefetched = make_prefetched(&["grok-3", "xvora-4"]);
     mgr.apply_refresh_result(&cfg, Some(prefetched), None);
-    mgr.set_current_model_id(acp::ModelId::new("grok-4"));
+    mgr.set_current_model_id(acp::ModelId::new("xvora-4"));
 
     mgr.inner.catalog.write().prefetched = None;
     mgr.inner.catalog.write().etag = None;
 
-    let prefetched = make_prefetched(&["grok-3", "grok-4"]);
+    let prefetched = make_prefetched(&["grok-3", "xvora-4"]);
     mgr.apply_refresh_result(&cfg, Some(prefetched), None);
 
     assert_eq!(
         mgr.current_model_id().0.as_ref(),
-        "grok-4",
+        "xvora-4",
         "user's model selection must survive auth-change refresh"
     );
 }
@@ -1337,9 +1337,9 @@ fn subsequent_refresh_reselects_when_model_removed() {
     let mut cfg = config::Config::default();
     cfg.models.default = Some("grok-3".to_string());
 
-    let prefetched = make_prefetched(&["grok-3", "grok-4"]);
+    let prefetched = make_prefetched(&["grok-3", "xvora-4"]);
     mgr.apply_refresh_result(&cfg, Some(prefetched), None);
-    mgr.set_current_model_id(acp::ModelId::new("grok-4"));
+    mgr.set_current_model_id(acp::ModelId::new("xvora-4"));
 
     let prefetched = make_prefetched(&["grok-3", "grok-4.5"]);
     mgr.apply_refresh_result(&cfg, Some(prefetched), None);
@@ -1372,9 +1372,9 @@ fn apply_config_honors_new_preferred_model() {
     let mut cfg = config::Config::default();
     cfg.models.default = Some("grok-3".to_string());
 
-    let prefetched = make_prefetched(&["grok-3", "grok-4"]);
+    let prefetched = make_prefetched(&["grok-3", "xvora-4"]);
     mgr.apply_refresh_result(&cfg, Some(prefetched), None);
-    mgr.set_current_model_id(acp::ModelId::new("grok-4"));
+    mgr.set_current_model_id(acp::ModelId::new("xvora-4"));
 
     let mut stale_cfg = config::Config::default();
     stale_cfg.models.default = None;
@@ -1396,17 +1396,17 @@ fn apply_config_preserves_current_when_preferred_unchanged() {
     let mgr = test_manager();
     let cfg = config::Config::default();
 
-    let prefetched = make_prefetched(&["grok-3", "grok-4"]);
+    let prefetched = make_prefetched(&["grok-3", "xvora-4"]);
     mgr.apply_refresh_result(&cfg, Some(prefetched), None);
 
-    mgr.set_current_model_id(acp::ModelId::new("grok-4"));
+    mgr.set_current_model_id(acp::ModelId::new("xvora-4"));
 
     let new_cfg = config::Config::default();
     mgr.apply_config(new_cfg);
 
     assert_eq!(
         mgr.current_model_id().0.as_ref(),
-        "grok-4",
+        "xvora-4",
         "apply_config must not reset model when preferred hasn't changed"
     );
 }
@@ -1417,13 +1417,13 @@ fn apply_config_falls_back_when_preferred_not_in_catalog() {
     let mut cfg = config::Config::default();
     cfg.models.default = Some("grok-3".to_string());
 
-    let prefetched = make_prefetched(&["grok-3", "grok-4"]);
+    let prefetched = make_prefetched(&["grok-3", "xvora-4"]);
     mgr.apply_refresh_result(&cfg, Some(prefetched), None);
 
-    mgr.set_current_model_id(acp::ModelId::new("grok-4"));
+    mgr.set_current_model_id(acp::ModelId::new("xvora-4"));
 
     let mut new_cfg = config::Config::default();
-    new_cfg.models.default = Some("grok-nonexistent".to_string());
+    new_cfg.models.default = Some("xvora-nonexistent".to_string());
     mgr.apply_config(new_cfg);
 
     let current = mgr.current_model_id();
@@ -1439,15 +1439,15 @@ fn apply_config_falls_back_when_preferred_not_in_catalog() {
 fn apply_config_both_none_preferred_preserves_current() {
     let mgr = test_manager();
     let cfg = config::Config::default();
-    let prefetched = make_prefetched(&["grok-3", "grok-4"]);
+    let prefetched = make_prefetched(&["grok-3", "xvora-4"]);
     mgr.apply_refresh_result(&cfg, Some(prefetched), None);
-    mgr.set_current_model_id(acp::ModelId::new("grok-4"));
+    mgr.set_current_model_id(acp::ModelId::new("xvora-4"));
     let new_cfg = config::Config::default();
     mgr.apply_config(new_cfg);
 
     assert_eq!(
         mgr.current_model_id().0.as_ref(),
-        "grok-4",
+        "xvora-4",
         "both-None preferred must preserve user's runtime model"
     );
 }
@@ -1458,18 +1458,18 @@ fn apply_config_old_some_new_none_preserves_current() {
     let mut cfg = config::Config::default();
     cfg.models.default = Some("grok-3".to_string());
 
-    let prefetched = make_prefetched(&["grok-3", "grok-4"]);
+    let prefetched = make_prefetched(&["grok-3", "xvora-4"]);
     mgr.apply_refresh_result(&cfg, Some(prefetched), None);
     assert_eq!(mgr.current_model_id().0.as_ref(), "grok-3");
 
-    mgr.set_current_model_id(acp::ModelId::new("grok-4"));
+    mgr.set_current_model_id(acp::ModelId::new("xvora-4"));
 
     let new_cfg = config::Config::default();
     mgr.apply_config(new_cfg);
 
     assert_eq!(
         mgr.current_model_id().0.as_ref(),
-        "grok-4",
+        "xvora-4",
         "old=Some new=None must not reset model (is_some guard)"
     );
 }
@@ -1482,22 +1482,22 @@ fn auth_refresh_then_config_reload_preserves_user_model() {
     let mut cfg = config::Config::default();
     cfg.models.default = Some("grok-3".to_string());
 
-    let prefetched = make_prefetched(&["grok-3", "grok-4"]);
+    let prefetched = make_prefetched(&["grok-3", "xvora-4"]);
     mgr.apply_refresh_result(&cfg, Some(prefetched), None);
 
-    mgr.set_current_model_id(acp::ModelId::new("grok-4"));
+    mgr.set_current_model_id(acp::ModelId::new("xvora-4"));
 
     mgr.inner.catalog.write().prefetched = None;
     mgr.inner.catalog.write().etag = None;
 
-    let prefetched = make_prefetched(&["grok-3", "grok-4"]);
+    let prefetched = make_prefetched(&["grok-3", "xvora-4"]);
     mgr.apply_refresh_result(&cfg, Some(prefetched), None);
-    assert_eq!(mgr.current_model_id().0.as_ref(), "grok-4");
+    assert_eq!(mgr.current_model_id().0.as_ref(), "xvora-4");
 
     let mut new_cfg = config::Config::default();
-    new_cfg.models.default = Some("grok-4".to_string());
+    new_cfg.models.default = Some("xvora-4".to_string());
     mgr.apply_config(new_cfg);
-    assert_eq!(mgr.current_model_id().0.as_ref(), "grok-4");
+    assert_eq!(mgr.current_model_id().0.as_ref(), "xvora-4");
 }
 
 // ── disk-cache hot-reload (external models_cache.json writes) ────
@@ -1593,9 +1593,9 @@ fn reload_from_disk_cache_resolves_default_on_first_catalog() {
 fn reload_from_disk_cache_skips_identical_catalog_and_adopts_etag() {
     let mgr = test_manager();
     let cfg = config::Config::default();
-    let prefetched = make_prefetched(&["grok-3", "grok-4"]);
+    let prefetched = make_prefetched(&["grok-3", "xvora-4"]);
     mgr.apply_refresh_result(&cfg, Some(prefetched.clone()), Some("etag-a".into()));
-    mgr.set_current_model_id(acp::ModelId::new("grok-4"));
+    mgr.set_current_model_id(acp::ModelId::new("xvora-4"));
 
     let tmp = tempfile::TempDir::new().unwrap();
     let cache = test_cache_manager(tmp.path());
@@ -1611,7 +1611,7 @@ fn reload_from_disk_cache_skips_identical_catalog_and_adopts_etag() {
 
     assert_eq!(
         mgr.current_model_id().0.as_ref(),
-        "grok-4",
+        "xvora-4",
         "identical catalog must not disturb the user's model"
     );
     assert_eq!(
@@ -1633,13 +1633,13 @@ fn reload_from_disk_cache_ignores_stale_cache() {
         auth_method: Some(auth_method),
         origin: Some(mgr.cache_origin()),
         etag: Some("etag-stale".into()),
-        models: make_prefetched(&["grok-stale"]),
+        models: make_prefetched(&["xvora-stale"]),
     };
     cache.atomic_write(&stale);
 
     mgr.reload_from_cache_manager(&cache);
 
-    assert!(!mgr.models().contains_key("grok-stale"));
+    assert!(!mgr.models().contains_key("xvora-stale"));
     assert!(mgr.inner.catalog.read().etag.is_none());
 }
 
@@ -1655,7 +1655,7 @@ fn reload_from_disk_cache_ignores_auth_method_mismatch() {
         CacheAuthMethod::Session
     };
     cache.persist(
-        &make_prefetched(&["grok-other-auth"]),
+        &make_prefetched(&["xvora-other-auth"]),
         Some("etag-x"),
         other,
         &mgr.cache_origin(),
@@ -1663,7 +1663,7 @@ fn reload_from_disk_cache_ignores_auth_method_mismatch() {
 
     mgr.reload_from_cache_manager(&cache);
 
-    assert!(!mgr.models().contains_key("grok-other-auth"));
+    assert!(!mgr.models().contains_key("xvora-other-auth"));
 }
 
 #[test]
@@ -1673,7 +1673,7 @@ fn reload_from_disk_cache_ignores_origin_mismatch() {
     let cache = test_cache_manager(tmp.path());
     let auth_method = mgr.inner.fetch_auth.read().cache_auth_method();
     cache.persist(
-        &make_prefetched(&["grok-other-origin"]),
+        &make_prefetched(&["xvora-other-origin"]),
         Some("etag-y"),
         auth_method,
         "http://127.0.0.1:49953/v1/models",
@@ -1681,7 +1681,7 @@ fn reload_from_disk_cache_ignores_origin_mismatch() {
 
     mgr.reload_from_cache_manager(&cache);
 
-    assert!(!mgr.models().contains_key("grok-other-origin"));
+    assert!(!mgr.models().contains_key("xvora-other-origin"));
     assert!(mgr.inner.catalog.read().etag.is_none());
 }
 
@@ -1697,13 +1697,13 @@ fn reload_from_disk_cache_ignores_legacy_cache_without_origin() {
         auth_method: Some(auth_method),
         origin: None,
         etag: Some("etag-legacy".into()),
-        models: make_prefetched(&["grok-legacy"]),
+        models: make_prefetched(&["xvora-legacy"]),
     };
     cache.atomic_write(&legacy);
 
     mgr.reload_from_cache_manager(&cache);
 
-    assert!(!mgr.models().contains_key("grok-legacy"));
+    assert!(!mgr.models().contains_key("xvora-legacy"));
 }
 
 // ── clear() resets has_fetched_real_catalog ──────────────────────
@@ -1714,7 +1714,7 @@ fn clear_resets_has_fetched_real_catalog() {
     let mut cfg = config::Config::default();
     cfg.models.default = Some("grok-3".to_string());
 
-    let prefetched = make_prefetched(&["grok-3", "grok-4"]);
+    let prefetched = make_prefetched(&["grok-3", "xvora-4"]);
     mgr.apply_refresh_result(&cfg, Some(prefetched), None);
     assert!(mgr.has_fetched_real_catalog());
 
@@ -2110,25 +2110,25 @@ fn make_entry_config_with_id(
 #[test]
 fn build_prefetched_map_distinct_ids_same_slug() {
     let entries = vec![
-        make_entry_config_with_id(Some("auto"), "grok-build", Some("Auto")),
-        make_entry_config_with_id(Some("grok-build"), "grok-build", Some("Grok Build")),
+        make_entry_config_with_id(Some("auto"), "xvora-build", Some("Auto")),
+        make_entry_config_with_id(Some("xvora-build"), "xvora-build", Some("xvora build")),
         make_entry_config_with_id(
             Some("experimental-fast"),
             "experimental-fast",
-            Some("Grok Fast"),
+            Some("xvora Fast"),
         ),
     ];
     let map = build_prefetched_map(entries, None);
 
     assert_eq!(map.len(), 3, "all three entries should survive");
     assert!(map.contains_key("auto"));
-    assert!(map.contains_key("grok-build"));
+    assert!(map.contains_key("xvora-build"));
     assert!(map.contains_key("experimental-fast"));
     assert_eq!(
-        map["auto"].info.model, "grok-build",
-        "auto entry should still route to grok-build"
+        map["auto"].info.model, "xvora-build",
+        "auto entry should still route to xvora-build"
     );
-    assert_eq!(map["grok-build"].info.model, "grok-build");
+    assert_eq!(map["xvora-build"].info.model, "xvora-build");
 }
 
 #[test]
@@ -2147,42 +2147,42 @@ fn build_prefetched_map_no_id_falls_back_to_slug() {
 #[test]
 fn build_prefetched_map_duplicate_id_overwrites() {
     let entries = vec![
-        make_entry_config_with_id(Some("grok-build"), "grok-build", Some("First")),
-        make_entry_config_with_id(Some("grok-build"), "grok-build", Some("Second")),
+        make_entry_config_with_id(Some("xvora-build"), "xvora-build", Some("First")),
+        make_entry_config_with_id(Some("xvora-build"), "xvora-build", Some("Second")),
     ];
     let map = build_prefetched_map(entries, None);
 
     assert_eq!(map.len(), 1, "duplicate id: second overwrites first");
-    assert_eq!(map["grok-build"].info.name.as_deref(), Some("Second"));
+    assert_eq!(map["xvora-build"].info.name.as_deref(), Some("Second"));
 }
 
 #[test]
 fn resolve_default_model_prefers_id_over_model_slug() {
     let mut catalog: IndexMap<String, ModelEntry> = IndexMap::new();
     catalog.insert(
-        "auto-grok-build".to_string(),
-        make_model_entry("grok-build"),
+        "auto-xvora-build".to_string(),
+        make_model_entry("xvora-build"),
     );
-    catalog.insert("grok-build".to_string(), make_model_entry("grok-build"));
+    catalog.insert("xvora-build".to_string(), make_model_entry("xvora-build"));
 
     let mut cfg = config::Config::default();
-    cfg.models.default = Some("grok-build".to_string());
+    cfg.models.default = Some("xvora-build".to_string());
 
     let (key, _, _) = resolve_default_model(&cfg, &catalog, true);
-    assert_eq!(key, "grok-build", "must match id, not first slug hit");
+    assert_eq!(key, "xvora-build", "must match id, not first slug hit");
 }
 
 #[test]
 fn build_prefetched_map_none_id_falls_back_to_slug() {
     let entries = vec![make_entry_config_with_id(
         None,
-        "grok-build",
-        Some("Grok Build"),
+        "xvora-build",
+        Some("xvora build"),
     )];
     let map = build_prefetched_map(entries, None);
 
     assert_eq!(map.len(), 1);
-    assert!(map.contains_key("grok-build"));
+    assert!(map.contains_key("xvora-build"));
 }
 
 // ── persisted model id → catalog key (session resume) ─────────────
@@ -2191,14 +2191,14 @@ fn build_prefetched_map_none_id_falls_back_to_slug() {
 fn resolve_catalog_key_maps_routing_slug_to_config_key() {
     let mut models = IndexMap::new();
     models.insert(
-        "enterprise-grok-build".to_string(),
+        "enterprise-xvora-build".to_string(),
         make_model_entry("grok-4.5"),
     );
     models.insert("grok-4.3".to_string(), make_model_entry("grok-4.3"));
 
     let persisted = acp::ModelId::new("grok-4.5");
     let key = resolve_catalog_key(&models, &persisted).expect("slug must resolve");
-    assert_eq!(key.0.as_ref(), "enterprise-grok-build");
+    assert_eq!(key.0.as_ref(), "enterprise-xvora-build");
 }
 
 #[test]
@@ -2215,21 +2215,21 @@ fn resolve_catalog_key_prefers_exact_key_match() {
 fn resolve_catalog_key_last_slug_match_wins() {
     let mut models = IndexMap::new();
     models.insert(
-        "default-grok-build".to_string(),
+        "default-xvora-build".to_string(),
         make_model_entry("grok-4.5"),
     );
-    models.insert("user-grok-build".to_string(), make_model_entry("grok-4.5"));
+    models.insert("user-xvora-build".to_string(), make_model_entry("grok-4.5"));
 
     let persisted = acp::ModelId::new("grok-4.5");
     let key = resolve_catalog_key(&models, &persisted).expect("slug must resolve");
-    assert_eq!(key.0.as_ref(), "user-grok-build");
+    assert_eq!(key.0.as_ref(), "user-xvora-build");
 }
 
 #[test]
 fn selectable_catalog_key_for_persisted_none_when_resolved_not_available() {
     let mut models = IndexMap::new();
     models.insert(
-        "enterprise-grok-build".to_string(),
+        "enterprise-xvora-build".to_string(),
         make_model_entry("grok-4.5"),
     );
 
@@ -2241,57 +2241,57 @@ fn selectable_catalog_key_for_persisted_none_when_resolved_not_available() {
 #[test]
 fn selectable_prefers_available_identity_over_non_selectable_exact_key() {
     let mut models = IndexMap::new();
-    models.insert("grok-build".to_string(), make_model_entry("grok-build"));
+    models.insert("xvora-build".to_string(), make_model_entry("xvora-build"));
     models.insert(
-        "enterprise-grok-build".to_string(),
-        make_model_entry("grok-build"),
+        "enterprise-xvora-build".to_string(),
+        make_model_entry("xvora-build"),
     );
     models.insert("grok-4.3".to_string(), make_model_entry("grok-4.3"));
 
-    let available = test_available_keys(&["enterprise-grok-build", "grok-4.3"]);
+    let available = test_available_keys(&["enterprise-xvora-build", "grok-4.3"]);
 
-    let persisted = acp::ModelId::new("grok-build");
+    let persisted = acp::ModelId::new("xvora-build");
     assert_eq!(
         resolve_catalog_key(&models, &persisted)
             .expect("exact key exists")
             .0
             .as_ref(),
-        "grok-build"
+        "xvora-build"
     );
     let key = selectable_catalog_key_for_persisted(&models, &available, &persisted)
         .expect("must resolve to selectable section");
-    assert_eq!(key.0.as_ref(), "enterprise-grok-build");
+    assert_eq!(key.0.as_ref(), "enterprise-xvora-build");
 }
 
 #[test]
 fn selectable_matches_routing_slug_when_no_exact_key() {
     let mut models = IndexMap::new();
     models.insert(
-        "enterprise-grok-build".to_string(),
-        make_model_entry("grok-build"),
+        "enterprise-xvora-build".to_string(),
+        make_model_entry("xvora-build"),
     );
     models.insert("grok-4.3".to_string(), make_model_entry("grok-4.3"));
 
-    let available = test_available_keys(&["enterprise-grok-build", "grok-4.3"]);
+    let available = test_available_keys(&["enterprise-xvora-build", "grok-4.3"]);
 
-    let persisted = acp::ModelId::new("grok-build");
+    let persisted = acp::ModelId::new("xvora-build");
     let key = selectable_catalog_key_for_persisted(&models, &available, &persisted)
         .expect("slug must resolve to selectable key");
-    assert_eq!(key.0.as_ref(), "enterprise-grok-build");
+    assert_eq!(key.0.as_ref(), "enterprise-xvora-build");
 }
 
 #[test]
 fn selectable_prefers_exact_key_over_later_slug_match() {
     let mut models = IndexMap::new();
-    models.insert("grok-build".to_string(), make_model_entry("grok-4.5"));
-    models.insert("other".to_string(), make_model_entry("grok-build"));
+    models.insert("xvora-build".to_string(), make_model_entry("grok-4.5"));
+    models.insert("other".to_string(), make_model_entry("xvora-build"));
 
-    let available = test_available_keys(&["grok-build", "other"]);
+    let available = test_available_keys(&["xvora-build", "other"]);
 
-    let persisted = acp::ModelId::new("grok-build");
+    let persisted = acp::ModelId::new("xvora-build");
     let key = selectable_catalog_key_for_persisted(&models, &available, &persisted)
         .expect("exact selectable key must win");
-    assert_eq!(key.0.as_ref(), "grok-build");
+    assert_eq!(key.0.as_ref(), "xvora-build");
 }
 
 fn test_available_keys(keys: &[&str]) -> IndexMap<acp::ModelId, acp::ModelInfo> {
@@ -2331,11 +2331,11 @@ async fn explicit_model_pick_survives_first_real_catalog() {
     // Non-blocking boot lets the user pick a model before the first real catalog lands; that pick must not be clobbered by default reselection
     let mgr = test_manager();
     let cfg = config_from_toml("[models]\ndefault = \"grok-4.5\"");
-    mgr.set_current_model_id(acp::ModelId::new("grok-4"));
-    mgr.apply_refresh_result(&cfg, Some(make_prefetched(&["grok-4.5", "grok-4"])), None);
+    mgr.set_current_model_id(acp::ModelId::new("xvora-4"));
+    mgr.apply_refresh_result(&cfg, Some(make_prefetched(&["grok-4.5", "xvora-4"])), None);
     assert_eq!(
         mgr.current_model_id().0.as_ref(),
-        "grok-4",
+        "xvora-4",
         "an explicit /model pick must survive the first real catalog",
     );
 }
@@ -2345,9 +2345,9 @@ async fn identity_switch_clears_user_pick_latch() {
     // After an identity change (`clear()`), the new identity's first catalog must reselect its own default rather than inherit the prior user's pick
     let mgr = test_manager();
     let cfg = config_from_toml("[models]\ndefault = \"grok-4.5\"");
-    mgr.set_current_model_id(acp::ModelId::new("grok-4"));
+    mgr.set_current_model_id(acp::ModelId::new("xvora-4"));
     mgr.clear();
-    mgr.apply_refresh_result(&cfg, Some(make_prefetched(&["grok-4.5", "grok-4"])), None);
+    mgr.apply_refresh_result(&cfg, Some(make_prefetched(&["grok-4.5", "xvora-4"])), None);
     assert_eq!(
         mgr.current_model_id().0.as_ref(),
         "grok-4.5",

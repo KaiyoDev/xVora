@@ -153,7 +153,7 @@ const CODING_DATA_SHARING_CHOICES: &[EnumChoice] = &[
     EnumChoice {
         canonical: "opt-in",
         display: "Opt in",
-        description: "Allow SpaceXAI to retain and use coding session data for training and product improvement.",
+        description: "Allow xVora to retain and use coding session data for training and product improvement.",
     },
     EnumChoice {
         canonical: "opt-out",
@@ -351,7 +351,7 @@ const VOICE_CAPTURE_MODE_CHOICES: &[EnumChoice] = &[
 
 // Voice STT language choices for the settings modal.
 //
-// Concrete codes must match `xvora_voice::STT_LANGUAGES` (official Grok STT
+// Concrete codes must match `xvora_voice::STT_LANGUAGES` (official xvora STT
 // catalog — https://docs.x.ai/developers/model-capabilities/audio/speech-to-text).
 // `auto` is client-only; the voice crate resolves it to a concrete code before
 // the STT handshake. Order: English (default), System, then remaining languages
@@ -863,7 +863,7 @@ pub fn default_settings() -> Vec<SettingMeta> {
             owner: SettingOwner::Shell,
             label: "Default model",
             description: "Model used for new sessions. Changing this also switches the active session. Pick `(no override)` to clear.",
-            keywords: &["model", "default", "agent", "llm", "grok", "switch"],
+            keywords: &["model", "default", "agent", "llm", "xvora", "switch"],
             kind: SettingKind::DynamicEnum {
                 default: "",
                 source: DynamicEnumSource::ActiveModelCatalog,
@@ -1159,7 +1159,7 @@ pub fn default_settings() -> Vec<SettingMeta> {
             category: SettingCategory::Privacy,
             owner: SettingOwner::Shell,
             label: "Coding data sharing",
-            description: "Controls whether SpaceXAI may retain and train on coding session data.",
+            description: "Controls whether xVora may retain and train on coding session data.",
             keywords: &[
                 "privacy",
                 "data",
@@ -1392,14 +1392,14 @@ pub fn default_settings() -> Vec<SettingMeta> {
         },
         // SHELL-owned, persisted to `[ui].voice_stt_language`. Live-applied to
         // the next voice capture (no restart). Default English; System (`auto`)
-        // follows the process locale when it maps to a Grok STT language.
+        // follows the process locale when it maps to a xvora STT language.
         // Catalog = official STT languages (see xvora_voice::STT_LANGUAGES).
         SettingMeta {
             key: "voice_stt_language",
             category: SettingCategory::Editor,
             owner: SettingOwner::Shell,
             label: "Voice language",
-            description: "Speech-to-text language for voice dictation (Grok STT). \
+            description: "Speech-to-text language for voice dictation (xvora STT). \
                           English by default; System uses your locale when supported. \
                           Sets formatting language for numbers and currencies.",
             keywords: &["voice", "language", "locale", "dictation", "stt", "speech"],

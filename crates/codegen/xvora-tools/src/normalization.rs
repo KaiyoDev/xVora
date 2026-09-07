@@ -141,8 +141,8 @@ mod tests {
     }
     #[test]
     fn canonical_omits_absent_options_not_null() {
-        let grok = parse(serde_json::json!({"variant":"ReadFile","target_file":"/a"}));
-        let g = canonical_input(&grok).unwrap();
+        let xvora = parse(serde_json::json!({"variant":"ReadFile","target_file":"/a"}));
+        let g = canonical_input(&xvora).unwrap();
         let keys: Vec<&String> = g.as_object().unwrap().keys().collect();
         assert_eq!(
             keys,

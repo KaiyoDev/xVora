@@ -138,7 +138,7 @@ impl std::error::Error for RuleParseError {}
 ///   - `"Edit"` → `{ Allow, Edit, None }` (matches all edit operations)
 ///
 /// Bare-name MCP rules use the `mcp__…` spelling from `.claude/settings.json`.
-/// They map onto `ToolFilter::Mcp` patterns over Grok's qualified `<server>__<tool>` names, which carry no `mcp__` prefix:
+/// They map onto `ToolFilter::Mcp` patterns over xvora's qualified `<server>__<tool>` names, which carry no `mcp__` prefix:
 ///   - `"mcp__*"` → `{ Mcp, None }` (every MCP tool)
 ///   - `"mcp__github"` → `{ Mcp, "github__*" }` (every tool on that server)
 ///   - `"mcp__github__get_issue"` → `{ Mcp, "github__get_issue" }` (exact tool)
@@ -236,7 +236,7 @@ pub fn parse_permission_rule(
         }
 
         // `mcp__<server>[__<tool>]` rule (the `.claude/settings.json` spelling)
-        // Grok qualifies MCP tools as `<server>__<tool>` with no `mcp__` prefix, so strip it and rewrite into a glob over the qualified name
+        // xvora qualifies MCP tools as `<server>__<tool>` with no `mcp__` prefix, so strip it and rewrite into a glob over the qualified name
         // The literal rule string would otherwise fall through to `ToolFilter::Any` and match nothing
         // A bare `mcp__` with nothing after it still falls through
         if let Some(rest) = rule.strip_prefix("mcp__")
@@ -246,7 +246,7 @@ pub fn parse_permission_rule(
                 // `*` covers every MCP tool, so the rule is tool-wide (no pattern)
                 None
             } else if rest.contains("__") {
-                // The rest is already `<server>__<tool>` (or `<server>__*`), the Grok qualified name, so use it verbatim
+                // The rest is already `<server>__<tool>` (or `<server>__*`), the xvora qualified name, so use it verbatim
                 // Server names may contain single underscores, but `__` only ever separates server from tool
                 Some(rest.to_string())
             } else {

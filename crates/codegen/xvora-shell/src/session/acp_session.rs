@@ -773,7 +773,7 @@ pub(crate) struct SessionActor {
     pub(crate) compaction_at_tokens:
         std::cell::Cell<Option<xvora_sampling_types::CompactionAtTokens>>,
     /// Server-side doom-loop check policy, resolved once at spawn by `Config::resolve_doom_loop_recovery`; `None` means disabled.
-    /// `reconstruct_full_config` threads it into the sampler config, and the sampler itself sends the matching `x-grok-doom-loop-check` header.
+    /// `reconstruct_full_config` threads it into the sampler config, and the sampler itself sends the matching `x-xvora-doom-loop-check` header.
     pub(crate) doom_loop_recovery: Option<xvora_sampling_types::DoomLoopRecoveryPolicy>,
     /// Telemetry-only per-turn detector/recovery tally (deduplicated labels, attempts, budget-spent accept, tightest recovery trigger).
     /// Accumulated by the event drainer and taken at turn end for analytics events.
@@ -1400,7 +1400,7 @@ const PROMPT_CONTEXT_FILENAME: &str = "prompt_context.json";
 /// Persist the structured prompt context to `{session_dir}/prompt_context.json`.
 ///
 /// This is best-effort: failures are logged but do not block session creation.
-/// The saved JSON enables deterministic re-rendering and `grok prompt --json` inspection.
+/// The saved JSON enables deterministic re-rendering and `xvora prompt --json` inspection.
 /// It also enables post-hoc debugging of what went into a session's system prompt.
 fn save_prompt_context(session_info: &SessionInfo, prompt_context: &agent::PromptContext) {
     let dir = match crate::session::persistence::ensure_owner_only_session_dir(session_info) {

@@ -41,7 +41,7 @@ pub async fn pull_session_to_local(
     };
     let dir = crate::session::persistence::session_dir(&info);
     // Create the owner-only `<encoded-cwd>` dir up front (best-effort)
-    if let Err(e) = crate::util::grok_home::ensure_sessions_cwd_dir(cwd) {
+    if let Err(e) = crate::util::xvora_home::ensure_sessions_cwd_dir(cwd) {
         tracing::warn!(?e, "failed to ensure sessions cwd dir for pulled session");
     }
 
@@ -85,7 +85,7 @@ pub(crate) mod hydrate {
             cwd: remote.cwd.clone().expect("caller verified cwd is Some"),
         };
 
-        crate::util::grok_home::create_dir_all_owner_only(dir).map_err(|e| io_err(dir, e))?;
+        crate::util::xvora_home::create_dir_all_owner_only(dir).map_err(|e| io_err(dir, e))?;
 
         let num_messages = loaded.messages.as_ref().map_or(0, |m| m.len());
         let mut num_chat_messages = 0;
@@ -166,8 +166,8 @@ pub(crate) mod hydrate {
             head_commit: None,
             head_branch: None,
             request_id: None,
-            // Record the *local* grok_home (where this hydrated copy lives), not the original remote session's, since reconstruction runs locally
-            grok_home: crate::session::persistence::grok_home_string(),
+            // Record the *local* xvora_home (where this hydrated copy lives), not the original remote session's, since reconstruction runs locally
+            xvora_home: crate::session::persistence::grok_home_string(),
             last_active_at: None,
             generated_title,
             title_is_manual,
@@ -273,7 +273,7 @@ mod tests {
     #[serial_test::serial]
     fn hydrated_summary_stamps_worktree_identity_for_worktree_cwd() {
         let home = tempfile::TempDir::new().unwrap();
-        let _env = test_support::EnvGuard::set("GROK_HOME", home.path());
+        let _env = test_support::EnvGuard::set("xvora_home", home.path());
         let cwd = home.path().join("worktrees").join("xvora").join("fix-bug");
         std::fs::create_dir_all(&cwd).unwrap();
 

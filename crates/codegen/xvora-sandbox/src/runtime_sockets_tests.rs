@@ -62,7 +62,7 @@ fn temp_runtime_root(tag: &str) -> PathBuf {
         .unwrap()
         .as_nanos();
     let root = std::env::temp_dir().join(format!(
-        "grok-runtime-sockets-{tag}-{}-{nanos}",
+        "xvora-runtime-sockets-{tag}-{}-{nanos}",
         std::process::id()
     ));
     std::fs::create_dir_all(&root).unwrap();

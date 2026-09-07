@@ -1,11 +1,11 @@
 //! Markdown-based memory file storage.
 //!
 //! Handles reading and writing memory files (`.md`) for both global and workspace-scoped memory.
-//! All workspace-scoped memory lives under `~/.grok/memory/{project-slug}-{hash8}/` to avoid polluting the user's repo.
+//! All workspace-scoped memory lives under `~/.xvora/memory/{project-slug}-{hash8}/` to avoid polluting the user's repo.
 
 use std::path::{Path, PathBuf};
 
-use tools::util::grok_home::grok_home;
+use tools::util::xvora_home::xvora_home;
 
 /// Write-operation scope. Distinct from `agent::config::MemoryScope` (agent memory dir).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -18,13 +18,13 @@ pub enum MemoryScope {
 
 /// Handles file I/O for the memory storage layer.
 ///
-/// Memory files are human-readable/editable Markdown stored under `~/.grok/memory/`.
-/// Workspace-scoped files live under a directory named `{project-slug}-{hash8}`, e.g. `~/.grok/memory/xvora-a3f7b2c9/`.
+/// Memory files are human-readable/editable Markdown stored under `~/.xvora/memory/`.
+/// Workspace-scoped files live under a directory named `{project-slug}-{hash8}`, e.g. `~/.xvora/memory/xvora-a3f7b2c9/`.
 #[derive(Debug, Clone)]
 pub struct MemoryStorage {
-    /// `~/.grok/memory/`
+    /// `~/.xvora/memory/`
     global_dir: PathBuf,
-    /// `~/.grok/memory/{project-slug}-{hash8}/`
+    /// `~/.xvora/memory/{project-slug}-{hash8}/`
     workspace_dir: PathBuf,
     /// The original workspace path (for logging / diagnostics).
     workspace_path: PathBuf,
@@ -33,7 +33,7 @@ pub struct MemoryStorage {
 }
 
 impl MemoryStorage {
-    /// Create a new `MemoryStorage` rooted at `~/.grok/memory/`.
+    /// Create a new `MemoryStorage` rooted at `~/.xvora/memory/`.
     ///
     /// The workspace directory name is `{slug}-{hash8}` where `slug` is the project directory name and `hash8` is 8 hex chars from blake3.
     /// Directories are created lazily on first write, not here.
@@ -50,7 +50,7 @@ impl MemoryStorage {
     fn new_inner(cwd: &Path, root_override: Option<&Path>, use_workspace_hash: bool) -> Self {
         let global_dir = root_override
             .map(|p| p.to_path_buf())
-            .unwrap_or_else(|| grok_home().join("memory"));
+            .unwrap_or_else(|| xvora_home().join("memory"));
         let workspace_dir = if use_workspace_hash {
             let workspace_hash = compute_workspace_hash(cwd);
             global_dir.join(&workspace_hash)
@@ -142,7 +142,7 @@ impl MemoryStorage {
 
     /// Write a daily session log file.
     ///
-    /// File path: `~/.grok/memory/{project}-{hash8}/sessions/YYYY-MM-DD-{slug}-{sid8}.md`
+    /// File path: `~/.xvora/memory/{project}-{hash8}/sessions/YYYY-MM-DD-{slug}-{sid8}.md`
     ///
     /// - `date`: e.g. `"2026-02-23"`
     /// - `slug`: short slug derived from the first user message
@@ -353,7 +353,7 @@ impl MemoryStorage {
                 &global_file,
                 "# Global Memory\n\
                  \n\
-                 > This file is automatically managed by Grok's memory system.\n\
+                 > This file is automatically managed by xvora's memory system.\n\
                  > You can also edit it manually — changes will be indexed on next session.\n\
                  \n\
                  ## Preferences\n\

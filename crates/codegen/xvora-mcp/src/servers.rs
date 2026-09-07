@@ -54,7 +54,7 @@ pub use workspace_types::MCP_TOOL_NAME_DELIMITER;
 /// Caller-supplied configs cannot smuggle it: the header is stripped from
 /// every HTTP/SSE config and re-added only when the spawn context asks for
 /// it (mirroring the `GROK_SESSION_ID` env protection on stdio servers).
-pub const GROK_AGENT_ID_HEADER: &str = "X-Grok-Agent-ID";
+pub const GROK_AGENT_ID_HEADER: &str = "X-xvora-Agent-ID";
 
 /// Reqwest 0.13 twin of the 0.12 adapters in `extra_ca`.
 fn with_extra_root_certificates(mut builder: reqwest::ClientBuilder) -> reqwest::ClientBuilder {
@@ -464,7 +464,7 @@ pub struct McpState {
     /// Monotonic source for [`UnreachableRetry::InFlight`] attempt tokens.
     unreachable_attempt_counter: u64,
     /// Per-server set of unqualified tool names that the user has disabled.
-    /// Persisted to `~/.grok/config.toml` under `[mcp_servers.<name>].disabled_tools`.
+    /// Persisted to `~/.xvora/config.toml` under `[mcp_servers.<name>].disabled_tools`.
     pub disabled_tools: HashMap<McpServerName, std::collections::HashSet<ToolName>>,
     /// Stashed registrations for disabled tools so they can be re-enabled without a full MCP re-init (no need to call `list_tools` again).
     pub disabled_tool_registrations: HashMap<String, McpToolRegistration>,
@@ -3975,7 +3975,7 @@ impl McpClient {
         ClientInfo::new(
             capabilities,
             Implementation::new(
-                format!("grok-shell-{server_name}"),
+                format!("xvora-shell-{server_name}"),
                 version::VERSION.to_string(),
             ),
         )
@@ -4441,10 +4441,10 @@ fn sanitize_mcp_log_filename(name: &str) -> String {
     }
 }
 
-/// Copy an MCP server's stderr to `~/.grok/logs/mcp/<server>.stderr.log`
+/// Copy an MCP server's stderr to `~/.xvora/logs/mcp/<server>.stderr.log`
 /// in a background task. Truncated per spawn.
 fn drain_mcp_stderr_to_log(server_name: &str, mut stderr: tokio::process::ChildStderr) {
-    let log_dir = config::grok_home().join("logs").join("mcp");
+    let log_dir = config::xvora_home().join("logs").join("mcp");
     if let Err(e) = std::fs::create_dir_all(&log_dir) {
         tracing::warn!("MCP stderr drain: failed to create log dir: {e}");
         return;
@@ -4553,14 +4553,14 @@ fn ensure_figma_user_agent(headers: &mut reqwest::header::HeaderMap, server_name
     }
     headers.insert(
         reqwest::header::USER_AGENT,
-        reqwest::header::HeaderValue::from_static("grok-cli"),
+        reqwest::header::HeaderValue::from_static("xvora-cli"),
     );
 }
 
 static DEFAULT_USER_AGENT: LazyLock<reqwest::header::HeaderValue> = LazyLock::new(|| {
-    format!("grok-cli/{}", version::VERSION)
+    format!("xvora-cli/{}", version::VERSION)
         .parse()
-        .unwrap_or_else(|_| reqwest::header::HeaderValue::from_static("grok-cli"))
+        .unwrap_or_else(|_| reqwest::header::HeaderValue::from_static("xvora-cli"))
 });
 
 fn ensure_default_user_agent(headers: &mut reqwest::header::HeaderMap) {
@@ -4570,7 +4570,7 @@ fn ensure_default_user_agent(headers: &mut reqwest::header::HeaderMap) {
     headers.insert(reqwest::header::USER_AGENT, DEFAULT_USER_AGENT.clone());
 }
 
-/// Figma keeps its pinned bare `grok-cli` attribution token; every other server gets the versioned default.
+/// Figma keeps its pinned bare `xvora-cli` attribution token; every other server gets the versioned default.
 /// A `User-Agent` already in the map always wins.
 fn apply_user_agent_policy(headers: &mut reqwest::header::HeaderMap, server_name: &str, url: &str) {
     ensure_figma_user_agent(headers, server_name, url);

@@ -76,7 +76,7 @@ pub(crate) fn should_open_at_startup(gate: StartupGate) -> bool {
     !gate.has_session && !gate.session_pending
 }
 
-/// Returns whether a session-less startup is about to mint a grok.com session
+/// Returns whether a session-less startup is about to mint a xvora.com session
 pub(crate) fn is_session_pending(
     has_session: bool,
     grok_com_config: &crate::auth::GrokComConfig,

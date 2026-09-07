@@ -196,9 +196,9 @@ fn linkify_href(text: &str, link: &linkify::Link<'_>) -> Option<String> {
     }
 }
 
-/// One path segment without spaces (`main.rs`, `.grok`, `@scope`). Leading `.`
-/// matches dot-directories and `%` matches percent-encoded segments; grok
-/// session media lives under `~/.grok/sessions/%2F…/images/1.jpg`.
+/// One path segment without spaces (`main.rs`, `.xvora`, `@scope`). Leading `.`
+/// matches dot-directories and `%` matches percent-encoded segments; xvora
+/// session media lives under `~/.xvora/sessions/%2F…/images/1.jpg`.
 const PATH_SEGMENT: &str = r"[a-zA-Z0-9_@.%][a-zA-Z0-9._+@%\-]*";
 
 /// Final path segment may contain *internal* spaces for macOS app bundles and similarly named files (`Demo App.app`).
@@ -206,7 +206,7 @@ const PATH_SEGMENT: &str = r"[a-zA-Z0-9_@.%][a-zA-Z0-9._+@%\-]*";
 const PATH_SEGMENT_SPACED: &str =
     r"[a-zA-Z0-9_@.%][a-zA-Z0-9._+@%\-]*(?: [a-zA-Z0-9._+@%\-]+)+\.[a-zA-Z0-9][a-zA-Z0-9._+@%\-]*";
 
-/// Relative file path (`images/1.png`, `.grok/x.txt`): one or more `/`-joined directory segments plus a filename that has an extension.
+/// Relative file path (`images/1.png`, `.xvora/x.txt`): one or more `/`-joined directory segments plus a filename that has an extension.
 /// No leading `/` or `~` (those are the absolute forms).
 /// The required extension keeps slashed prose ("and/or", "TCP/IP") out; the caller still checks that the file exists under `cwd`.
 fn relative_file_path_regex() -> &'static regex::Regex {
@@ -421,7 +421,7 @@ struct RowSegment {
 /// `None` is a hard break, `Some("")` a mid-word wrap, and `Some(" ")` a word wrap. Consecutive
 /// rows connected by `Some(..)` joiners are re-joined into one logical line
 /// before matching, so a long path or URL soft-wrapped across rows (imagine
-/// media lives at `~/.grok/sessions/%2F…/images/1.jpg`, which wraps in
+/// media lives at `~/.xvora/sessions/%2F…/images/1.jpg`, which wraps in
 /// narrow panes) is detected whole and each row's fragment gets its own
 /// clickable overlay region.
 /// Spans within a row are likewise concatenated so styling boundaries never truncate a match.
@@ -1385,8 +1385,8 @@ mod tests {
 
     #[test]
     fn scan_detects_grok_session_media_path() {
-        // The shape of `image_gen` output prose: a dot-directory (`.grok`), a percent-encoded session segment, and a trailing sentence period
-        let line = make_line("Saved to /Users/alice/.grok/sessions/%2Fabc/00000000/images/1.jpg.");
+        // The shape of `image_gen` output prose: a dot-directory (`.xvora`), a percent-encoded session segment, and a trailing sentence period
+        let line = make_line("Saved to /Users/alice/.xvora/sessions/%2Fabc/00000000/images/1.jpg.");
         let mut overlay = LinkOverlay::new();
         scan_unjoined(std::iter::once((0, &line)), 0, &[], &mut overlay);
 
@@ -1396,7 +1396,7 @@ mod tests {
                 .and_then(|resolved| resolved.osc8_url)
                 .expect("url"),
             // `%` is itself percent-encoded (`%25`) when building the file URL.
-            "file:///Users/alice/.grok/sessions/%252Fabc/00000000/images/1.jpg",
+            "file:///Users/alice/.xvora/sessions/%252Fabc/00000000/images/1.jpg",
         );
     }
 
@@ -1405,7 +1405,7 @@ mod tests {
         // Regression: `image_gen` output prose wraps the long session path across visual rows (`joiner: Some("")` mid-word break)
         // Previously each row was scanned in isolation, so only the `/Users/alice` fragment on the first row matched and became clickable
         let row0 =
-            make_line("Image generated and saved to /Users/alice/.grok/sessions/%2FUsers%2Fali");
+            make_line("Image generated and saved to /Users/alice/.xvora/sessions/%2FUsers%2Fali");
         let row1 = make_line("ce%2Fcode%2Fxai/00000000-0000-0000-0000-000000000001/images/1.jpg");
         let rows: Vec<(u16, &Line<'static>, Option<&str>)> =
             vec![(3, &row0, None), (4, &row1, Some(""))];
@@ -1413,7 +1413,7 @@ mod tests {
         scan_lines_for_url_overlays(rows.into_iter(), 2, &[], &mut overlay);
 
         assert_eq!(overlay.links().len(), 2, "one overlay region per row");
-        let expected_url = "file:///Users/alice/.grok/sessions/%252FUsers%252Fali\
+        let expected_url = "file:///Users/alice/.xvora/sessions/%252FUsers%252Fali\
                             ce%252Fcode%252Fxai/00000000-0000-0000-0000-000000000001/images/1.jpg";
         for link in overlay.links() {
             assert_eq!(
@@ -1431,7 +1431,7 @@ mod tests {
         assert_eq!(
             l0.col_end,
             2 + UnicodeWidthStr::width(
-                "Image generated and saved to /Users/alice/.grok/sessions/%2FUsers%2Fali"
+                "Image generated and saved to /Users/alice/.xvora/sessions/%2FUsers%2Fali"
             ) as u16
         );
         // Row 1: the continuation fragment covers the entire row.
@@ -1449,7 +1449,7 @@ mod tests {
     #[test]
     fn scan_wrapped_path_trailing_sentence_period_excluded() {
         // Wrapped path ending mid-sentence: trailing `.` on the last row is trimmed from the clickable region
-        let row0 = make_line("Saved to /Users/me/.grok/sessions/%2Fabc/019f3a86/ima");
+        let row0 = make_line("Saved to /Users/me/.xvora/sessions/%2Fabc/019f3a86/ima");
         let row1 = make_line("ges/1.jpg. Enjoy!");
         let rows: Vec<(u16, &Line<'static>, Option<&str>)> =
             vec![(0, &row0, None), (1, &row1, Some(""))];
@@ -1462,7 +1462,7 @@ mod tests {
                 &*resolve_link_target(&link.target)
                     .and_then(|resolved| resolved.osc8_url)
                     .expect("url"),
-                "file:///Users/me/.grok/sessions/%252Fabc/019f3a86/images/1.jpg"
+                "file:///Users/me/.xvora/sessions/%252Fabc/019f3a86/images/1.jpg"
             );
         }
         assert_eq!(overlay.links()[1].col_start, 0);
@@ -1722,7 +1722,7 @@ mod tests {
 
     #[test]
     fn scan_file_path_with_dots_and_hyphens() {
-        let line = make_line("Reading /tmp/grok-impl-summary.md now.");
+        let line = make_line("Reading /tmp/xvora-impl-summary.md now.");
         let mut overlay = LinkOverlay::new();
         scan_unjoined(std::iter::once((0, &line)), 0, &[], &mut overlay);
 
@@ -1731,7 +1731,7 @@ mod tests {
             &*resolve_link_target(&overlay.links()[0].target)
                 .and_then(|resolved| resolved.osc8_url)
                 .expect("url"),
-            "file:///tmp/grok-impl-summary.md"
+            "file:///tmp/xvora-impl-summary.md"
         );
     }
 
@@ -1826,7 +1826,7 @@ mod tests {
     #[test]
     fn scan_detects_tilde_file_path() {
         // The user's example: a `~/Desktop/…md` path in agent output.
-        let raw = "~/Desktop/grok-pager-retention-findings-2026-06-06.md";
+        let raw = "~/Desktop/xvora-pager-retention-findings-2026-06-06.md";
         // Skip when no home directory is resolvable (e.g. minimal sandbox): the tilde stays unexpanded and cannot form an absolute file URL.
         let Ok(expected) = url::Url::from_file_path(shellexpand::tilde(raw).as_ref()) else {
             return;

@@ -1167,7 +1167,7 @@ fn claim_spill_reconcile(state: &std::sync::atomic::AtomicU8, collection_enabled
 /// Re-enqueue them when uploads are enabled (`queue` present); purge them when data collection is disabled (`None`).
 /// This runs detached so session setup never waits on disk or cloud I/O.
 pub(crate) fn spawn_startup_spill_reconcile(
-    grok_home: std::path::PathBuf,
+    xvora_home: std::path::PathBuf,
     queue: Option<UploadQueue>,
 ) {
     if !claim_spill_reconcile(&SPILL_RECONCILE_STATE, queue.is_some()) {
@@ -1176,13 +1176,13 @@ pub(crate) fn spawn_startup_spill_reconcile(
     tokio::spawn(async move {
         match queue {
             Some(queue) => {
-                let report = workspace::recovery::run_startup_recovery(&grok_home, &queue).await;
+                let report = workspace::recovery::run_startup_recovery(&xvora_home, &queue).await;
                 tracing::info!(?report, "startup spill recovery complete");
                 queue.cleanup_orphans(file_utils::queue::DEFAULT_MAX_AGE);
             }
             None => {
                 let purged = tokio::task::spawn_blocking(move || {
-                    workspace::recovery::purge_spilled_items(&grok_home)
+                    workspace::recovery::purge_spilled_items(&xvora_home)
                 })
                 .await;
                 match purged {
@@ -1275,7 +1275,7 @@ pub(crate) fn spawn_purge_stale_upload_scratch() {
         if PURGE_STARTED.swap(true, Ordering::Relaxed) {
             return;
         }
-        let dir = crate::util::grok_home::grok_home()
+        let dir = crate::util::xvora_home::xvora_home()
             .join("upload_queue")
             .join("scratch");
         let run = move || match purge_stale_upload_scratch_dir(&dir) {
@@ -1306,7 +1306,7 @@ pub(crate) fn spawn_purge_stale_upload_scratch() {
 /// Credentials are re-read on each upload attempt via [`DynamicResolver`].
 /// Session/trace artifacts use this queue for durable spill in every build.
 pub(crate) fn spawn_upload_queue(
-    grok_home: &Path,
+    xvora_home: &Path,
     gcs_config: &TraceExportConfig,
     client_version: Option<&str>,
     auth_manager: Arc<crate::auth::AuthManager>,
@@ -1315,7 +1315,7 @@ pub(crate) fn spawn_upload_queue(
         auth_manager,
         base_config: gcs_config.clone(),
     });
-    let queue = UploadQueue::spawn(grok_home, resolver, UploadRetryPolicy::default());
+    let queue = UploadQueue::spawn(xvora_home, resolver, UploadRetryPolicy::default());
     if let Some(ver) = client_version {
         queue.with_client_version(ver)
     } else {

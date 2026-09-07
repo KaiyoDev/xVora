@@ -1,4 +1,4 @@
-//! Provisioned-repo listing (`workspace.repos_list`) and the on-disk in-sandbox manifest contract (`{workspace}/.grok/repos.json`).
+//! Provisioned-repo listing (`workspace.repos_list`) and the on-disk in-sandbox manifest contract (`{workspace}/.xvora/repos.json`).
 //!
 //! The sandbox provisioner writes this manifest; the workspace list op reads it.
 //! Field names are the frontend/integration API: add optional fields with `#[serde(default)]` rather than renaming existing ones.
@@ -10,7 +10,7 @@ use super::{RpcActivityClass, WorkspaceRpc};
 /// Relative path of the provisioner manifest from the **sandbox** `workspace_directory` (pre-grove-rewrite init root, usually `/workspace`).
 /// It is not relative to the agent / workspace-server `--cwd` after a single-repo grove rewrite (`/workspace/app`).
 /// Writers and `workspace.repos_list` must join this to that sandbox root.
-pub const REPOS_MANIFEST_RELATIVE_PATH: &str = ".grok/repos.json";
+pub const REPOS_MANIFEST_RELATIVE_PATH: &str = ".xvora/repos.json";
 
 /// Current on-disk / wire manifest version.
 pub const REPOS_MANIFEST_VERSION: u32 = 1;
@@ -66,7 +66,7 @@ impl RepoManifest {
         }
     }
 
-    /// Parse bytes from `{workspace}/.grok/repos.json`.
+    /// Parse bytes from `{workspace}/.xvora/repos.json`.
     pub fn from_json_bytes(bytes: &[u8]) -> Result<Self, serde_json::Error> {
         serde_json::from_slice(bytes)
     }
@@ -86,7 +86,7 @@ impl RepoManifest {
             }
             let mount = std::path::PathBuf::from(raw);
             // Confine to the workspace
-            // A compromised/malicious `.grok/repos.json` must not point prompt/graph/fs-notify walks at paths outside the sandbox workspace
+            // A compromised/malicious `.xvora/repos.json` must not point prompt/graph/fs-notify walks at paths outside the sandbox workspace
             // Reject `..` traversal and any mount that is not under `workspace_root`
             // This mirrors the confinement `unnamed_cwd` / `confine_mount_under_workspace` already apply on the other paths
             if mount
@@ -127,7 +127,7 @@ mod tests {
                 repository: "acme/app".into(),
                 mount_path: "/workspace/app".into(),
                 base_branch: "main".into(),
-                session_branch: "grok/s1".into(),
+                session_branch: "xvora/s1".into(),
             },
             ProvisionedRepo {
                 name: "lib".into(),

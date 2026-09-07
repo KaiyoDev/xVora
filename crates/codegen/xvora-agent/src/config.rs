@@ -1,4 +1,4 @@
-//! Agent definition types, parsed from `.grok/agents/*.md` files.
+//! Agent definition types, parsed from `.xvora/agents/*.md` files.
 use crate::error::AgentBuildError;
 use crate::prompt::context::TemplateOverride;
 use crate::prompt::user_message::UserMessageTemplate;
@@ -166,7 +166,7 @@ pub fn workspace_grok_build_toolset() -> ToolServerConfig {
         behavior_preset: None,
     }
 }
-/// Toolset for the `grok-computer` (workspace/sandbox) preset.
+/// Toolset for the `xvora-computer` (workspace/sandbox) preset.
 fn grok_computer_toolset() -> ToolServerConfig {
     #[allow(unused_mut)]
     let mut tools = vec![
@@ -194,13 +194,13 @@ fn grok_computer_toolset() -> ToolServerConfig {
 /// Native (in-crate) toolset presets.
 fn native_toolset_presets() -> Vec<(&'static str, ToolServerConfig)> {
     vec![
-        ("grok-build", workspace_grok_build_toolset()),
-        ("grok-build-concise", grok_build_concise_toolset()),
-        ("grok-build-plan", grok_build_plan_toolset()),
+        ("xvora-build", workspace_grok_build_toolset()),
+        ("xvora-build-concise", grok_build_concise_toolset()),
+        ("xvora-build-plan", grok_build_plan_toolset()),
         ("codex", codex_toolset()),
         ("explore", explore_toolset()),
         ("plan", plan_toolset()),
-        ("grok-computer", grok_computer_toolset()),
+        ("xvora-computer", grok_computer_toolset()),
     ]
 }
 /// Every named **public** toolset preset (native and externally registered public presets), as `(name, config)` pairs.
@@ -238,7 +238,7 @@ pub fn toolset_for_preset(preset: &str) -> Option<ToolServerConfig> {
 fn default_grok_build_toolset() -> ToolServerConfig {
     grok_build_core_toolset(true)
 }
-/// Same as the parent grok-build list, without `workflow`.
+/// Same as the parent xvora-build list, without `workflow`.
 /// The usual `general-purpose` spawn path must not add that tool and then strip it.
 fn general_purpose_toolset() -> ToolServerConfig {
     grok_build_core_toolset(false)
@@ -370,12 +370,12 @@ fn plan_toolset() -> ToolServerConfig {
         behavior_preset: None,
     }
 }
-/// Extends the default `grok-build` toolset with plan mode tools.
+/// Extends the default `xvora-build` toolset with plan mode tools.
 /// This allows the agent to enter a structured planning phase before writing code, with user-approved plans.
 fn grok_build_plan_toolset() -> ToolServerConfig {
     ToolServerConfig {
         tools: vec![
-            // Standard grok-build tools
+            // Standard xvora-build tools
             bash_tool_config(),
             (&grok_build::ReadFileTool).into(),
             (&grok_build::SearchReplaceTool).into(),
@@ -456,7 +456,7 @@ fn orchestrator_toolset() -> ToolServerConfig {
 fn grok_build_plan_no_subagents_toolset() -> ToolServerConfig {
     ToolServerConfig {
         tools: vec![
-            // Standard grok-build tools, minus TaskTool only
+            // Standard xvora-build tools, minus TaskTool only
             // KillTaskTool and TaskOutputTool are kept because BashTool's background mode requires them
             bash_tool_config(),
             (&grok_build::ReadFileTool).into(),
@@ -652,7 +652,7 @@ pub enum BuiltinAgentName {
     Explore,
     Plan,
     BrowserUse,
-    #[strum(serialize = "grok-build-orchestrator")]
+    #[strum(serialize = "xvora-build-orchestrator")]
     GrokBuildOrchestrator,
 }
 /// Resolves via `BuiltinAgentName` and delegates to [`AgentDefinition::is_strict_harness`].
@@ -686,7 +686,7 @@ impl BuiltinAgentName {
         &[Self::GeneralPurpose, Self::Explore, Self::Plan]
     }
 }
-/// Portable agent identity, parsed from .grok/agents/*.md.
+/// Portable agent identity, parsed from .xvora/agents/*.md.
 /// Usable as both a top-level agent and a subagent definition.
 ///
 /// This is the stable, version-controllable contract.
@@ -844,11 +844,11 @@ fn default_prompt_mode() -> PromptMode {
 /// Where the agent definition was discovered.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum AgentScope {
-    /// .grok/agents/ (project-level, highest priority)
+    /// .xvora/agents/ (project-level, highest priority)
     Project,
-    /// ~/.grok/agents/ (user-level)
+    /// ~/.xvora/agents/ (user-level)
     User,
-    /// ~/.grok/bundled/agents/ (lowest-priority bundled cache)
+    /// ~/.xvora/bundled/agents/ (lowest-priority bundled cache)
     Bundled,
     /// Built-in agent (e.g., default_grok_build(), browser_use()).
     #[default]
@@ -1071,11 +1071,11 @@ where
 #[serde(rename_all = "lowercase")]
 #[strum(serialize_all = "lowercase")]
 pub enum MemoryScope {
-    /// `~/.grok/agent-memory/<name>/`
+    /// `~/.xvora/agent-memory/<name>/`
     User,
-    /// `<project>/.grok/agent-memory/<name>/`
+    /// `<project>/.xvora/agent-memory/<name>/`
     Project,
-    /// `<project>/.grok/agent-memory-local/<name>/`
+    /// `<project>/.xvora/agent-memory-local/<name>/`
     Local,
 }
 impl MemoryScope {
@@ -1092,16 +1092,16 @@ impl MemoryScope {
     pub fn resolve_dir(self, agent_name: &str, project_cwd: &std::path::Path) -> ResolvedMemoryDir {
         match self {
             Self::User => ResolvedMemoryDir {
-                path: config::grok_home().join("agent-memory").join(agent_name),
+                path: config::xvora_home().join("agent-memory").join(agent_name),
                 is_project_scoped: false,
             },
             Self::Project => ResolvedMemoryDir {
-                path: project_cwd.join(".grok/agent-memory").join(agent_name),
+                path: project_cwd.join(".xvora/agent-memory").join(agent_name),
                 is_project_scoped: true,
             },
             Self::Local => ResolvedMemoryDir {
                 path: project_cwd
-                    .join(".grok/agent-memory-local")
+                    .join(".xvora/agent-memory-local")
                     .join(agent_name),
                 is_project_scoped: true,
             },
@@ -1308,18 +1308,18 @@ impl AgentDefinition {
     }
     fn scope_from_path(path: &Path) -> AgentScope {
         let path_str = path.to_string_lossy();
-        let grok = config::user_grok_home();
+        let xvora = config::user_grok_home();
         let home = dirs::home_dir();
-        for (dir, scope) in crate::discovery::user_agent_dirs(home.as_deref(), grok.as_deref()) {
+        for (dir, scope) in crate::discovery::user_agent_dirs(home.as_deref(), xvora.as_deref()) {
             if path.starts_with(&dir) {
                 return scope;
             }
         }
-        if path_str.contains(".grok/agents/") || path_str.contains(".grok\\agents\\") {
+        if path_str.contains(".xvora/agents/") || path_str.contains(".xvora\\agents\\") {
             return AgentScope::Project;
         }
-        if path_str.contains(".grok/bundled/agents/")
-            || path_str.contains(".grok\\bundled\\agents\\")
+        if path_str.contains(".xvora/bundled/agents/")
+            || path_str.contains(".xvora\\bundled\\agents\\")
         {
             return AgentScope::Bundled;
         }
@@ -1372,7 +1372,7 @@ impl AgentDefinition {
     /// True iff this agent's wire format is non-interchangeable with the stock harness.
     /// A client-supplied `_meta.agentProfile` must NOT override it.
     /// Strict iff any of: bespoke `system_prompt` template, bespoke `user_message_template`, or curated toolset (`!inject_default_tools`).
-    /// Stock `grok-build*` agents leave all three at defaults and are non-strict.
+    /// Stock `xvora-build*` agents leave all three at defaults and are non-strict.
     pub fn is_strict_harness(&self) -> bool {
         use crate::prompt::context::TemplateOverride;
         use crate::prompt::user_message::UserMessageTemplate;
@@ -1456,7 +1456,7 @@ impl AgentDefinition {
     pub fn default_grok_build() -> Self {
         Self::base(
             BuiltinAgentName::GrokBuild,
-            "Grok Build agent for software engineering tasks.",
+            "xvora build agent for software engineering tasks.",
         )
     }
     /// Concise output format for SFT/RL.
@@ -1466,7 +1466,7 @@ impl AgentDefinition {
             agents_md: false,
             ..Self::base(
                 BuiltinAgentName::GrokBuildConcise,
-                "Grok Build agent with concise output format.",
+                "xvora build agent with concise output format.",
             )
         }
     }
@@ -1475,7 +1475,7 @@ impl AgentDefinition {
             tool_config: grok_build_plan_toolset(),
             ..Self::base(
                 BuiltinAgentName::GrokBuildPlan,
-                "Grok Build agent with plan mode support.",
+                "xvora build agent with plan mode support.",
             )
         }
     }
@@ -1484,7 +1484,7 @@ impl AgentDefinition {
             tool_config: grok_build_plan_no_subagents_toolset(),
             ..Self::base(
                 BuiltinAgentName::GrokBuildPlanNoSubagents,
-                "Grok Build agent with plan mode (no subagents).",
+                "xvora build agent with plan mode (no subagents).",
             )
         }
     }
@@ -1493,7 +1493,7 @@ impl AgentDefinition {
             tool_config: grok_build_ask_user_toolset(),
             ..Self::base(
                 BuiltinAgentName::GrokBuildAskUser,
-                "Grok Build agent with ask-user-question tool.",
+                "xvora build agent with ask-user-question tool.",
             )
         }
     }
@@ -1640,14 +1640,14 @@ mod tests {
     #[test]
     fn toolset_for_preset_resolves_known_names() {
         for name in [
-            "grok-build",
+            "xvora-build",
             "grok_build",
-            "grok-build-concise",
-            "grok-build-plan",
+            "xvora-build-concise",
+            "xvora-build-plan",
             "codex",
             "explore",
             "plan",
-            "grok-computer",
+            "xvora-computer",
             "grok_computer",
         ] {
             assert!(
@@ -1659,7 +1659,7 @@ mod tests {
     }
     #[test]
     fn presets_select_distinct_toolsets_by_size() {
-        let gb = toolset_for_preset("grok-build").unwrap();
+        let gb = toolset_for_preset("xvora-build").unwrap();
         let plan = toolset_for_preset("plan").unwrap();
         let explore = toolset_for_preset("explore").unwrap();
         assert!(explore.tools.len() < plan.tools.len());
@@ -1675,8 +1675,8 @@ mod tests {
     }
     #[test]
     fn grok_computer_preset_is_curated_grok_build_subset() {
-        let gc = toolset_for_preset("grok-computer").unwrap();
-        let gb = toolset_for_preset("grok-build").unwrap();
+        let gc = toolset_for_preset("xvora-computer").unwrap();
+        let gb = toolset_for_preset("xvora-build").unwrap();
         let gb_ids: std::collections::HashSet<&str> =
             gb.tools.iter().map(|t| t.id.as_str()).collect();
         let exclusive_ids = grok_computer_exclusive_ids();
@@ -1687,18 +1687,18 @@ mod tests {
             }
             assert!(
                 gb_ids.contains(t.id.as_str()),
-                "grok-computer tool `{}` must also ship in the grok-build preset",
+                "xvora-computer tool `{}` must also ship in the xvora-build preset",
                 t.id
             );
         }
         assert!(
             gc.tools.len() < gb.tools.len(),
-            "grok-computer should be a curated subset of grok-build"
+            "xvora-computer should be a curated subset of xvora-build"
         );
     }
     #[test]
     fn grok_computer_uses_subagent_free_background_task_tools() {
-        let gc = toolset_for_preset("grok-computer").unwrap();
+        let gc = toolset_for_preset("xvora-computer").unwrap();
         let ids: std::collections::HashSet<&str> = gc.tools.iter().map(|t| t.id.as_str()).collect();
         assert!(
             ids.contains(
@@ -1725,21 +1725,21 @@ mod tests {
             }
         }
     }
-    /// The grok-computer preset must ship a full-file write tool (legacy `write_file` parity), the same OpenCode `write` tool grok-build uses.
+    /// The xvora-computer preset must ship a full-file write tool (legacy `write_file` parity), the same OpenCode `write` tool xvora-build uses.
     /// Guards against `search_replace` being the only file-mutation path.
     /// With the empty-old_string overwrite guard enabled, that path has no single-tool full rewrite.
     #[test]
     fn grok_computer_preset_includes_write_tool() {
-        let gc = toolset_for_preset("grok-computer").unwrap();
+        let gc = toolset_for_preset("xvora-computer").unwrap();
         let write_id = ToolConfig::from(&opencode::OpenCodeWriteTool).id;
         assert!(
             gc.tools.iter().any(|t| t.id == write_id),
-            "grok-computer preset must include the `{write_id}` tool"
+            "xvora-computer preset must include the `{write_id}` tool"
         );
     }
     #[test]
     fn grok_computer_preset_excludes_plan_and_lsp() {
-        let gc = toolset_for_preset("grok-computer").unwrap();
+        let gc = toolset_for_preset("xvora-computer").unwrap();
         let gc_ids: std::collections::HashSet<&str> =
             gc.tools.iter().map(|t| t.id.as_str()).collect();
         for excluded in [
@@ -1749,7 +1749,7 @@ mod tests {
         ] {
             assert!(
                 !gc_ids.contains(excluded.as_str()),
-                "grok-computer preset must not advertise `{excluded}`"
+                "xvora-computer preset must not advertise `{excluded}`"
             );
         }
         let full = workspace_grok_build_toolset();
@@ -1799,22 +1799,22 @@ mod tests {
     }
     #[test]
     fn is_strict_harness_agent_type_classifies_by_name() {
-        for strict in ["codex", "grok-build-orchestrator"] {
+        for strict in ["codex", "xvora-build-orchestrator"] {
             assert!(
                 is_strict_harness_agent_type(strict),
                 "{strict} should be strict"
             );
         }
         for non_strict in [
-            "grok-build",
-            "grok-build-plan",
-            "grok-build-concise",
-            "grok-build-ask-user",
+            "xvora-build",
+            "xvora-build-plan",
+            "xvora-build-concise",
+            "xvora-build-ask-user",
             "opencode",
             "browser-use",
             "custom-user-agent",
             "",
-            "grok-build-totally-made-up",
+            "xvora-build-totally-made-up",
         ] {
             assert!(
                 !is_strict_harness_agent_type(non_strict),
@@ -2037,13 +2037,13 @@ description: Minimal agent
         let proj = MemoryScope::Project.resolve_dir("a", cwd);
         assert_eq!(
             proj.path,
-            std::path::PathBuf::from("/project/.grok/agent-memory/a")
+            std::path::PathBuf::from("/project/.xvora/agent-memory/a")
         );
         assert!(proj.is_project_scoped);
         let local = MemoryScope::Local.resolve_dir("a", cwd);
         assert_eq!(
             local.path,
-            std::path::PathBuf::from("/project/.grok/agent-memory-local/a")
+            std::path::PathBuf::from("/project/.xvora/agent-memory-local/a")
         );
         assert!(local.is_project_scoped);
     }
@@ -2231,7 +2231,7 @@ description: Test default tool config
         let bundled = tmp
             .path()
             .join("nested")
-            .join(".grok")
+            .join(".xvora")
             .join("bundled")
             .join("agents")
             .join("bundled-agent.md");
@@ -2263,7 +2263,7 @@ description: Test default tool config
     #[test]
     fn same_name_acp_definition_does_not_enable_browser_verification() {
         let def = AgentDefinition::from_json(&serde_json::json!({
-            "name": "grok-build-plan",
+            "name": "xvora-build-plan",
             "description": "Custom plan agent"
         }))
         .unwrap();
@@ -2274,7 +2274,7 @@ description: Test default tool config
     #[test]
     fn test_from_json_has_default_toolset_with_task_tool() {
         let json = serde_json::json!({
-            "name": "grok-build",
+            "name": "xvora-build",
             "description": "Multi-surface coding agent.",
             "promptMode": "extend",
             "permissionMode": "dontAsk",
@@ -2425,21 +2425,21 @@ description: Test default tool config
         let json = serde_json::json!({
             "name": "test",
             "description": "Test",
-            "model": "grok-code-fast-1"
+            "model": "xvora-code-fast-1"
         });
         let def = AgentDefinition::from_json(&json).unwrap();
         assert_eq!(
             def.model,
-            ModelOverride::Override("grok-code-fast-1".to_string())
+            ModelOverride::Override("xvora-code-fast-1".to_string())
         );
     }
     #[test]
     fn test_builtin_agent_name_strum_round_trip() {
         use std::str::FromStr;
         for (s, expected) in [
-            ("grok-build", BuiltinAgentName::GrokBuild),
-            ("grok-build-concise", BuiltinAgentName::GrokBuildConcise),
-            ("grok-build-ask-user", BuiltinAgentName::GrokBuildAskUser),
+            ("xvora-build", BuiltinAgentName::GrokBuild),
+            ("xvora-build-concise", BuiltinAgentName::GrokBuildConcise),
+            ("xvora-build-ask-user", BuiltinAgentName::GrokBuildAskUser),
             ("codex", BuiltinAgentName::Codex),
             ("opencode", BuiltinAgentName::Opencode),
             ("general-purpose", BuiltinAgentName::GeneralPurpose),

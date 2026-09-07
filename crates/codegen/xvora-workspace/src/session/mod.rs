@@ -689,7 +689,7 @@ pub struct WorkspaceShared {
         std::sync::Arc<parking_lot::Mutex<crate::file_system::CodebaseIndexManager>>,
     /// Finalize the FS rewind checkpoint on non-`Completed` turn-end outcomes (from `GROK_WORKSPACE_REWIND_ALL_OUTCOMES`, default off).
     pub(crate) workspace_rewind_all_outcomes: bool,
-    /// Resolved `$GROK_WORKSPACE_HOME`, the workspace-owned on-disk state root (`<grok_home>/workspace` by default).
+    /// Resolved `$GROK_WORKSPACE_HOME`, the workspace-owned on-disk state root (`<xvora_home>/workspace` by default).
     /// The upload queue spills here.
     pub(crate) workspace_home: std::path::PathBuf,
     pub(crate) upload_queue: Option<std::sync::Arc<file_utils::queue::UploadQueue>>,
@@ -1065,7 +1065,7 @@ mod tests {
             "flag-off must not create the session dir or events.jsonl"
         );
     }
-    /// Session-derived content outside ~/.grok/sessions: same owner-only rule,
+    /// Session-derived content outside ~/.xvora/sessions: same owner-only rule,
     /// including healing a loose pre-existing root from older builds.
     #[cfg(unix)]
     #[test]

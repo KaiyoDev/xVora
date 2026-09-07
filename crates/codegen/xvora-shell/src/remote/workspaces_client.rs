@@ -4,7 +4,7 @@ use serde::Deserialize;
 
 use crate::auth::AuthManager;
 
-const GROK_WEB_URL: &str = "https://grok.com";
+const GROK_WEB_URL: &str = "https://xvora.com";
 
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -103,9 +103,9 @@ impl WorkspacesClient {
                 self.auth.grok_com_config().token_header.clone(),
             )
             .header("x-userid", &auth.user_id)
-            .header("x-grok-client-version", version::VERSION)
+            .header("x-xvora-client-version", version::VERSION)
             .header(
-                "x-grok-client-identifier",
+                "x-xvora-client-identifier",
                 crate::http::process_client_identifier(),
             )
             .header(

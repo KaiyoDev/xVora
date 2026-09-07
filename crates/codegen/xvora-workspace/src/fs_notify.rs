@@ -36,7 +36,7 @@ pub(crate) fn is_under_hidden_dir_any(path: &Path, roots: &[PathBuf]) -> bool {
 }
 
 /// Forward an fs event to the hunk tracker.
-/// Hidden-directory paths (relative to `cwd`) are filtered out so the hunk tracker never sees `.git/`, `.grok/`, etc.
+/// Hidden-directory paths (relative to `cwd`) are filtered out so the hunk tracker never sees `.git/`, `.xvora/`, etc.
 pub(crate) fn forward_to_hunk_tracker(
     paths: &[PathBuf],
     kind: FsEventKind,
@@ -296,7 +296,7 @@ mod tests {
     #[test]
     fn hidden_dir_positive() {
         assert!(is_under_hidden_dir(
-            &PathBuf::from("/workspace/.grok/worktrees/abc/src/main.rs"),
+            &PathBuf::from("/workspace/.xvora/worktrees/abc/src/main.rs"),
             &PathBuf::from("/workspace"),
         ));
     }

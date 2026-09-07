@@ -40,12 +40,12 @@ pub enum AgentMode {
     Generic,
 }
 /// Default agent type when the server or user config doesn't specify one.
-pub const DEFAULT_AGENT_TYPE: &str = "grok-build-plan";
+pub const DEFAULT_AGENT_TYPE: &str = "xvora-build-plan";
 /// Serde default for `ModelInfo.agent_type` and `ModelEntryConfig.agent_type`.
 pub(crate) fn default_agent_type() -> String {
     DEFAULT_AGENT_TYPE.to_owned()
 }
-pub const CLI_CHAT_PROXY_BASE_URL_DEFAULT: &str = "https://cli-chat-proxy.grok.com/v1";
+pub const CLI_CHAT_PROXY_BASE_URL_DEFAULT: &str = "https://cli-chat-proxy.xvora.com/v1";
 pub const XAI_API_BASE_URL_DEFAULT: &str = "https://api.x.ai/v1";
 const NO_INLINE_CITATIONS_RESPONSE_INCLUDE: &str = "no_inline_citations";
 /// One or more environment variable names that may hold a model API key.
@@ -301,7 +301,7 @@ impl EndpointsConfig {
     pub(crate) fn resolve_trace_upload_url(&self) -> String {
         blank_as_unset(&self.trace_upload_url).unwrap_or_else(|| self.proxy_url())
     }
-    /// Managed deployment-config URL (`grok setup`): explicit `managed_config_url`, else `proxy_url` + `/deployment/config`.
+    /// Managed deployment-config URL (`xvora setup`): explicit `managed_config_url`, else `proxy_url` + `/deployment/config`.
     /// Never `xvora_api_base_url`, so the deployment key reaches the proxy, not the inference host.
     pub(crate) fn resolve_managed_config_url(&self) -> String {
         blank_as_unset(&self.managed_config_url).unwrap_or_else(|| {
@@ -648,7 +648,7 @@ pub struct RuntimeResolutionContext<'a> {
     pub storage_mode: Option<&'a str>,
 }
 /// First-party credential env vars scrubbed from a BYOK auth-provider helper's environment.
-/// Scrubbing keeps the helper from inheriting the keys Grok uses for its own first-party requests.
+/// Scrubbing keeps the helper from inheriting the keys xvora uses for its own first-party requests.
 /// Keep in sync with every first-party credential env read across the crate.
 /// Those live in `auth::manager` (`GROK_AUTH`/`GROK_AUTH_PATH`) and `auth_method` (`XAI_API_KEY`/legacy).
 /// The credential-bearing `env_string(...)` reads in `EndpointsConfig::default` count too.
@@ -900,7 +900,7 @@ impl PluginsConfig {
     /// Project-level `<git_root>/.claude/settings.json` is intentionally NOT read here.
     /// A malicious repo could pre-populate `enabledPlugins` to bypass the project-plugin auto-disable logic in `populate_plugin_lists`.
     /// That would enable attacker-controlled hooks (e.g. a SessionStart hook running arbitrary code).
-    /// Native `.grok/config.toml` entries already present take precedence: a name is only added if it isn't already in the opposite list.
+    /// Native `.xvora/config.toml` entries already present take precedence: a name is only added if it isn't already in the opposite list.
     pub(crate) fn merge_claude_enabled_plugins(&mut self, _cwd: Option<&std::path::Path>) {
         if crate::claude_import::is_claude_import_marked_with_log("merge_claude_enabled_plugins") {
             return;
@@ -1097,7 +1097,7 @@ pub struct RelayConfig {
 }
 /// `[hub]` section from config.toml.
 ///
-/// Optional default Computer Hub URL for **workspace provider** exposure (`grok workspace` / leader `with_default_hub_url`).
+/// Optional default Computer Hub URL for **workspace provider** exposure (`xvora workspace` / leader `with_default_hub_url`).
 /// Does **not** enable agent-side harness/client connections or alter local session behavior.
 ///
 /// ```toml
@@ -1108,7 +1108,7 @@ pub struct RelayConfig {
 #[serde(default)]
 pub struct HubConfig {
     /// Hub WebSocket URL (`ws://` or `wss://`) used as the leader default for
-    /// `grok workspace start` when the CLI does not pass `--hub-url`.
+    /// `xvora workspace start` when the CLI does not pass `--hub-url`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub url: Option<String>,
 }
@@ -1215,8 +1215,8 @@ pub struct StorageConfig {
 }
 /// `[paths]` configuration: extra directories to scan for skills, rules, etc.
 ///
-/// These supplement the built-in scan locations (`.grok/skills/`,
-/// `.agents/skills/`, `~/.grok/skills/`). They're written by `/import-claude`
+/// These supplement the built-in scan locations (`.xvora/skills/`,
+/// `.agents/skills/`, `~/.xvora/skills/`). They're written by `/import-claude`
 /// to preserve previously-discovered Claude directories after the runtime `.claude/` cutoff (see `[claude_compat] imported`).
 ///
 /// Example:
@@ -1359,7 +1359,7 @@ pub struct Config {
     /// Typed as `GrokComConfig` (same schema) so sub-field typos are caught.
     #[serde(default, skip_serializing)]
     pub auth: Option<GrokComConfig>,
-    /// `[desktop]` section: owned by grok-desktop (Electron app), opaque to the CLI agent.
+    /// `[desktop]` section: owned by xvora-desktop (Electron app), opaque to the CLI agent.
     #[serde(default, skip_serializing)]
     pub desktop: Option<toml::Value>,
     /// Top-level `announcements` array: consumed by `resolve_announcements`.
@@ -1598,7 +1598,7 @@ pub use shared::ui_config::{ContextualHints, UiConfig};
 ///
 /// ```toml
 /// [agent]
-/// # Use a named agent (looked up via discovery: .grok/agents/, ~/.grok/agents/, built-ins)
+/// # Use a named agent (looked up via discovery: .xvora/agents/, ~/.xvora/agents/, built-ins)
 /// name = "my-custom-agent"
 ///
 /// # OR: path to an agent definition file (.md with YAML frontmatter)
@@ -1610,17 +1610,17 @@ pub use shared::ui_config::{ContextualHints, UiConfig};
 /// 2. CLI `--agent-profile` flag
 /// 3. `[agent]` config.toml section (this config)
 /// 4. `GROK_AGENT` env var
-/// 5. Default `grok-build` agent
+/// 5. Default `xvora-build` agent
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(default)]
 pub struct AgentSelectionConfig {
     /// Name of a built-in or discovered agent definition.
     /// Looked up via `agent::discovery::by_name_in_cwd()`.
-    /// Examples: "grok-build", "browser-use", or a custom agent name.
+    /// Examples: "xvora-build", "browser-use", or a custom agent name.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
     /// Path to an agent definition file (.md with YAML frontmatter).
-    /// Supports environment variable expansion (e.g., `$HOME/.grok/agents/my-agent.md`).
+    /// Supports environment variable expansion (e.g., `$HOME/.xvora/agents/my-agent.md`).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub definition: Option<PathBuf>,
     /// Global system-prompt identity label. Per-model override wins.
@@ -1818,7 +1818,7 @@ fn is_non_serde_config_path(path: &str) -> bool {
             .strip_prefix("features.")
             .is_some_and(|key| UNMIRRORED_BOOLEAN_FEATURES.contains(&key))
 }
-/// Parse `[auth_provider.<name>]` tables leniently: a malformed entry warns (surfaced by `grok inspect`) and is skipped.
+/// Parse `[auth_provider.<name>]` tables leniently: a malformed entry warns (surfaced by `xvora inspect`) and is skipped.
 /// Skipping fails closed for the models referencing the entry instead of failing the whole config.
 fn parse_auth_providers(
     raw_config: &toml::Value,
@@ -1903,7 +1903,7 @@ impl Config {
     /// Build an `AuthManager` with the configured proxy URL applied.
     pub fn create_auth_manager(&self) -> AuthManager {
         AuthManager::new(
-            &crate::util::grok_home::grok_home(),
+            &crate::util::xvora_home::xvora_home(),
             self.grok_com_config.clone(),
         )
         .with_proxy_base_url(&self.endpoints.proxy_url())
@@ -2468,7 +2468,7 @@ impl Config {
         })
     }
     /// Server-side doom-loop check policy.
-    /// It covers the `x-grok-doom-loop-check` header, trigger parsing, and confident-signal resampling, all applied by the sampler.
+    /// It covers the `x-xvora-doom-loop-check` header, trigger parsing, and confident-signal resampling, all applied by the sampler.
     /// Merged PER-FIELD across the `[doom_loop_recovery]` TOML table and the remote settings `doom_loop_recovery` object.
     /// A partial remote object only overrides the fields it sets.
     /// Gate precedence: env `GROK_DOOM_LOOP_RECOVERY` > TOML `enabled` > remote `enabled` > default ON.
@@ -2641,7 +2641,7 @@ impl Config {
             .resolve()
     }
     /// Precedence: env `GROK_IMAGE_GEN_MODEL_OVERRIDE` > `[features] image_gen_model_override` config > remote settings `image_gen_model_override`.
-    /// `None` falls back to the default model (`grok-imagine-image-quality`).
+    /// `None` falls back to the default model (`xvora-imagine-image-quality`).
     pub(crate) fn resolve_image_gen_model_override(&self) -> Option<String> {
         resolve_string_flag(
             None,
@@ -2678,7 +2678,7 @@ impl Config {
             .default(true)
             .resolve()
     }
-    /// Background workflows (`workflow` tool, `.grok/workflows/*.rhai`, `/deep-research`, host-owned `/goal` driver).
+    /// Background workflows (`workflow` tool, `.xvora/workflows/*.rhai`, `/deep-research`, host-owned `/goal` driver).
     /// Default ON: deployments that never receive remote settings still get workflows; `Some(false)` remote / config / env remains a kill-switch.
     pub(crate) fn resolve_workflows(&self) -> Resolved<bool> {
         let ff = self
@@ -2930,7 +2930,7 @@ impl Config {
                 .and_then(|r| r.compaction_detail.as_deref()),
         )
     }
-    /// Resolve whether to use grok's default OAuth2 (xAI auth.x.ai).
+    /// Resolve whether to use xvora's default OAuth2 (xAI auth.x.ai).
     ///
     /// Enterprise OIDC (`oidc` in config.toml) always wins; this only gates the default xAI OAuth2 fallback when no enterprise OIDC is configured.
     ///
@@ -3196,11 +3196,11 @@ fn error_reporting_enabled_from_toml(root: &toml::Value) -> Option<bool> {
 fn grok_telemetry_env_enabled() -> Option<bool> {
     env_telemetry_mode("GROK_TELEMETRY_ENABLED").map(|m| !m.is_disabled())
 }
-/// Load `~/.grok/requirements.toml` standalone so the admin pin can beat
+/// Load `~/.xvora/requirements.toml` standalone so the admin pin can beat
 /// env vars.
 /// The merged config layer can't express that: last-merge-wins loses provenance.
 pub(crate) fn read_requirements_toml() -> Option<toml::Value> {
-    let path = crate::util::grok_home::grok_home().join("requirements.toml");
+    let path = crate::util::xvora_home::xvora_home().join("requirements.toml");
     let content = std::fs::read_to_string(&path).ok()?;
     toml::from_str(&content).ok()
 }
@@ -3290,7 +3290,7 @@ fn telemetry_otel_file_config(t: &toml::Value) -> telemetry::external::ExternalO
 ///
 /// Layering follows `resolve_telemetry_mode`: **requirement > env > config > remote > default**.
 /// The `[telemetry]` `otel_*` keys from the effective config sit under the env vars.
-/// That config already includes managed-config layers distributed by `grok setup`.
+/// That config already includes managed-config layers distributed by `xvora setup`.
 /// Requirements pins are applied on top, and the remote layer is restrictive-only and asynchronous ([`apply_external_otel_remote_policy`]).
 pub fn resolve_external_otel_config(
     client: telemetry::external::config::ExternalClientInfo,
@@ -3837,7 +3837,7 @@ pub struct ModelEntryConfig {
     #[serde(default, skip_serializing_if = "is_false")]
     pub use_concise: bool,
     /// The type of system prompt to use for this model.
-    /// e.g. "grok-build", "codex".
+    /// e.g. "xvora-build", "codex".
     #[serde(default = "default_agent_type")]
     pub agent_type: String,
     /// Maximum seconds to wait between SSE chunks during inference streaming.
@@ -4072,7 +4072,7 @@ pub struct ModelInfo {
     /// Provider family that mints this model's conversation items (e.g. "xvora"); `None` means unknown.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub model_family: Option<String>,
-    /// The base URL of the model (session endpoint). e.g. "https://cli-chat-proxy.grok.com/v1"
+    /// The base URL of the model (session endpoint). e.g. "https://cli-chat-proxy.xvora.com/v1"
     pub base_url: String,
     /// Human-readable name of the model.
     /// Honored by both the picker (`/model`) and `/session-info`: when set, that's the label shown to users in either consumer.
@@ -4097,7 +4097,7 @@ pub struct ModelInfo {
     pub system_prompt_label: Option<String>,
     /// When true, this model uses concise mode (compact system prompt, concise tool output, concise user message prefix, reduced toolset).
     pub use_concise: bool,
-    /// Always has a value; defaults to `"grok-build-plan"` when the server or user config doesn't specify one.
+    /// Always has a value; defaults to `"xvora-build-plan"` when the server or user config doesn't specify one.
     #[serde(default = "default_agent_type")]
     pub agent_type: String,
     /// Per-chunk idle timeout for inference streaming (see `ModelEntryConfig`).
@@ -4521,7 +4521,7 @@ pub struct Features {
     /// Default: true (index any git repo). Patterns can explicitly match non-git directories.
     #[serde(default)]
     pub codebase_indexing: CodebaseIndexingSetting,
-    /// Show a blocking warning when Grok starts outside a Git repository.
+    /// Show a blocking warning when xvora starts outside a Git repository.
     /// Default: false.
     /// Used as the local fallback when the `non_git_warning` remote settings flag in `grok_build_settings` is absent.
     /// When the remote flag is present it takes precedence: `Some(false)` from remote settings overrides `true` here.
@@ -4541,7 +4541,7 @@ pub struct Features {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub video_gen: Option<bool>,
     /// `image_gen` Imagine model override.
-    /// `None`/empty defers to remote settings (`image_gen_model_override`) / env / default (`grok-imagine-image-quality`).
+    /// `None`/empty defers to remote settings (`image_gen_model_override`) / env / default (`xvora-imagine-image-quality`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub image_gen_model_override: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -4599,14 +4599,14 @@ pub struct Features {
     /// This field is declared so `serde_ignored` does not report the key as unrecognized.
     ///
     /// Practical consequence: setting `[features] mcp_push_server_status = false` in
-    /// `~/.grok/config.toml` will NOT disable the pager's
+    /// `~/.xvora/config.toml` will NOT disable the pager's
     /// subscription on a freshly-launched process.
     /// To disable the pager subscription, set `GROK_MCP_PUSH_SERVER_STATUS=0` in the env before launch.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub mcp_push_server_status: Option<bool>,
-    /// Whether the leader's `ConfigFileWatcher` adds the two narrow non-recursive watches for `<cwd>/` and `<cwd>/.grok/`.
+    /// Whether the leader's `ConfigFileWatcher` adds the two narrow non-recursive watches for `<cwd>/` and `<cwd>/.xvora/`.
     ///
-    /// When `true` (default), the watcher sees edits to `<cwd>/.mcp.json`, `<cwd>/.grok/config.toml`, or `<cwd>/.claude.json`.
+    /// When `true` (default), the watcher sees edits to `<cwd>/.mcp.json`, `<cwd>/.xvora/config.toml`, or `<cwd>/.claude.json`.
     /// The reloader turns them into `ConfigUpdate::ProjectMcpServersChanged { cwd }` for the `app.rs` ACP-injection pipeline.
     /// The affected sessions then reload their MCP servers within the debounce window (about 1 s).
     /// When `false`, the leader skips the cwd watches entirely.
@@ -5015,7 +5015,7 @@ pub(crate) fn stamp_session_local_sampler_fields(
 ///
 /// On aux resolve `Some`, stamp session-local fields onto the helper config.
 /// On `None`, fall back to the active session model and full config.
-/// That avoids forcing `image_description_model` onto the agent endpoint, which 404s on BYOK / non-proxy routes for internal slugs like `grok-build`.
+/// That avoids forcing `image_description_model` onto the agent endpoint, which 404s on BYOK / non-proxy routes for internal slugs like `xvora-build`.
 pub(crate) fn finalize_image_describe_sampler_config(
     resolved_aux: Option<SamplerConfig>,
     active_session_config: &SamplerConfig,

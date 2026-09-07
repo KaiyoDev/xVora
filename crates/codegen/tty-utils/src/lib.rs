@@ -431,7 +431,7 @@ fn bind_to_parent_death(
 /// Bind the child's lifetime to the spawning process: on Linux the kernel
 /// delivers `SIGTERM` to the child when the parent dies
 /// (`PR_SET_PDEATHSIG`), so helper processes cannot outlive a crashed or
-/// killed grok and pile up on shared hosts. No-op on non-Linux platforms
+/// killed xvora and pile up on shared hosts. No-op on non-Linux platforms
 /// (macOS and Windows have no pdeathsig equivalent).
 ///
 /// **Caveat: pdeathsig binds to the death of the spawning *thread*, not
@@ -485,7 +485,7 @@ pub fn kill_on_parent_death_std_with(cmd: &mut std::process::Command, signal: li
 ///
 /// This is the child-side variant of [`kill_on_parent_death_std`] for protocol
 /// servers whose parents are not spawned from this workspace (IDE clients,
-/// the agent SDKs, `grok-desktop` all spawn `grok agent … stdio`): the
+/// the agent SDKs, `xvora-desktop` all spawn `xvora agent … stdio`): the
 /// child arms the binding itself at startup instead of relying on every
 /// external spawner to.
 ///

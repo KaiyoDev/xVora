@@ -42,7 +42,7 @@ pub(crate) struct ModelsCacheManager {
 impl ModelsCacheManager {
     pub(crate) fn new() -> Self {
         Self {
-            path: crate::util::grok_home::grok_home().join(MODELS_CACHE_FILE),
+            path: crate::util::xvora_home::xvora_home().join(MODELS_CACHE_FILE),
             ttl: CACHE_TTL,
         }
     }

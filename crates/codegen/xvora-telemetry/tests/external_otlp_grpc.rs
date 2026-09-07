@@ -46,9 +46,9 @@ fn external_stream_grpc_end_to_end() {
     });
     telemetry::log_event(telemetry::events::SessionHarness {
         session_id: "sess-grpc-1".into(),
-        client_identifier: Some("grok-pager".into()),
-        model_id: "grok-4".into(),
-        agent_name: "grok-build-plan".into(),
+        client_identifier: Some("xvora-pager".into()),
+        model_id: "xvora-4".into(),
+        agent_name: "xvora-build-plan".into(),
         permission_mode: telemetry::enums::PermissionMode::Ask,
         mcp_server_names: vec![CANARY_MCP.into()],
         plugin_names: vec![],
@@ -63,7 +63,7 @@ fn external_stream_grpc_end_to_end() {
     });
     telemetry::log_event(telemetry::events::PromptSubmitted {
         prompt_length: CANARY_PROMPT.len(),
-        model_id: "grok-4".into(),
+        model_id: "xvora-4".into(),
         client_identifier: None,
         screen_mode: None,
         prompt_text: Some(CANARY_PROMPT.into()),

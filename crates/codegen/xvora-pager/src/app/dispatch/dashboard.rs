@@ -209,7 +209,7 @@ pub(super) fn dispatch_open_dashboard(app: &mut AppView) -> Vec<Effect> {
             return vec![];
         }
         app.workspace_store_loading = true;
-        let db_path = dashboard_store::default_db_path(&config::grok_home());
+        let db_path = dashboard_store::default_db_path(&config::xvora_home());
         return vec![Effect::LoadWorkspaceSnapshot { db_path }];
     }
     app.dashboard_sessions_loading = true;
@@ -1264,7 +1264,7 @@ pub(super) fn dispatch_dashboard_dispatch_slash(app: &mut AppView, text: String)
             if let Some(d) = app.dashboard.as_mut() {
                 d.dispatch.set_text("");
                 d.set_error_toast(&format!(
-                    "/{token} requires SuperGrok: upgrade at {}",
+                    "/{token} requires a paid subscription: upgrade at {}",
                     super::billing::UPSELL_URL_UPGRADE
                 ));
             }

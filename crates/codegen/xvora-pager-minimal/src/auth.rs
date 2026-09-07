@@ -188,7 +188,7 @@ pub(super) fn render_auth(buf: &mut Buffer, area: Rect, theme: &Theme, hint: &Mi
                 area,
                 y,
                 bottom,
-                Line::from(Span::styled("Sign in to Grok", bold)),
+                Line::from(Span::styled("Sign in to xvora", bold)),
             );
             y = put_line(buf, area, y, bottom, Line::default());
             match url {
@@ -295,7 +295,7 @@ pub(super) fn render_auth(buf: &mut Buffer, area: Rect, theme: &Theme, hint: &Mi
                 y,
                 bottom,
                 Line::from(Span::styled(
-                    "Grok Build may run or modify contents in this directory,",
+                    "xvora build may run or modify contents in this directory,",
                     gray,
                 )),
             );
@@ -467,7 +467,7 @@ mod tests {
         };
         render_auth(&mut buf, area, &theme, &hint);
         let text = buffer_text(&buf, area);
-        assert!(text.contains("Sign in to Grok"), "header: {text:?}");
+        assert!(text.contains("Sign in to xvora"), "header: {text:?}");
         assert!(text.contains("accounts.x.ai/device"), "url: {text:?}");
         assert!(text.contains("ABCD-EFGH"), "device code: {text:?}");
         assert!(

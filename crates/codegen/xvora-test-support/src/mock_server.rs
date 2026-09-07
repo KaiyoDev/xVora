@@ -1272,8 +1272,8 @@ mod tests {
     ) -> reqwest::Response {
         reqwest::Client::new()
             .post(endpoint_url(server, endpoint))
-            .header("x-grok-req-id", request_id)
-            .header("x-grok-turn-idx", "1")
+            .header("x-xvora-req-id", request_id)
+            .header("x-xvora-turn-idx", "1")
             .json(&foreground_body(endpoint, content))
             .send()
             .await
@@ -1303,8 +1303,8 @@ mod tests {
     ) -> (reqwest::StatusCode, String) {
         let response = reqwest::Client::new()
             .post(endpoint_url(server, endpoint))
-            .header("x-grok-req-id", request_id)
-            .header("x-grok-turn-idx", "1")
+            .header("x-xvora-req-id", request_id)
+            .header("x-xvora-turn-idx", "1")
             .json(&body)
             .send()
             .await
@@ -1320,22 +1320,22 @@ mod tests {
         let body = foreground_body(InferenceEndpoint::ChatCompletions, "title");
 
         let mut headers = HeaderMap::new();
-        headers.insert("x-grok-req-id", "title-request".parse().unwrap());
+        headers.insert("x-xvora-req-id", "title-request".parse().unwrap());
         assert!(
             !overrides
                 .classify(InferenceEndpoint::ChatCompletions, &headers, &body)
                 .is_foreground()
         );
 
-        headers.insert("x-grok-turn-idx", "1".parse().unwrap());
+        headers.insert("x-xvora-turn-idx", "1".parse().unwrap());
         assert!(
             overrides
                 .classify(InferenceEndpoint::ChatCompletions, &headers, &body)
                 .is_foreground()
         );
 
-        headers.insert("x-grok-req-id", "".parse().unwrap());
-        headers.insert("x-grok-turn-idx", "".parse().unwrap());
+        headers.insert("x-xvora-req-id", "".parse().unwrap());
+        headers.insert("x-xvora-turn-idx", "".parse().unwrap());
         assert!(
             overrides
                 .classify(InferenceEndpoint::ChatCompletions, &headers, &body)
@@ -1561,8 +1561,8 @@ mod tests {
             async move {
                 let response = reqwest::Client::new()
                     .post(url)
-                    .header("x-grok-req-id", "turn-id")
-                    .header("x-grok-turn-idx", "1")
+                    .header("x-xvora-req-id", "turn-id")
+                    .header("x-xvora-turn-idx", "1")
                     .json(&body)
                     .send()
                     .await
@@ -1700,8 +1700,8 @@ mod tests {
             async move {
                 reqwest::Client::new()
                     .post(url)
-                    .header("x-grok-req-id", "cancel-replay")
-                    .header("x-grok-turn-idx", "1")
+                    .header("x-xvora-req-id", "cancel-replay")
+                    .header("x-xvora-turn-idx", "1")
                     .json(&body)
                     .send()
                     .await

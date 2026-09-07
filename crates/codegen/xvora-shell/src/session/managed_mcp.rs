@@ -235,7 +235,7 @@ pub(crate) fn merge_managed_mcp_servers_sourced(
     let toml_claimed_names = crate::util::config::all_toml_mcp_server_names(cwd);
 
     let config_source = ConfigSource::ConfigToml {
-        path: tools::util::grok_home::grok_home().join("config.toml"),
+        path: tools::util::xvora_home::xvora_home().join("config.toml"),
     };
 
     // Use the TOML-only loader so that entries from imported editor configs and .mcp.json are not pre-loaded with ConfigSource::ConfigToml
@@ -617,9 +617,9 @@ mod tests {
     fn toml_claim_survives_when_client_cursor_insert_skipped() {
         let cwd = empty_cwd();
         write_cursor_project_mcp(cwd.path(), "killswitch-cache");
-        std::fs::create_dir_all(cwd.path().join(".grok")).unwrap();
+        std::fs::create_dir_all(cwd.path().join(".xvora")).unwrap();
         std::fs::write(
-            cwd.path().join(".grok").join("config.toml"),
+            cwd.path().join(".xvora").join("config.toml"),
             r#"
 [mcp_servers.killswitch-cache]
 command = "echo"
@@ -895,9 +895,9 @@ args = ["ok"]
     #[test]
     fn lower_precedence_http_servers_are_blocked_by_toml_name_claims() {
         let cwd = tempfile::tempdir().unwrap();
-        std::fs::create_dir_all(cwd.path().join(".grok")).unwrap();
+        std::fs::create_dir_all(cwd.path().join(".xvora")).unwrap();
         std::fs::write(
-            cwd.path().join(".grok").join("config.toml"),
+            cwd.path().join(".xvora").join("config.toml"),
             r#"
 [mcp_servers.github]
 url = "https://config.example.com/mcp"
@@ -933,9 +933,9 @@ enabled = false
     /// This mirrors a real setup: one ClickHouse endpoint, two orgs.
     fn same_url_project_repo() -> tempfile::TempDir {
         let cwd = empty_cwd();
-        std::fs::create_dir_all(cwd.path().join(".grok")).unwrap();
+        std::fs::create_dir_all(cwd.path().join(".xvora")).unwrap();
         std::fs::write(
-            cwd.path().join(".grok").join("config.toml"),
+            cwd.path().join(".xvora").join("config.toml"),
             r#"
 [mcp_servers.gb5207-org1]
 url = "https://dup-url.example.test/mcp"
@@ -1061,8 +1061,8 @@ Authorization = "Bearer org2-token"
         let (servers, _) = load_plugin_mcp_servers_from_config(
             &config,
             "team-tool",
-            "/home/user/.grok/plugins/team-tool",
-            "/home/user/.grok/plugin-data/team-tool",
+            "/home/user/.xvora/plugins/team-tool",
+            "/home/user/.xvora/plugin-data/team-tool",
         );
 
         assert_eq!(servers.len(), 1, "should create one server");
@@ -1077,7 +1077,7 @@ Authorization = "Bearer org2-token"
                 assert_eq!(command.display().to_string(), "python3");
                 assert_eq!(
                     args.as_slice(),
-                    &["/home/user/.grok/plugins/team-tool/mcp-echo-server.py"]
+                    &["/home/user/.xvora/plugins/team-tool/mcp-echo-server.py"]
                 );
             }
             _other => panic!("expected Stdio server"),

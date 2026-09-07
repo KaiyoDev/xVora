@@ -222,7 +222,7 @@ pub(crate) fn execute_create_worktree(plan: WorktreePlan) -> Result<CreateWorktr
     Ok(result)
 }
 
-/// Record the source repo root in `<worktree>/.git/grok-worktree-source`.
+/// Record the source repo root in `<worktree>/.git/xvora-worktree-source`.
 ///
 /// A standalone worktree is an independent repo whose `.git` is a directory:
 /// nothing inside it points back to the source, so consumers like `.envrc`
@@ -236,7 +236,7 @@ fn record_main_repo_marker(source: &Path, worktree: &Path) {
     if !git_dir.is_dir() {
         return;
     }
-    let marker = git_dir.join("grok-worktree-source");
+    let marker = git_dir.join("xvora-worktree-source");
     if marker.exists() {
         return;
     }
@@ -1823,7 +1823,7 @@ mod tests {
 
         record_main_repo_marker(&source, &dest);
 
-        let marker = dest.join(".git/grok-worktree-source");
+        let marker = dest.join(".git/xvora-worktree-source");
         let recorded = std::fs::read_to_string(&marker).expect("marker should be written");
         assert!(
             Path::new(recorded.trim()).join(".git").is_dir(),
@@ -1842,7 +1842,7 @@ mod tests {
 
         record_main_repo_marker(&source, &dest);
 
-        assert!(!dest.join(".git/grok-worktree-source").exists());
+        assert!(!dest.join(".git/xvora-worktree-source").exists());
     }
 
     #[test]
@@ -1855,7 +1855,7 @@ mod tests {
 
         let dest = tmp.path().join("dest");
         std::fs::create_dir_all(dest.join(".git")).unwrap();
-        let marker = dest.join(".git/grok-worktree-source");
+        let marker = dest.join(".git/xvora-worktree-source");
         std::fs::write(&marker, "/the/ultimate/main/repo").unwrap();
 
         record_main_repo_marker(&source, &dest);

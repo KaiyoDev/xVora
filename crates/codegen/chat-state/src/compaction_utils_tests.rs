@@ -2763,7 +2763,7 @@ fn verbatim_reasoning_kept_unless_messages_backend() {
     assert!(
         kept.iter()
             .any(|i| matches!(i, ConversationItem::Reasoning(_))),
-        "reasoning must be kept when strip_reasoning = false (Grok backends)"
+        "reasoning must be kept when strip_reasoning = false (xvora backends)"
     );
     let stripped = prepare_conversation_for_verbatim_summarization(mk(), true);
     assert!(

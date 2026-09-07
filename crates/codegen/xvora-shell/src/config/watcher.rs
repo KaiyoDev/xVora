@@ -66,9 +66,9 @@ fn new_filtered_debouncer<F: notify_debouncer_mini::DebounceEventHandler>(
 pub enum ConfigChangeEvent {
     AuthChanged,
     GlobalConfigChanged,
-    /// `~/.grok/models_cache.json` changed — the on-disk `/v1/models`
-    /// catalog cache was rewritten, possibly by **another** grok process
-    /// sharing the same `~/.grok` (the writer may also be this process;
+    /// `~/.xvora/models_cache.json` changed — the on-disk `/v1/models`
+    /// catalog cache was rewritten, possibly by **another** xvora process
+    /// sharing the same `~/.xvora` (the writer may also be this process;
     /// the [`ModelsManager`](crate::agent::models::ModelsManager) dedupes
     /// by content before applying).
     ModelsCacheChanged,
@@ -87,8 +87,8 @@ pub enum ConfigChangeEvent {
     HomeClaudeJsonChanged,
 }
 
-/// Watches `~/.grok/` for `auth.json`, `config.toml`, and `models_cache.json`
-/// changes, plus any extra paths (project `.grok/config.toml`, `.mcp.json`, etc.) provided at startup.
+/// Watches `~/.xvora/` for `auth.json`, `config.toml`, and `models_cache.json`
+/// changes, plus any extra paths (project `.xvora/config.toml`, `.mcp.json`, etc.) provided at startup.
 ///
 /// Uses `notify-debouncer-mini` for built-in debounce that coalesces rapid editor writes (including write-then-rename patterns).
 ///
@@ -96,10 +96,10 @@ pub enum ConfigChangeEvent {
 /// When the agent writes `auth.json` or `config.toml`, the watcher fires and the [`ConfigReloader`](super::reloader::ConfigReloader) re-reads it.
 /// The reloader's own content-based deduplication (auth key hash, toml value comparison) skips the update when nothing actually changed.
 /// The redundant read is therefore harmless.
-/// This avoids bugs where an optimistic suppression window swallows writes from external processes (e.g. `grok login` in another terminal).
+/// This avoids bugs where an optimistic suppression window swallows writes from external processes (e.g. `xvora login` in another terminal).
 ///
 /// Adds two **non-recursive** watches per `cwd` argument.
-/// `<cwd>/` catches `.mcp.json` and `.claude.json` at the project root; `<cwd>/.grok/` catches `<cwd>/.grok/config.toml`.
+/// `<cwd>/` catches `.mcp.json` and `.claude.json` at the project root; `<cwd>/.xvora/` catches `<cwd>/.xvora/config.toml`.
 /// Recursing on `<cwd>` would walk `node_modules/`, `target/`, `.git/`, etc. and blow through `fs.inotify.max_user_watches` on large repos.
 /// Use [`Self::watch_path`] to register additional cwds at runtime when new sessions open in previously-unwatched directories.
 pub struct ConfigFileWatcher {
@@ -114,17 +114,17 @@ pub struct ConfigFileWatcher {
 impl ConfigFileWatcher {
     /// Start watching. Returns `None` if the OS watcher fails to initialize.
     ///
-    /// `cwd`, when `Some`, adds two non-recursive watches: `<cwd>/` and `<cwd>/.grok/`.
+    /// `cwd`, when `Some`, adds two non-recursive watches: `<cwd>/` and `<cwd>/.xvora/`.
     /// Use [`Self::watch_path`] later to register additional project cwds for sessions that open in previously-unwatched directories.
     pub fn start(
-        grok_home: &Path,
+        xvora_home: &Path,
         extra_paths: &[PathBuf],
         cwd: Option<&Path>,
         debounce: Option<Duration>,
     ) -> Option<(Self, mpsc::UnboundedReceiver<ConfigChangeEvent>)> {
         let debounce = debounce.unwrap_or(DEFAULT_DEBOUNCE);
         let (tx, rx) = mpsc::unbounded_channel();
-        let grok_home_buf = grok_home.to_path_buf();
+        let grok_home_buf = xvora_home.to_path_buf();
         // `~/.claude.json` is consumed by **every** session (see `load_claude_json_mcp_servers_as_configs`)
         // A write to it must broadcast through the unit `McpServersChanged` arm, NOT the per-cwd `ProjectMcpServersChanged { cwd: $HOME }` arm
         // `cwd_matches` would silently filter the per-cwd arm for sessions outside `$HOME`
@@ -189,12 +189,12 @@ impl ConfigFileWatcher {
 
         debouncer
             .watcher()
-            .watch(grok_home, RecursiveMode::NonRecursive)
+            .watch(xvora_home, RecursiveMode::NonRecursive)
             .map_err(|e| {
                 tracing::warn!(
-                    path = %grok_home.display(),
+                    path = %xvora_home.display(),
                     error = %e,
-                    "failed to watch grok home directory"
+                    "failed to watch xvora home directory"
                 )
             })
             .ok()?;
@@ -211,7 +211,7 @@ impl ConfigFileWatcher {
         // A missing directory just means the corresponding files don't exist yet; `watch_path` picks them up on the next session opening in this cwd
         //
         // The leader's own cwd may also be covered by `extra_paths`
-        // `find_project_configs(cwd)` already includes `<cwd>/.grok/config.toml`, so the loop above watches `<cwd>/.grok/`
+        // `find_project_configs(cwd)` already includes `<cwd>/.xvora/config.toml`, so the loop above watches `<cwd>/.xvora/`
         // The call below then installs a duplicate watch on the same directory
         // `notify` dedupes silently in its `RecommendedWatcher` (last-write-wins for the recursion mode), so this is cosmetic
         // Both additions remain non-recursive, so events are not amplified
@@ -222,7 +222,7 @@ impl ConfigFileWatcher {
         }
 
         tracing::info!(
-            grok_home = %grok_home.display(),
+            xvora_home = %xvora_home.display(),
             extra_paths = extra_paths.len(),
             cwd = ?cwd,
             debounce_ms = debounce.as_millis(),
@@ -238,10 +238,10 @@ impl ConfigFileWatcher {
         ))
     }
 
-    /// Register `<cwd>/` and `<cwd>/.grok/` as **non-recursive** watch targets, in addition to whatever was passed to [`Self::start`].
+    /// Register `<cwd>/` and `<cwd>/.xvora/` as **non-recursive** watch targets, in addition to whatever was passed to [`Self::start`].
     ///
     /// Intended for the session-open path, when a session opens in a cwd the leader hasn't seen before.
-    /// It ensures edits to `<cwd>/.mcp.json` and `<cwd>/.grok/config.toml` trigger a [`ConfigChangeEvent`] within the debounce window.
+    /// It ensures edits to `<cwd>/.mcp.json` and `<cwd>/.xvora/config.toml` trigger a [`ConfigChangeEvent`] within the debounce window.
     /// Downstream that raises [`ConfigUpdate::ProjectMcpServersChanged`](super::reloader::ConfigUpdate::ProjectMcpServersChanged).
     ///
     /// **Non-recursive by design.** Watching `<cwd>` recursively would walk `node_modules/`, `target/`, `.git/`, etc.
@@ -259,7 +259,7 @@ impl ConfigFileWatcher {
         self.watched_cwds.insert(cwd.to_path_buf());
     }
 
-    /// Remove the two non-recursive watches (`<cwd>/` and `<cwd>/.grok/`) previously registered for `cwd` via [`Self::start`] / [`Self::watch_path`].
+    /// Remove the two non-recursive watches (`<cwd>/` and `<cwd>/.xvora/`) previously registered for `cwd` via [`Self::start`] / [`Self::watch_path`].
     ///
     /// Best-effort and idempotent: a `cwd` that was never registered (or already unwatched) is a no-op.
     /// Intended for the session-teardown path.
@@ -289,22 +289,22 @@ fn parent_is_dir(parent: Option<&Path>, dir: &Path) -> bool {
 /// Both watches are best-effort and log-and-continue on failure (missing directory, quota exhausted, permission denied, etc.).
 /// The caller has no reasonable recovery path beyond the existing user-triggered refresh.
 ///
-/// **Known limitation:** if `<cwd>/.grok/` does not yet exist at session-open time, the `.grok/` watch fails ENOENT and is swallowed at `debug!`.
-/// A later `mkdir <cwd>/.grok/` followed by a write to `<cwd>/.grok/config.toml` will NOT be observed.
+/// **Known limitation:** if `<cwd>/.xvora/` does not yet exist at session-open time, the `.xvora/` watch fails ENOENT and is swallowed at `debug!`.
+/// A later `mkdir <cwd>/.xvora/` followed by a write to `<cwd>/.xvora/config.toml` will NOT be observed.
 /// The `<cwd>/` watch is non-recursive, so creating a subdirectory doesn't trigger a watch-add.
 /// A robust fix would re-attempt the watch when the parent directory is created; nothing does that today.
 fn watch_cwd_dirs(debouncer: &mut Debouncer<AccessFilteredWatcher>, cwd: &Path) {
     if let Err(e) = debouncer.watcher().watch(cwd, RecursiveMode::NonRecursive) {
         log_watch_error(&e, "failed to watch project cwd (non-recursive)");
     }
-    let grok_dir = cwd.join(".grok");
+    let grok_dir = cwd.join(".xvora");
     if let Err(e) = debouncer
         .watcher()
         .watch(&grok_dir, RecursiveMode::NonRecursive)
     {
         log_watch_error(
             &e,
-            "failed to watch project .grok directory (non-recursive)",
+            "failed to watch project .xvora directory (non-recursive)",
         );
     }
 }
@@ -315,14 +315,14 @@ fn unwatch_cwd_dirs(debouncer: &mut Debouncer<AccessFilteredWatcher>, cwd: &Path
     if let Err(e) = debouncer.watcher().unwatch(cwd) {
         tracing::debug!(error = %e, "failed to unwatch project cwd");
     }
-    let grok_dir = cwd.join(".grok");
+    let grok_dir = cwd.join(".xvora");
     if let Err(e) = debouncer.watcher().unwatch(&grok_dir) {
-        tracing::debug!(error = %e, "failed to unwatch project .grok directory");
+        tracing::debug!(error = %e, "failed to unwatch project .xvora directory");
     }
 }
 
 /// Log a `notify` watch failure at a level matching its severity.
-/// "Directory doesn't exist yet" is benign and logs at `debug!`; it's expected for a freshly-opened session whose `<cwd>/.grok/` hasn't been created.
+/// "Directory doesn't exist yet" is benign and logs at `debug!`; it's expected for a freshly-opened session whose `<cwd>/.xvora/` hasn't been created.
 /// Actionable failures like `fs.inotify.max_user_watches` exhaustion or permission denied log at `warn!`, since live edits will be silently missed.
 fn log_watch_error(err: &notify::Error, msg: &str) {
     let not_found = matches!(err.kind, notify::ErrorKind::PathNotFound)
@@ -369,11 +369,11 @@ fn discovery_change_for_path(path: &Path) -> Option<DiscoveryChange> {
 }
 
 /// Known vendor config root basenames; kept in sync with `collect_skill_config_dirs`.
-const VENDOR_CONFIG_ROOT_NAMES: &[&str] = &[".grok", ".agents", ".claude", ".cursor"];
+const VENDOR_CONFIG_ROOT_NAMES: &[&str] = &[".xvora", ".agents", ".claude", ".cursor"];
 
-/// Vendor roots (by name or `grok_home`) must use scoped watches; they can contain large non-skill trees (`worktrees/`, etc.).
-fn is_vendor_config_root(dir: &Path, grok_home: &Path) -> bool {
-    if paths_equal(dir, grok_home) {
+/// Vendor roots (by name or `xvora_home`) must use scoped watches; they can contain large non-skill trees (`worktrees/`, etc.).
+fn is_vendor_config_root(dir: &Path, xvora_home: &Path) -> bool {
+    if paths_equal(dir, xvora_home) {
         return true;
     }
     dir.file_name()
@@ -406,7 +406,7 @@ fn vendor_skill_refresh_dirs(config_dir: &Path) -> [(PathBuf, RecursiveMode); 3]
 }
 
 fn project_grok_refresh_dirs(project_root: &Path) -> Vec<(PathBuf, RecursiveMode)> {
-    let project_grok = project_root.join(".grok");
+    let project_grok = project_root.join(".xvora");
     let mut dirs = vec![(project_grok.clone(), RecursiveMode::NonRecursive)];
     dirs.extend(vendor_skill_refresh_dirs(&project_grok));
     dirs
@@ -475,7 +475,7 @@ struct SkillsWatchPlan {
 /// Pure function: classifies discovery roots and seeds mid-session refresh targets.
 fn plan_skills_watch_targets(
     dirs_to_watch: &[PathBuf],
-    grok_home: &Path,
+    xvora_home: &Path,
     project_root: Option<&Path>,
 ) -> SkillsWatchPlan {
     let mut vendor_roots = Vec::new();
@@ -483,7 +483,7 @@ fn plan_skills_watch_targets(
     let mut refresh_dirs = Vec::new();
 
     for dir in dirs_to_watch {
-        if is_vendor_config_root(dir, grok_home) {
+        if is_vendor_config_root(dir, xvora_home) {
             vendor_roots.push(dir.clone());
             refresh_dirs.extend(vendor_skill_refresh_dirs(dir));
         } else {
@@ -515,7 +515,7 @@ fn plan_skills_watch_targets(
     }
 }
 
-/// Watches project `.grok` skills/commands/workflows for mid-session discovery.
+/// Watches project `.xvora` skills/commands/workflows for mid-session discovery.
 ///
 /// After a [`DiscoveryChange`], call [`Self::refresh_new_dirs`] so newly created seed dirs get watches attached.
 pub(crate) struct ProjectDiscoveryWatcher {
@@ -527,7 +527,7 @@ pub(crate) struct ProjectDiscoveryWatcher {
 impl ProjectDiscoveryWatcher {
     pub(crate) fn start(cwd: &Path) -> Option<(Self, mpsc::UnboundedReceiver<DiscoveryChange>)> {
         let project_root = crate::session::workflow::registry::project_root(cwd);
-        let project_grok = project_root.join(".grok");
+        let project_grok = project_root.join(".xvora");
         let (tx, rx) = mpsc::unbounded_channel();
         let project_grok_for_events = project_grok.clone();
         let mut debouncer =
@@ -610,7 +610,7 @@ impl SkillsFileWatcher {
         monorepo_user_dir: Option<&Path>,
         config_paths: &[String],
     ) -> Option<(Self, mpsc::UnboundedReceiver<DiscoveryChange>)> {
-        let grok_home = tools::util::grok_home::grok_home();
+        let xvora_home = tools::util::xvora_home::xvora_home();
         // Watch the full superset of vendor dirs (all-on compat)
         // This watcher is shared by the whole leader; per-session compat isn't resolved here, and the discovery gating happens downstream
         // Watching a currently-disabled vendor dir is harmless: a change just re-runs the gated discovery
@@ -618,12 +618,12 @@ impl SkillsFileWatcher {
         let dirs_to_watch = agent::prompt::skills::collect_skill_config_dirs(
             cwd,
             monorepo_user_dir,
-            &grok_home,
+            &xvora_home,
             config_paths,
             tools::types::compat::CompatConfig::default(),
         );
         let project_root = cwd.map(crate::session::workflow::registry::project_root);
-        Self::start_with_dirs(&dirs_to_watch, &grok_home, project_root.as_deref())
+        Self::start_with_dirs(&dirs_to_watch, &xvora_home, project_root.as_deref())
     }
 
     /// Start with explicit discovery roots (benches and isolated tests).
@@ -632,7 +632,7 @@ impl SkillsFileWatcher {
     /// After a [`DiscoveryChange`], call [`Self::refresh_new_discovery_dirs`].
     pub fn start_with_dirs(
         dirs_to_watch: &[PathBuf],
-        grok_home: &Path,
+        xvora_home: &Path,
         project_root: Option<&Path>,
     ) -> Option<(Self, mpsc::UnboundedReceiver<DiscoveryChange>)> {
         let (tx, rx) = mpsc::unbounded_channel();
@@ -658,7 +658,7 @@ impl SkillsFileWatcher {
             .map_err(|e| tracing::warn!(error = %e, "failed to create skills file watcher"))
             .ok()?;
 
-        let plan = plan_skills_watch_targets(dirs_to_watch, grok_home, project_root);
+        let plan = plan_skills_watch_targets(dirs_to_watch, xvora_home, project_root);
 
         let mut watched = 0;
         let mut refreshed_dirs = HashSet::new();
@@ -735,29 +735,29 @@ mod tests {
     fn is_vendor_config_root_matches_known_names_at_any_tier() {
         let home = TempDir::new().unwrap();
         let home = home.path();
-        let grok_home = home.join(".grok");
+        let xvora_home = home.join(".xvora");
 
-        assert!(is_vendor_config_root(&grok_home, &grok_home));
-        assert!(is_vendor_config_root(&home.join(".claude"), &grok_home));
-        assert!(is_vendor_config_root(&home.join(".cursor"), &grok_home));
-        assert!(is_vendor_config_root(&home.join(".agents"), &grok_home));
+        assert!(is_vendor_config_root(&xvora_home, &xvora_home));
+        assert!(is_vendor_config_root(&home.join(".claude"), &xvora_home));
+        assert!(is_vendor_config_root(&home.join(".cursor"), &xvora_home));
+        assert!(is_vendor_config_root(&home.join(".agents"), &xvora_home));
         assert!(is_vendor_config_root(
-            &home.join("repo").join(".grok"),
-            &grok_home
+            &home.join("repo").join(".xvora"),
+            &xvora_home
         ));
         assert!(is_vendor_config_root(
             &home.join("repo").join(".claude"),
-            &grok_home
+            &xvora_home
         ));
 
-        assert!(!is_vendor_config_root(&home.join("my-skills"), &grok_home));
-        assert!(!is_vendor_config_root(&home.join(".config"), &grok_home));
+        assert!(!is_vendor_config_root(&home.join("my-skills"), &xvora_home));
+        assert!(!is_vendor_config_root(&home.join(".config"), &xvora_home));
         assert!(!is_vendor_config_root(
             &home.join("repo").join("my-skills"),
-            &grok_home
+            &xvora_home
         ));
 
-        let custom_home = home.join("custom-grok-home");
+        let custom_home = home.join("custom-xvora-home");
         assert!(is_vendor_config_root(&custom_home, &custom_home));
     }
 
@@ -777,20 +777,20 @@ mod tests {
     #[test]
     fn project_grok_refresh_dirs_matches_vendor_layout() {
         let project = Path::new("/tmp/repo");
-        let grok = project.join(".grok");
+        let xvora = project.join(".xvora");
         let dirs = project_grok_refresh_dirs(project);
 
         assert_eq!(dirs.len(), 4);
-        assert_eq!(dirs[0], (grok.clone(), RecursiveMode::NonRecursive));
+        assert_eq!(dirs[0], (xvora.clone(), RecursiveMode::NonRecursive));
         assert_eq!(
             &dirs[1..],
             [
-                (grok.join("skills"), RecursiveMode::Recursive),
-                (grok.join("commands"), RecursiveMode::NonRecursive),
-                (grok.join("workflows"), RecursiveMode::NonRecursive),
+                (xvora.join("skills"), RecursiveMode::Recursive),
+                (xvora.join("commands"), RecursiveMode::NonRecursive),
+                (xvora.join("workflows"), RecursiveMode::NonRecursive),
             ]
         );
-        assert_eq!(dirs[1..], vendor_skill_refresh_dirs(&grok));
+        assert_eq!(dirs[1..], vendor_skill_refresh_dirs(&xvora));
     }
 
     #[test]
@@ -886,15 +886,15 @@ mod tests {
     fn start_with_dirs_keeps_parent_only_watch() {
         let tmp = TempDir::new().unwrap();
         let project = tmp.path();
-        let grok_home = project.join("home-grok");
-        fs::create_dir_all(&grok_home).unwrap();
+        let xvora_home = project.join("home-xvora");
+        fs::create_dir_all(&xvora_home).unwrap();
 
-        let plan = plan_skills_watch_targets(&[], &grok_home, Some(project));
+        let plan = plan_skills_watch_targets(&[], &xvora_home, Some(project));
         assert!(plan.vendor_roots.is_empty());
         assert!(plan.recursive_roots.is_empty());
         assert_eq!(plan.project_parent_watch.as_deref(), Some(project));
 
-        let (watcher, _rx) = SkillsFileWatcher::start_with_dirs(&[], &grok_home, Some(project))
+        let (watcher, _rx) = SkillsFileWatcher::start_with_dirs(&[], &xvora_home, Some(project))
             .expect("parent-only watch must start when no discovery roots exist yet");
         assert!(
             path_set_contains(&watcher.refreshed_dirs, project),
@@ -910,16 +910,16 @@ mod tests {
     fn plan_skills_watch_targets_scopes_vendors_and_seeds_refresh() {
         let tmp = TempDir::new().unwrap();
         let project = tmp.path();
-        let grok_home = project.join("home-grok");
+        let xvora_home = project.join("home-xvora");
         let project_claude = project.join(".claude");
-        let project_grok = project.join(".grok");
+        let project_grok = project.join(".xvora");
         let custom = project.join("my-skills");
         fs::create_dir_all(&project_claude).unwrap();
         fs::create_dir_all(&project_grok).unwrap();
         fs::create_dir_all(&custom).unwrap();
 
         let dirs = vec![project_claude.clone(), project_grok.clone(), custom.clone()];
-        let plan = plan_skills_watch_targets(&dirs, &grok_home, Some(project));
+        let plan = plan_skills_watch_targets(&dirs, &xvora_home, Some(project));
 
         assert_eq!(
             plan.vendor_roots,
@@ -943,10 +943,10 @@ mod tests {
 
     #[test]
     fn plan_skills_watch_targets_multi_vendor_refresh_fanout() {
-        let grok_home = PathBuf::from("/home/u/.grok");
+        let xvora_home = PathBuf::from("/home/u/.xvora");
         let a = PathBuf::from("/repo/.claude");
         let b = PathBuf::from("/repo/.agents");
-        let plan = plan_skills_watch_targets(&[a.clone(), b.clone()], &grok_home, None);
+        let plan = plan_skills_watch_targets(&[a.clone(), b.clone()], &xvora_home, None);
 
         assert_eq!(plan.vendor_roots, vec![a.clone(), b.clone()]);
         assert!(plan.recursive_roots.is_empty());
@@ -972,8 +972,8 @@ mod tests {
     fn plan_skills_watch_targets_seeds_all_missing_project_vendor_roots() {
         let tmp = TempDir::new().unwrap();
         let project = tmp.path();
-        let grok_home = project.join("elsewhere").join(".grok");
-        let plan = plan_skills_watch_targets(&[], &grok_home, Some(project));
+        let xvora_home = project.join("elsewhere").join(".xvora");
+        let plan = plan_skills_watch_targets(&[], &xvora_home, Some(project));
 
         assert_eq!(plan.project_parent_watch.as_deref(), Some(project));
         assert!(plan.vendor_roots.is_empty());
@@ -1002,7 +1002,7 @@ mod tests {
     fn plan_skills_watch_targets_does_not_double_seed_present_vendor_roots() {
         let tmp = TempDir::new().unwrap();
         let project = tmp.path();
-        let grok_home = project.join("home-grok");
+        let xvora_home = project.join("home-xvora");
         let present: Vec<PathBuf> = VENDOR_CONFIG_ROOT_NAMES
             .iter()
             .map(|name| project.join(name))
@@ -1011,7 +1011,7 @@ mod tests {
             fs::create_dir_all(root).unwrap();
         }
 
-        let plan = plan_skills_watch_targets(&present, &grok_home, Some(project));
+        let plan = plan_skills_watch_targets(&present, &xvora_home, Some(project));
 
         assert_eq!(plan.vendor_roots, present);
         assert!(plan.project_parent_watch.is_none());
@@ -1043,13 +1043,13 @@ mod tests {
     fn plan_skills_watch_targets_partial_vendors_seed_only_missing() {
         let tmp = TempDir::new().unwrap();
         let project = tmp.path();
-        let grok_home = project.join("home-grok");
+        let xvora_home = project.join("home-xvora");
         let project_claude = project.join(".claude");
         fs::create_dir_all(&project_claude).unwrap();
 
         let plan = plan_skills_watch_targets(
             std::slice::from_ref(&project_claude),
-            &grok_home,
+            &xvora_home,
             Some(project),
         );
 
@@ -1057,7 +1057,7 @@ mod tests {
         assert_eq!(plan.project_parent_watch.as_deref(), Some(project));
 
         let mut expected = vendor_skill_refresh_dirs(&project_claude).to_vec();
-        for name in [".grok", ".agents", ".cursor"] {
+        for name in [".xvora", ".agents", ".cursor"] {
             let root = project.join(name);
             expected.push((root.clone(), RecursiveMode::NonRecursive));
             expected.extend(vendor_skill_refresh_dirs(&root));
@@ -1074,13 +1074,13 @@ mod tests {
     fn plan_skills_watch_targets_parent_watches_project_when_grok_present_siblings_missing() {
         let tmp = TempDir::new().unwrap();
         let project = tmp.path();
-        let grok_home = project.join("home-grok");
-        let project_grok = project.join(".grok");
+        let xvora_home = project.join("home-xvora");
+        let project_grok = project.join(".xvora");
         fs::create_dir_all(&project_grok).unwrap();
 
         let plan = plan_skills_watch_targets(
             std::slice::from_ref(&project_grok),
-            &grok_home,
+            &xvora_home,
             Some(project),
         );
 
@@ -1120,7 +1120,7 @@ mod tests {
         let wt_skill = global
             .join("worktrees")
             .join("wt1")
-            .join(".grok")
+            .join(".xvora")
             .join("skills")
             .join("beta");
         fs::create_dir_all(&wt_skill).unwrap();
@@ -1179,7 +1179,7 @@ mod tests {
 
         assert!(is_vendor_config_root(
             &project_claude,
-            &tmp.path().join(".grok")
+            &tmp.path().join(".xvora")
         ));
 
         let (tx, mut rx) = mpsc::unbounded_channel();
@@ -1219,9 +1219,9 @@ mod tests {
 
     #[test]
     fn workflow_change_classifies_missing_directory_creation() {
-        let grok = Path::new("/tmp/project/.grok");
+        let xvora = Path::new("/tmp/project/.xvora");
         assert_eq!(
-            discovery_change_for_path(grok),
+            discovery_change_for_path(xvora),
             Some(DiscoveryChange::Skills)
         );
         assert_eq!(
@@ -1229,23 +1229,23 @@ mod tests {
             Some(DiscoveryChange::Skills)
         );
         assert_eq!(
-            discovery_change_for_path(&grok.join("skills")),
+            discovery_change_for_path(&xvora.join("skills")),
             Some(DiscoveryChange::Skills)
         );
         assert_eq!(
-            discovery_change_for_path(&grok.join("commands")),
+            discovery_change_for_path(&xvora.join("commands")),
             Some(DiscoveryChange::Skills)
         );
         assert_eq!(
-            discovery_change_for_path(&grok.join("workflows")),
+            discovery_change_for_path(&xvora.join("workflows")),
             Some(DiscoveryChange::Workflows)
         );
         assert_eq!(
-            discovery_change_for_path(&grok.join("workflows/review.rhai")),
+            discovery_change_for_path(&xvora.join("workflows/review.rhai")),
             Some(DiscoveryChange::Workflows)
         );
         assert_eq!(
-            discovery_change_for_path(&grok.join("skills/review/SKILL.md")),
+            discovery_change_for_path(&xvora.join("skills/review/SKILL.md")),
             Some(DiscoveryChange::Skills)
         );
     }
@@ -1464,10 +1464,10 @@ mod tests {
     /// `watch_path` de-dup.
     #[test]
     fn watch_and_unwatch_path_bookkeeping() {
-        let grok_home = TempDir::new().unwrap();
+        let xvora_home = TempDir::new().unwrap();
         let cwd = TempDir::new().unwrap();
         let Some((mut watcher, _rx)) = ConfigFileWatcher::start(
-            grok_home.path(),
+            xvora_home.path(),
             &[],
             None,
             Some(Duration::from_millis(100)),

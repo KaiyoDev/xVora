@@ -1,5 +1,5 @@
 //! Pure renderer over [`DiskUsageReport`].
-//! `config::grok_home()`, whose first call creates the home, must stay out of this module.
+//! `config::xvora_home()`, whose first call creates the home, must stay out of this module.
 
 use std::borrow::Cow;
 use std::io::Write;
@@ -22,7 +22,7 @@ pub fn print_report(
     now: i64,
     out: &mut impl Write,
 ) -> std::io::Result<()> {
-    let home_label = home_prefix_label(&report.grok_home);
+    let home_label = home_prefix_label(&report.xvora_home);
     writeln!(out, "Disk usage for {home_label}")?;
     for entry in &report.top_level_dirs {
         writeln!(
@@ -138,14 +138,14 @@ pub fn print_report(
             writeln!(
                 out,
                 "  Worktree registry at {} could not be opened; rows show as untracked. Check its permissions.",
-                abbreviate(&report.registry_path, &report.grok_home, &home_label)
+                abbreviate(&report.registry_path, &report.xvora_home, &home_label)
             )?;
         }
         RegistryState::Corrupt => {
             writeln!(
                 out,
-                "  Worktree registry is damaged; rows show as untracked. Remove {} and run `grok worktree db rebuild` to recreate it.",
-                abbreviate(&report.registry_path, &report.grok_home, &home_label)
+                "  Worktree registry is damaged; rows show as untracked. Remove {} and run `xvora worktree db rebuild` to recreate it.",
+                abbreviate(&report.registry_path, &report.xvora_home, &home_label)
             )?;
         }
     }
@@ -183,7 +183,7 @@ pub fn print_report(
                 pad_to_width(kind, kind_width),
                 age,
                 pad_to_width(&label, label_width),
-                abbreviate(&wt.path, &report.grok_home, &home_label),
+                abbreviate(&wt.path, &report.xvora_home, &home_label),
             )?;
         }
     }
@@ -194,24 +194,24 @@ pub fn print_report(
         if report.worktrees.iter().any(WorktreeUsage::is_tracked) {
             writeln!(
                 out,
-                "To reclaim space, run `grok worktree gc --max-age 7d --dry-run`, then the same command without `--dry-run`. Without `--max-age`, gc expires nothing, and it keeps a worktree whose work it cannot find elsewhere, naming each one."
+                "To reclaim space, run `xvora worktree gc --max-age 7d --dry-run`, then the same command without `--dry-run`. Without `--max-age`, gc expires nothing, and it keeps a worktree whose work it cannot find elsewhere, naming each one."
             )?;
         }
         if !report.worktrees.iter().all(WorktreeUsage::is_tracked) {
             writeln!(
                 out,
-                "Untracked rows are not in the registry, so gc never visits them. Remove one with `grok worktree rm --dry-run <path>`, then without `--dry-run`."
+                "Untracked rows are not in the registry, so gc never visits them. Remove one with `xvora worktree rm --dry-run <path>`, then without `--dry-run`."
             )?;
         }
     }
     Ok(())
 }
 
-pub fn print_missing_home(grok_home: &str, out: &mut impl Write) -> std::io::Result<()> {
+pub fn print_missing_home(xvora_home: &str, out: &mut impl Write) -> std::io::Result<()> {
     writeln!(
         out,
         "Nothing on disk yet at {}.",
-        home_prefix_label(grok_home)
+        home_prefix_label(xvora_home)
     )
 }
 
@@ -246,6 +246,6 @@ fn abbreviate(path: &str, home: &str, label: &str) -> String {
     }
 }
 
-fn home_prefix_label(grok_home: &str) -> String {
-    crate::util::display_grok_home_prefix_for(Path::new(grok_home))
+fn home_prefix_label(xvora_home: &str) -> String {
+    crate::util::display_grok_home_prefix_for(Path::new(xvora_home))
 }

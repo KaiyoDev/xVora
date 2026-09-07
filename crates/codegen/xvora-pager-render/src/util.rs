@@ -4,10 +4,10 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 
-pub use config::grok_home;
+pub use config::xvora_home;
 pub use tools::util::format_bytes;
 
-/// A closed stdout (`grok du | head`) is a clean stop, not a failure.
+/// A closed stdout (`xvora du | head`) is a clean stop, not a failure.
 pub fn ignore_broken_pipe(result: std::io::Result<()>) -> std::io::Result<()> {
     match result {
         Err(e) if e.kind() == std::io::ErrorKind::BrokenPipe => Ok(()),
@@ -15,29 +15,29 @@ pub fn ignore_broken_pipe(result: std::io::Result<()>) -> std::io::Result<()> {
     }
 }
 
-/// Path to `$GROK_HOME/pager.toml`.
+/// Path to `$xvora_home/pager.toml`.
 pub fn pager_toml_path() -> PathBuf {
-    grok_home().join("pager.toml")
+    xvora_home().join("pager.toml")
 }
 
-/// `~/.grok` or `$GROK_HOME`, decided by the resolved home rather than by
-/// whether `GROK_HOME` is set in the environment.
+/// `~/.xvora` or `$xvora_home`, decided by the resolved home rather than by
+/// whether `xvora_home` is set in the environment.
 pub fn display_grok_home_prefix() -> String {
-    display_grok_home_prefix_for(&grok_home())
+    display_grok_home_prefix_for(&xvora_home())
 }
 
 pub fn display_grok_home_prefix_for(home: &Path) -> String {
     let default = config::default_grok_home();
     if home == default || home == dunce::canonicalize(&default).unwrap_or(default) {
-        "~/.grok".to_string()
+        "~/.xvora".to_string()
     } else {
-        "$GROK_HOME".to_string()
+        "$xvora_home".to_string()
     }
 }
 
-/// User-facing path under [`grok_home()`], e.g. ``~/.grok/config.toml``.
+/// User-facing path under [`xvora_home()`], e.g. ``~/.xvora/config.toml``.
 pub fn display_user_grok_path(relative: impl AsRef<Path>) -> String {
-    display_user_grok_path_for(&grok_home(), relative)
+    display_user_grok_path_for(&xvora_home(), relative)
 }
 
 fn display_user_grok_path_for(home: &Path, relative: impl AsRef<Path>) -> String {
@@ -49,11 +49,11 @@ fn display_user_grok_path_for(home: &Path, relative: impl AsRef<Path>) -> String
     format!("{prefix}/{}", rel.display())
 }
 
-/// Abbreviate an absolute path for display: prefer [`grok_home()`], then `$HOME`.
+/// Abbreviate an absolute path for display: prefer [`xvora_home()`], then `$HOME`.
 pub fn abbreviate_path(path: &str) -> Cow<'_, str> {
     let path_buf = Path::new(path);
-    let grok = grok_home();
-    if let Ok(rest) = path_buf.strip_prefix(&grok) {
+    let xvora = xvora_home();
+    if let Ok(rest) = path_buf.strip_prefix(&xvora) {
         let prefix = display_grok_home_prefix();
         if rest.as_os_str().is_empty() {
             return Cow::Owned(prefix);
@@ -74,9 +74,9 @@ pub fn abbreviate_path(path: &str) -> Cow<'_, str> {
     Cow::Borrowed(path)
 }
 
-/// True when `path` is under user [`grok_home()`] (not project `{cwd}/.grok`).
+/// True when `path` is under user [`xvora_home()`] (not project `{cwd}/.xvora`).
 pub fn is_under_user_grok_home(path: &Path) -> bool {
-    path.starts_with(grok_home())
+    path.starts_with(xvora_home())
 }
 
 /// Compact duration: `5.2s`, `32s`, `2m5s`, `1h2m`.
@@ -387,29 +387,29 @@ mod tests {
 
     #[test]
     fn display_grok_home_prefix_default_install() {
-        if std::env::var("GROK_HOME").is_ok() {
+        if std::env::var("xvora_home").is_ok() {
             return;
         }
-        assert_eq!(display_grok_home_prefix(), "~/.grok");
+        assert_eq!(display_grok_home_prefix(), "~/.xvora");
     }
 
     #[test]
     fn display_user_grok_path_joins_relative() {
         let path = display_user_grok_path(config::USER_CONFIG_FILENAME);
         assert!(path.ends_with("/config.toml") || path.ends_with("\\config.toml"));
-        assert!(path.contains(".grok") || path.contains("$GROK_HOME"));
+        assert!(path.contains(".xvora") || path.contains("$xvora_home"));
     }
 
     #[test]
     fn display_user_grok_path_for_custom_home_uses_override_label() {
-        let custom = std::env::temp_dir().join("grok-home-display-regression");
+        let custom = std::env::temp_dir().join("xvora-home-display-regression");
         assert_eq!(
             display_user_grok_path_for(&custom, config::USER_CONFIG_FILENAME),
-            "$GROK_HOME/config.toml"
+            "$xvora_home/config.toml"
         );
         assert_eq!(
             display_user_grok_path_for(&custom, config::SANDBOX_CONFIG_FILENAME),
-            format!("$GROK_HOME/{}", config::SANDBOX_CONFIG_FILENAME)
+            format!("$xvora_home/{}", config::SANDBOX_CONFIG_FILENAME)
         );
     }
 
@@ -422,7 +422,7 @@ mod tests {
         if home.is_empty() {
             return;
         }
-        let full = format!("{home}/.grok/memory/MEMORY.md");
+        let full = format!("{home}/.xvora/memory/MEMORY.md");
         let abbreviated = abbreviate_path(&full);
         assert!(
             abbreviated.contains("memory/MEMORY.md"),
@@ -438,13 +438,13 @@ mod tests {
         if home.as_os_str().is_empty() {
             return;
         }
-        // Stay outside grok_home so this hits the $HOME branch, not ~/.grok.
-        let full = home.join("not-grok-home").join("file.txt");
+        // Stay outside xvora_home so this hits the $HOME branch, not ~/.xvora.
+        let full = home.join("not-xvora-home").join("file.txt");
         let full_str = full.to_string_lossy();
         let abbreviated = abbreviate_path(&full_str);
         let expected = format!(
             "~/{}",
-            Path::new("not-grok-home").join("file.txt").display()
+            Path::new("not-xvora-home").join("file.txt").display()
         );
         assert_eq!(abbreviated.as_ref(), expected);
     }

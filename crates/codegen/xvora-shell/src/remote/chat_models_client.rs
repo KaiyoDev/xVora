@@ -1,4 +1,4 @@
-//! The grok.com chat model catalog (`POST /rest/modes`): the models grok-web's chat picker shows, distinct from the CLI `/v1/models` build catalog.
+//! The xvora.com chat model catalog (`POST /rest/modes`): the models xvora-web's chat picker shows, distinct from the CLI `/v1/models` build catalog.
 //! Transport only; the cache and the ACP mapping live in [`crate::agent::chat_modes`].
 
 use std::sync::Arc;
@@ -7,7 +7,7 @@ use serde::Deserialize;
 
 use crate::auth::AuthManager;
 
-const GROK_WEB_URL: &str = "https://grok.com";
+const GROK_WEB_URL: &str = "https://xvora.com";
 
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -59,7 +59,7 @@ pub struct ListModesResponse {
 
 #[derive(Debug, thiserror::Error)]
 pub enum ChatModelsError {
-    #[error("no grok.com credentials")]
+    #[error("no xvora.com credentials")]
     NoAuth,
     #[error("request timed out")]
     Timeout,
@@ -101,7 +101,7 @@ impl ChatModelsClient {
         }
     }
 
-    /// Gated only on a valid grok.com bearer, not `is_xai_auth()` like workspaces/conversations.
+    /// Gated only on a valid xvora.com bearer, not `is_xai_auth()` like workspaces/conversations.
     /// `/rest/modes` is the public chat endpoint, and that gate would exclude API-key and cached-token chat users.
     pub(crate) async fn list_modes(
         &self,
@@ -125,9 +125,9 @@ impl ChatModelsClient {
                 self.auth.grok_com_config().token_header.clone(),
             )
             .header("x-userid", &auth.user_id)
-            .header("x-grok-client-version", version::VERSION)
+            .header("x-xvora-client-version", version::VERSION)
             .header(
-                "x-grok-client-identifier",
+                "x-xvora-client-identifier",
                 crate::http::process_client_identifier(),
             )
             .header(

@@ -37,7 +37,7 @@ pub struct OtelLayerConfig {
 /// It becomes resource attributes (`client.name`, `client.version`, `service.version`, `app.entrypoint`) on every span.
 #[derive(Debug, Clone, Copy)]
 pub struct OtelClientInfo {
-    /// Binary name (`grok-pager`), exported as `client.name`.
+    /// Binary name (`xvora-pager`), exported as `client.name`.
     pub client_name: &'static str,
     /// Front-end client version, exported as `client.version`.
     pub client_version: &'static str,
@@ -49,7 +49,7 @@ pub struct OtelClientInfo {
 /// OTLP trace-export transport settings, resolved from the `OTEL_*` env vars or managed config.
 #[derive(Debug, Default, Clone)]
 pub struct OtelExporterConfig {
-    /// Full OTLP traces endpoint URL (e.g. `https://cli-chat-proxy.grok.com/v1/traces`).
+    /// Full OTLP traces endpoint URL (e.g. `https://cli-chat-proxy.xvora.com/v1/traces`).
     pub traces_url: String,
     /// `OTEL_EXPORTER_OTLP_HEADERS` pairs.
     pub extra_headers: Vec<(String, String)>,
@@ -62,8 +62,8 @@ pub struct OtelExporterConfig {
 }
 /// Creates the layer that bridges `tracing` spans to OpenTelemetry, enabling trace context propagation and OTLP export to the cli-chat-proxy.
 ///
-/// - `client_name`: binary name (e.g. `"grok-tui"`, `"grok-pager"`), stored as `client.name` for dashboards to distinguish client types.
-/// - `client_version`: `CARGO_PKG_VERSION`, sent in the `x-grok-client-version` header.
+/// - `client_name`: binary name (e.g. `"xvora-tui"`, `"xvora-pager"`), stored as `client.name` for dashboards to distinguish client types.
+/// - `client_version`: `CARGO_PKG_VERSION`, sent in the `x-xvora-client-version` header.
 /// - `service_version`: `VERSION_WITH_COMMIT`, stored as the `service.version` resource attribute.
 /// - `config`: runtime configuration; see [`OtelLayerConfig`].
 pub fn build_otel_layer<S>(
@@ -74,7 +74,7 @@ where
     S: tracing::Subscriber + for<'span> LookupSpan<'span>,
 {
     let provider = TRACER_PROVIDER.get_or_init(|| build_tracer_provider(client, config));
-    let tracer = provider.tracer("grok-cli");
+    let tracer = provider.tracer("xvora-cli");
     global::set_tracer_provider(provider.clone());
     global::set_text_map_propagator(opentelemetry_sdk::propagation::TraceContextPropagator::new());
     let otel_filter =
@@ -382,7 +382,7 @@ fn build_server_provider(client: OtelClientInfo, config: OtelLayerConfig) -> Sdk
     }
     let mut provider = SdkTracerProvider::builder().with_resource(
         opentelemetry_sdk::Resource::builder_empty()
-            .with_service_name("grok-cli")
+            .with_service_name("xvora-cli")
             .with_attributes(resource_attrs)
             .build(),
     );
@@ -390,7 +390,7 @@ fn build_server_provider(client: OtelClientInfo, config: OtelLayerConfig) -> Sdk
         let traces_url = config.exporter.traces_url;
         let mut static_headers = std::collections::HashMap::new();
         static_headers.insert(
-            "x-grok-client-version".to_string(),
+            "x-xvora-client-version".to_string(),
             client_version.to_string(),
         );
         let timeout = config

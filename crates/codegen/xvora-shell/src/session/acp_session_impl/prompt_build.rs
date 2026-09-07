@@ -30,7 +30,7 @@ pub(super) fn pick_user_image_url(image: &agent_client_protocol::ImageContent) -
 }
 fn partition_rules_by_scope(
     files: Vec<agent::prompt::agents_md::AgentConfigFile>,
-    grok_home: &std::path::Path,
+    xvora_home: &std::path::Path,
     vendor_homes: &[(std::path::PathBuf, bool)],
     workspace_roots: &[&std::path::Path],
 ) -> (
@@ -42,7 +42,7 @@ fn partition_rules_by_scope(
     for file in files {
         let is_user_rule = crate::util::is_user_instruction_path(
             std::path::Path::new(&file.file_path),
-            grok_home,
+            xvora_home,
             vendor_homes,
             workspace_roots,
         );
@@ -111,7 +111,7 @@ mod partition_rules_by_scope_tests {
         let files = vec![
             file("/repo/config/AGENTS.md"),
             file("/repo/config/rules/global.md"),
-            file("/repo/config/.grok/rules/project.md"),
+            file("/repo/config/.xvora/rules/project.md"),
             file("/repo/config/src/AGENTS.md"),
         ];
         let (workspace, user) =
@@ -123,7 +123,7 @@ mod partition_rules_by_scope_tests {
         assert_eq!(
             paths(&workspace),
             vec![
-                "/repo/config/.grok/rules/project.md",
+                "/repo/config/.xvora/rules/project.md",
                 "/repo/config/src/AGENTS.md",
             ]
         );
@@ -139,7 +139,7 @@ mod partition_rules_by_scope_tests {
         let vendor_homes = vec![(Path::new("/repo/.claude").to_path_buf(), true)];
         let (workspace, user) = partition_rules_by_scope(
             files,
-            Path::new("/other/grok"),
+            Path::new("/other/xvora"),
             &vendor_homes,
             &[Path::new("/repo")],
         );
@@ -158,22 +158,22 @@ mod partition_rules_by_scope_tests {
     #[test]
     fn nested_grok_home_workspace_files_stay_workspace_scoped() {
         let files = vec![
-            file("/custom/grok/rules/global.md"),
-            file("/custom/grok/worktrees/repo/.cursor/rules/project.md"),
-            file("/custom/grok/worktrees/repo/src/AGENTS.md"),
+            file("/custom/xvora/rules/global.md"),
+            file("/custom/xvora/worktrees/repo/.cursor/rules/project.md"),
+            file("/custom/xvora/worktrees/repo/src/AGENTS.md"),
         ];
         let (workspace, user) = partition_rules_by_scope(
             files,
-            Path::new("/custom/grok"),
+            Path::new("/custom/xvora"),
             &[],
-            &[Path::new("/custom/grok/worktrees/repo")],
+            &[Path::new("/custom/xvora/worktrees/repo")],
         );
-        assert_eq!(paths(&user), vec!["/custom/grok/rules/global.md"]);
+        assert_eq!(paths(&user), vec!["/custom/xvora/rules/global.md"]);
         assert_eq!(
             paths(&workspace),
             vec![
-                "/custom/grok/worktrees/repo/.cursor/rules/project.md",
-                "/custom/grok/worktrees/repo/src/AGENTS.md",
+                "/custom/xvora/worktrees/repo/.cursor/rules/project.md",
+                "/custom/xvora/worktrees/repo/src/AGENTS.md",
             ]
         );
     }
@@ -192,8 +192,8 @@ mod partition_rules_by_scope_tests {
             },
             AgentConfigFile {
                 file_name: "AGENTS.md".into(),
-                file_path: "/home/user/.grok/AGENTS.md".into(),
-                content: "home-grok-body".into(),
+                file_path: "/home/user/.xvora/AGENTS.md".into(),
+                content: "home-xvora-body".into(),
             },
             AgentConfigFile {
                 file_name: "CLAUDE.md".into(),
@@ -202,14 +202,14 @@ mod partition_rules_by_scope_tests {
             },
             AgentConfigFile {
                 file_name: "x.md".into(),
-                file_path: "/repo/.grok/rules/x.md".into(),
-                content: "repo-grok-rules-x".into(),
+                file_path: "/repo/.xvora/rules/x.md".into(),
+                content: "repo-xvora-rules-x".into(),
             },
         ];
         let vendor_homes = vec![(Path::new("/home/user/.claude").to_path_buf(), true)];
         let (workspace, user) = partition_rules_by_scope(
             files.clone(),
-            Path::new("/home/user/.grok"),
+            Path::new("/home/user/.xvora"),
             &vendor_homes,
             &[Path::new("/repo")],
         );
@@ -218,17 +218,17 @@ mod partition_rules_by_scope_tests {
         for body in [
             "repo-agents-body",
             "repo-claude-body",
-            "home-grok-body",
+            "home-xvora-body",
             "home-claude-body",
-            "repo-grok-rules-x",
+            "repo-xvora-rules-x",
         ] {
             assert!(rules.contains(body), "rules missing {body}");
             assert!(reminder.contains(body), "reminder missing {body}");
         }
         assert!(rules.contains("name=\"/repo/AGENTS.md\""));
         assert!(rules.contains("name=\"/repo/CLAUDE.md\""));
-        assert!(rules.contains("name=\"/repo/.grok/rules/x.md\""));
-        assert!(rules.contains("<user_rule>\nhome-grok-body\n</user_rule>"));
+        assert!(rules.contains("name=\"/repo/.xvora/rules/x.md\""));
+        assert!(rules.contains("<user_rule>\nhome-xvora-body\n</user_rule>"));
         assert!(rules.contains("<user_rule>\nhome-claude-body\n</user_rule>"));
         assert!(!rules.contains("## From:"));
         assert!(!rules.contains("<system-reminder>"));
@@ -236,27 +236,27 @@ mod partition_rules_by_scope_tests {
     #[test]
     fn fork_ondisk_and_display_prefixes_both_count_as_workspace() {
         let files = vec![
-            file("/home/user/.grok/worktrees/repo/AGENTS.md"),
+            file("/home/user/.xvora/worktrees/repo/AGENTS.md"),
             file("/home/user/repo/crates/foo/AGENTS.md"),
-            file("/home/user/.grok/AGENTS.md"),
+            file("/home/user/.xvora/AGENTS.md"),
         ];
         let (workspace, user) = partition_rules_by_scope(
             files,
-            Path::new("/home/user/.grok"),
+            Path::new("/home/user/.xvora"),
             &[],
             &[
-                Path::new("/home/user/.grok/worktrees/repo"),
+                Path::new("/home/user/.xvora/worktrees/repo"),
                 Path::new("/home/user/repo/crates/foo"),
             ],
         );
         assert_eq!(
             paths(&workspace),
             vec![
-                "/home/user/.grok/worktrees/repo/AGENTS.md",
+                "/home/user/.xvora/worktrees/repo/AGENTS.md",
                 "/home/user/repo/crates/foo/AGENTS.md",
             ]
         );
-        assert_eq!(paths(&user), vec!["/home/user/.grok/AGENTS.md"]);
+        assert_eq!(paths(&user), vec!["/home/user/.xvora/AGENTS.md"]);
     }
 }
 /// True iff `conversation` already contains a project-instructions reminder (see [`is_project_instructions`]).
@@ -586,7 +586,7 @@ impl SessionActor {
         Vec<agent::prompt::user_message::RuleEntry>,
     ) {
         let files = self.agent.borrow().prompt_context().agents_md_files.clone();
-        let grok_home = config::grok_home();
+        let xvora_home = config::xvora_home();
         let vendor_homes = dirs::home_dir()
             .map(|home_dir| {
                 vec![
@@ -615,7 +615,7 @@ impl SessionActor {
             .into_iter()
             .chain(std::iter::once(on_disk_root.as_path()))
             .collect();
-        partition_rules_by_scope(files, &grok_home, &vendor_homes, &workspace_roots)
+        partition_rules_by_scope(files, &xvora_home, &vendor_homes, &workspace_roots)
     }
     /// Build the custom-templated first user message.
     ///

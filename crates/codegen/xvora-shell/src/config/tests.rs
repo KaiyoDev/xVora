@@ -1,4 +1,4 @@
-#![cfg_attr(rustfmt, rustfmt::skip)]
+﻿#![cfg_attr(rustfmt, rustfmt::skip)]
 use super::*;
 fn with_env_var<T>(name: &str, value: &str, f: impl FnOnce() -> T) -> T {
     let previous = std::env::var(name).ok();
@@ -455,7 +455,7 @@ save_on_end = false
 [compaction.memory_flush]
 enabled = false
 soft_threshold_tokens = 8000
-flush_model = "grok-4"
+flush_model = "xvora-4"
 max_flush_write_chars = 16000
 idle_timeout_secs = 300
 semantic_dedup_threshold = 0.85
@@ -489,7 +489,7 @@ hard_clear_age_turns = 20
         assert!(!mem.session.save_on_end);
         assert!(!mem.flush.enabled);
         assert_eq!(mem.flush.soft_threshold_tokens, 8000);
-        assert_eq!(mem.flush.flush_model.as_deref(), Some("grok-4"));
+        assert_eq!(mem.flush.flush_model.as_deref(), Some("xvora-4"));
         assert_eq!(mem.flush.max_flush_write_chars, 16000);
         assert_eq!(mem.flush.idle_timeout_secs, Some(300));
         assert_eq!(mem.flush.semantic_dedup_threshold, Some(0.85));
@@ -2310,7 +2310,7 @@ fn roles_parse_from_toml() {
             [roles.implementer]
             description = "Implementation agent"
             default_capability_mode = "all"
-            prompt_file = ".grok/prompts/impl.md"
+            prompt_file = ".xvora/prompts/impl.md"
         "#;
     let cfg: SubagentsConfig = toml::from_str(toml_str).unwrap();
     assert_eq!(cfg.roles.len(), 2);
@@ -2328,7 +2328,7 @@ fn roles_parse_from_toml() {
     assert!(implementer.model.is_none());
     assert_eq!(
             implementer.prompt_file.as_deref(),
-            Some(".grok/prompts/impl.md")
+            Some(".xvora/prompts/impl.md")
         );
 }
 #[test]
@@ -2407,7 +2407,7 @@ fn validate_roles_accepts_valid_prompt_file() {
     let toml_str = r#"
             [roles.ok]
             description = "Valid prompt file"
-            prompt_file = ".grok/prompts/ok.md"
+            prompt_file = ".xvora/prompts/ok.md"
         "#;
     let cfg: SubagentsConfig = toml::from_str(toml_str).unwrap();
     assert!(cfg.validate_roles().is_empty());
@@ -2415,7 +2415,7 @@ fn validate_roles_accepts_valid_prompt_file() {
 #[test]
 fn discover_roles_loads_from_directory() {
     let tmp = tempfile::TempDir::new().unwrap();
-    let roles_dir = tmp.path().join(".grok").join("roles");
+    let roles_dir = tmp.path().join(".xvora").join("roles");
     std::fs::create_dir_all(&roles_dir).unwrap();
     std::fs::write(
             roles_dir.join("reviewer.toml"),
@@ -2434,7 +2434,7 @@ fn discover_roles_loads_from_directory() {
 #[test]
 fn discover_roles_inline_takes_precedence() {
     let tmp = tempfile::TempDir::new().unwrap();
-    let roles_dir = tmp.path().join(".grok").join("roles");
+    let roles_dir = tmp.path().join(".xvora").join("roles");
     std::fs::create_dir_all(&roles_dir).unwrap();
     std::fs::write(
             roles_dir.join("researcher.toml"),
@@ -2458,7 +2458,7 @@ fn discover_roles_inline_takes_precedence() {
 #[test]
 fn discover_roles_ignores_non_toml_files() {
     let tmp = tempfile::TempDir::new().unwrap();
-    let roles_dir = tmp.path().join(".grok").join("roles");
+    let roles_dir = tmp.path().join(".xvora").join("roles");
     std::fs::create_dir_all(&roles_dir).unwrap();
     std::fs::write(roles_dir.join("readme.md"), "This is not a role definition")
         .unwrap();
@@ -2481,7 +2481,7 @@ fn personas_parse_from_toml() {
 
             [personas.concise]
             instructions = "Be concise."
-            instructions_file = ".grok/personas/concise.md"
+            instructions_file = ".xvora/personas/concise.md"
         "#;
     let cfg: SubagentsConfig = toml::from_str(toml_str).unwrap();
     assert_eq!(cfg.personas.len(), 2);
@@ -2495,7 +2495,7 @@ fn personas_parse_from_toml() {
     assert_eq!(concise.instructions.as_deref(), Some("Be concise."));
     assert_eq!(
             concise.instructions_file.as_deref(),
-            Some(".grok/personas/concise.md")
+            Some(".xvora/personas/concise.md")
         );
 }
 #[test]
@@ -2511,7 +2511,7 @@ fn persona_lookup_returns_none_for_unknown() {
 #[test]
 fn discover_personas_loads_from_directory() {
     let tmp = tempfile::TempDir::new().unwrap();
-    let dir = tmp.path().join(".grok").join("personas");
+    let dir = tmp.path().join(".xvora").join("personas");
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(
             dir.join("friendly.toml"),
@@ -2526,7 +2526,7 @@ fn discover_personas_loads_from_directory() {
 #[test]
 fn discover_personas_inline_takes_precedence() {
     let tmp = tempfile::TempDir::new().unwrap();
-    let dir = tmp.path().join(".grok").join("personas");
+    let dir = tmp.path().join(".xvora").join("personas");
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(dir.join("strict.toml"), r#"instructions = "File-based strict""#)
         .unwrap();
@@ -2568,7 +2568,7 @@ fn project_overlay_preserves_source_precedence() {
     let home = tmp.path().join("home");
     let bundled = tmp.path().join("bundled");
     write_subagent_definitions(
-        &project.join(".grok"),
+        &project.join(".xvora"),
         &[
             ("shadowed", "Project"),
             ("bundled-shadowed", "Project"),
@@ -2577,7 +2577,7 @@ fn project_overlay_preserves_source_precedence() {
         ],
     );
     write_subagent_definitions(
-        &home.join(".grok"),
+        &home.join(".xvora"),
         &[("shadowed", "User"), ("user-only", "User")],
     );
     write_subagent_definitions(
@@ -2602,7 +2602,7 @@ fn project_overlay_preserves_source_precedence() {
     let base = SubagentsConfig::resolve_base_with_sources(
         false,
         &config,
-        Some(&home.join(".grok")),
+        Some(&home.join(".xvora")),
         &bundled,
     );
     let resolve = |project_trusted| {
@@ -2688,11 +2688,11 @@ fn bundled_personas_and_roles_have_lowest_priority_in_resolve_order() {
     let tmp = tempfile::TempDir::new().unwrap();
     let home = tmp.path().join("home");
     let workspace = tmp.path().join("workspace");
-    let bundled = home.join(".grok").join("bundled");
-    std::fs::create_dir_all(workspace.join(".grok").join("roles")).unwrap();
-    std::fs::create_dir_all(workspace.join(".grok").join("personas")).unwrap();
-    std::fs::create_dir_all(home.join(".grok").join("roles")).unwrap();
-    std::fs::create_dir_all(home.join(".grok").join("personas")).unwrap();
+    let bundled = home.join(".xvora").join("bundled");
+    std::fs::create_dir_all(workspace.join(".xvora").join("roles")).unwrap();
+    std::fs::create_dir_all(workspace.join(".xvora").join("personas")).unwrap();
+    std::fs::create_dir_all(home.join(".xvora").join("roles")).unwrap();
+    std::fs::create_dir_all(home.join(".xvora").join("personas")).unwrap();
     std::fs::create_dir_all(bundled.join("roles")).unwrap();
     std::fs::create_dir_all(bundled.join("personas")).unwrap();
     std::fs::write(
@@ -2706,22 +2706,22 @@ fn bundled_personas_and_roles_have_lowest_priority_in_resolve_order() {
         )
         .unwrap();
     std::fs::write(
-            home.join(".grok/roles/reviewer.toml"),
+            home.join(".xvora/roles/reviewer.toml"),
             r#"description = "User reviewer""#,
         )
         .unwrap();
     std::fs::write(
-            home.join(".grok/personas/reviewer.toml"),
+            home.join(".xvora/personas/reviewer.toml"),
             r#"instructions = "User persona""#,
         )
         .unwrap();
     std::fs::write(
-            workspace.join(".grok/roles/reviewer.toml"),
+            workspace.join(".xvora/roles/reviewer.toml"),
             r#"description = "Project reviewer""#,
         )
         .unwrap();
     std::fs::write(
-            workspace.join(".grok/personas/reviewer.toml"),
+            workspace.join(".xvora/personas/reviewer.toml"),
             r#"instructions = "Project persona""#,
         )
         .unwrap();
@@ -2743,7 +2743,7 @@ fn bundled_personas_and_roles_have_lowest_priority_in_resolve_order() {
     let base = SubagentsConfig::resolve_base_with_sources(
         true,
         &config,
-        Some(&home.join(".grok")),
+        Some(&home.join(".xvora")),
         &bundled,
     );
     let (roles, personas) = SubagentsConfig::effective_definition_maps(
@@ -2769,8 +2769,8 @@ fn bundled_personas_and_roles_have_lowest_priority_in_resolve_order() {
                 .as_deref(),
             Some("Inline persona")
         );
-    std::fs::remove_file(workspace.join(".grok/roles/reviewer.toml")).unwrap();
-    std::fs::remove_file(workspace.join(".grok/personas/reviewer.toml")).unwrap();
+    std::fs::remove_file(workspace.join(".xvora/roles/reviewer.toml")).unwrap();
+    std::fs::remove_file(workspace.join(".xvora/personas/reviewer.toml")).unwrap();
     let config = toml::from_str::<
         toml::Value,
     >(r#"
@@ -2781,7 +2781,7 @@ fn bundled_personas_and_roles_have_lowest_priority_in_resolve_order() {
     let base = SubagentsConfig::resolve_base_with_sources(
         true,
         &config,
-        Some(&home.join(".grok")),
+        Some(&home.join(".xvora")),
         &bundled,
     );
     let (roles, personas) = SubagentsConfig::effective_definition_maps(
@@ -2807,8 +2807,8 @@ fn bundled_personas_and_roles_have_lowest_priority_in_resolve_order() {
                 .as_deref(),
             Some("User persona")
         );
-    std::fs::remove_file(home.join(".grok/roles/reviewer.toml")).unwrap();
-    std::fs::remove_file(home.join(".grok/personas/reviewer.toml")).unwrap();
+    std::fs::remove_file(home.join(".xvora/roles/reviewer.toml")).unwrap();
+    std::fs::remove_file(home.join(".xvora/personas/reviewer.toml")).unwrap();
     let config = toml::from_str::<
         toml::Value,
     >(r#"
@@ -2819,7 +2819,7 @@ fn bundled_personas_and_roles_have_lowest_priority_in_resolve_order() {
     let base = SubagentsConfig::resolve_base_with_sources(
         true,
         &config,
-        Some(&home.join(".grok")),
+        Some(&home.join(".xvora")),
         &bundled,
     );
     let (roles, personas) = SubagentsConfig::effective_definition_maps(
@@ -2850,7 +2850,7 @@ fn bundled_personas_and_roles_have_lowest_priority_in_resolve_order() {
 fn render_io_summary_shows_bundled_for_bundled_personas() {
     let persona = SubagentPersona {
         instructions: Some("Bundled instructions".to_string()),
-        source_path: Some("/tmp/home/.grok/bundled/personas/reviewer.toml".to_string()),
+        source_path: Some("/tmp/home/.xvora/bundled/personas/reviewer.toml".to_string()),
         ..Default::default()
     };
     let summary = persona.render_io_summary("reviewer");
@@ -2861,7 +2861,7 @@ fn roles_coexist_with_models_and_toggle() {
     let toml_str = r#"
             enabled = true
             [models]
-            explore = "grok-fast"
+            explore = "xvora-fast"
             [toggle]
             plan = false
             [roles.researcher]
@@ -2872,7 +2872,7 @@ fn roles_coexist_with_models_and_toggle() {
     assert!(cfg.enabled);
     assert_eq!(
             cfg.models.get("explore").map(|s| s.as_str()),
-            Some("grok-fast")
+            Some("xvora-fast")
         );
     assert!(!cfg.is_subagent_enabled("plan"));
     assert!(cfg.get_role("researcher").is_some());
@@ -3037,7 +3037,7 @@ fn config_layers_user_overrides_managed() {
 }
 /// A provider in a trusted disk layer resolves through the real `ConfigLayers` and `effective_config_disk_only` parse path.
 /// The direct-TOML parse tests bypass that path.
-/// (`ConfigLayers` has no project slot, so a repo `.grok/config.toml` structurally cannot supply one.)
+/// (`ConfigLayers` has no project slot, so a repo `.xvora/config.toml` structurally cannot supply one.)
 #[test]
 fn auth_provider_honored_only_from_trusted_disk_layers() {
     let layers = ConfigLayers {
@@ -3101,9 +3101,9 @@ fn enterprise_two_file_merge_routes_deployment_key_to_proxy() {
             r#"
 [endpoints]
 xvora_api_base_url = "https://inference.acme-corp.example/xvora/v1"
-cli_chat_proxy_base_url = "https://cli-chat-proxy.grok.com/v1"
+cli_chat_proxy_base_url = "https://cli-chat-proxy.xvora.com/v1"
 
-[model.grok-build]
+[model.xvora-build]
 base_url = "https://inference.acme-corp.example/xvora/v1"
 env_key = "ANTHROPIC_AUTH_TOKEN"
 model = "grok-4.5"
@@ -3142,7 +3142,7 @@ trace_upload_endpoint_url = "https://s3.acme-corp.example"
         .unwrap();
     assert_eq!(
             cfg.endpoints.resolve_managed_config_url(),
-            "https://cli-chat-proxy.grok.com/v1/deployment/config"
+            "https://cli-chat-proxy.xvora.com/v1/deployment/config"
         );
     assert!(
             !cfg.endpoints
@@ -3161,7 +3161,7 @@ fn managed_config_feedback_user_reaches_resolved_config() {
     let managed = toml::from_str(
             r#"
 [endpoints]
-cli_chat_proxy_base_url = "https://cli-chat-proxy.grok.com/v1"
+cli_chat_proxy_base_url = "https://cli-chat-proxy.xvora.com/v1"
 
 [feedback.user]
 name = ["os_user"]
@@ -3192,21 +3192,21 @@ email_domain = "example.com"
         .unwrap();
     assert_eq!(cfg.feedback.user, None);
 }
-/// RCE guard: a project `.grok/config.toml` must never source `[feedback.user]` (its `command` runs `sh -c`).
+/// RCE guard: a project `.xvora/config.toml` must never source `[feedback.user]` (its `command` runs `sh -c`).
 #[test]
 #[serial_test::serial]
 fn project_config_never_sources_feedback_user() {
     use test_support::EnvGuard;
     let home = tempfile::tempdir().unwrap();
-    let _env = EnvGuard::set("GROK_HOME", home.path());
+    let _env = EnvGuard::set("xvora_home", home.path());
     let _flag = EnvGuard::unset("GROK_FOLDER_TRUST");
     let _sim = simulate_release_build();
     let repo = tempfile::tempdir().unwrap();
     git2::Repository::init(repo.path()).unwrap();
-    let grok = repo.path().join(".grok");
-    std::fs::create_dir_all(&grok).unwrap();
+    let xvora = repo.path().join(".xvora");
+    std::fs::create_dir_all(&xvora).unwrap();
     std::fs::write(
-            grok.join("config.toml"),
+            xvora.join("config.toml"),
             "[plugins]\npaths = [\"./p\"]\n\n[feedback.user]\ncommand = \"/evil\"\n",
         )
         .unwrap();
@@ -3430,10 +3430,10 @@ fn a_repeated_pin_is_reported_against_the_layer_that_decided() {
     let req: toml::Value = toml::from_str("[features]\nsession_search = false\n")
         .unwrap();
     let user = RequirementSource::Requirements {
-        path: std::path::PathBuf::from("/home/dev/.grok/requirements.toml"),
+        path: std::path::PathBuf::from("/home/dev/.xvora/requirements.toml"),
     };
     let system = RequirementSource::Requirements {
-        path: std::path::PathBuf::from("/etc/grok/requirements.toml"),
+        path: std::path::PathBuf::from("/etc/xvora/requirements.toml"),
     };
     let mut enforced = apply_requirements_inner(&mut cfg, &req, &user);
     enforced.extend(apply_requirements_inner(&mut cfg, &req, &system));
@@ -3479,7 +3479,7 @@ fn malformed_requirements_pin_is_ignored() {
     let mut cfg = crate::agent::config::Config::default();
     let req: toml::Value = toml::from_str("[features]\nweb_fetch = 1\n").unwrap();
     let source = RequirementSource::Requirements {
-        path: std::path::PathBuf::from("/home/dev/.grok/requirements.toml"),
+        path: std::path::PathBuf::from("/home/dev/.xvora/requirements.toml"),
     };
     let enforced = apply_requirements_inner(&mut cfg, &req, &source);
     assert_eq!(cfg.requirements.pinned_feature(Feature::WebFetch), None);
@@ -3539,18 +3539,18 @@ fn apply_requirements_allowed_models_clamps_catalog_and_names_source() {
             model = "grok-3"
             base_url = "https://api.x.ai/v1"
             context_window = 256000
-            [model.grok-4]
-            model = "grok-4"
+            [model.xvora-4]
+            model = "xvora-4"
             base_url = "https://api.x.ai/v1"
             context_window = 256000
             "#,
         )
         .unwrap();
     let mut cfg = crate::agent::config::Config::new_from_toml_cfg(&raw).unwrap();
-    pin_allowed_models(&mut cfg, "[models]\nallowed_models = [\"grok-4\"]\n");
+    pin_allowed_models(&mut cfg, "[models]\nallowed_models = [\"xvora-4\"]\n");
     let catalog = crate::agent::models::resolve_model_catalog(&cfg, None);
     assert!(
-            catalog["grok-4"].info.user_selectable,
+            catalog["xvora-4"].info.user_selectable,
             "signed allowlist member must stay selectable"
         );
     assert!(
@@ -3573,37 +3573,37 @@ fn apply_requirements_allowed_models_ignores_user_catalog_key() {
     let raw: toml::Value = toml::from_str(
             r#"
             [models]
-            default = "grok-4"
+            default = "xvora-4"
             allowed_models = ["*"]
-            [model.grok-4]
-            model = "grok-4"
+            [model.xvora-4]
+            model = "xvora-4"
             base_url = "https://api.x.ai/v1"
             context_window = 256000
-            [model.grok-4-anything]
+            [model.xvora-4-anything]
             model = "other-model"
             base_url = "https://evil.example/v1"
             context_window = 256000
             [model.my-alias]
-            model = "grok-4"
+            model = "xvora-4"
             base_url = "https://api.x.ai/v1"
             context_window = 256000
             "#,
         )
         .unwrap();
     let mut cfg = crate::agent::config::Config::new_from_toml_cfg(&raw).unwrap();
-    pin_allowed_models(&mut cfg, "[models]\nallowed_models = [\"grok-4*\"]\n");
+    pin_allowed_models(&mut cfg, "[models]\nallowed_models = [\"xvora-4*\"]\n");
     let catalog = crate::agent::models::resolve_model_catalog(&cfg, None);
     assert!(
-            catalog["grok-4"].info.user_selectable,
-            "routing slug grok-4 matches grok-4*"
+            catalog["xvora-4"].info.user_selectable,
+            "routing slug xvora-4 matches xvora-4*"
         );
     assert!(
             catalog["my-alias"].info.user_selectable,
-            "user alias whose model id is grok-4 stays selectable"
+            "user alias whose model id is xvora-4 stays selectable"
         );
     assert!(
-            !catalog["grok-4-anything"].info.user_selectable,
-            "catalog key grok-4-anything pointing at another model must not satisfy the pin"
+            !catalog["xvora-4-anything"].info.user_selectable,
+            "catalog key xvora-4-anything pointing at another model must not satisfy the pin"
         );
 }
 #[test]
@@ -3611,20 +3611,20 @@ fn apply_requirements_malformed_allowed_models_fail_closes() {
     let raw: toml::Value = toml::from_str(
             r#"
             [models]
-            default = "grok-4"
+            default = "xvora-4"
             allowed_models = ["*"]
-            [model.grok-4]
-            model = "grok-4"
+            [model.xvora-4]
+            model = "xvora-4"
             base_url = "https://api.x.ai/v1"
             context_window = 256000
             "#,
         )
         .unwrap();
     let mut cfg = crate::agent::config::Config::new_from_toml_cfg(&raw).unwrap();
-    pin_allowed_models(&mut cfg, "[models]\nallowed_models = \"grok-4\"\n");
+    pin_allowed_models(&mut cfg, "[models]\nallowed_models = \"xvora-4\"\n");
     let catalog = crate::agent::models::resolve_model_catalog(&cfg, None);
     assert!(
-            !catalog["grok-4"].info.user_selectable,
+            !catalog["xvora-4"].info.user_selectable,
             "malformed fleet pin must mark nothing selectable, not keep the user list"
         );
     assert!(
@@ -3649,13 +3649,13 @@ fn apply_requirements_allowed_models_empty_array_is_unrestricted() {
     let raw: toml::Value = toml::from_str(
             r#"
             [models]
-            allowed_models = ["grok-4"]
+            allowed_models = ["xvora-4"]
             [model.grok-3]
             model = "grok-3"
             base_url = "https://api.x.ai/v1"
             context_window = 256000
-            [model.grok-4]
-            model = "grok-4"
+            [model.xvora-4]
+            model = "xvora-4"
             base_url = "https://api.x.ai/v1"
             context_window = 256000
             "#,
@@ -3665,7 +3665,7 @@ fn apply_requirements_allowed_models_empty_array_is_unrestricted() {
     pin_allowed_models(&mut cfg, "[models]\nallowed_models = []\n");
     let catalog = crate::agent::models::resolve_model_catalog(&cfg, None);
     assert!(
-            catalog["grok-3"].info.user_selectable && catalog["grok-4"].info.user_selectable,
+            catalog["grok-3"].info.user_selectable && catalog["xvora-4"].info.user_selectable,
             "empty fleet array must not restrict"
         );
     assert!(
@@ -3677,7 +3677,7 @@ fn apply_requirements_allowed_models_empty_array_is_unrestricted() {
         );
     assert_eq!(
             cfg.models.allowed_models,
-            Some(vec!["grok-4".to_string()]),
+            Some(vec!["xvora-4".to_string()]),
             "pin must not overwrite the user-field copy; EffectiveAllowlist reads the pin"
         );
 }
@@ -3691,17 +3691,17 @@ fn apply_requirements_allowed_models_replaces_user_list() {
             model = "grok-3"
             base_url = "https://api.x.ai/v1"
             context_window = 256000
-            [model.grok-4]
-            model = "grok-4"
+            [model.xvora-4]
+            model = "xvora-4"
             base_url = "https://api.x.ai/v1"
             context_window = 256000
             "#,
         )
         .unwrap();
     let mut cfg = crate::agent::config::Config::new_from_toml_cfg(&raw).unwrap();
-    pin_allowed_models(&mut cfg, "[models]\nallowed_models = [\"grok-4\"]\n");
+    pin_allowed_models(&mut cfg, "[models]\nallowed_models = [\"xvora-4\"]\n");
     let catalog = crate::agent::models::resolve_model_catalog(&cfg, None);
-    assert!(catalog["grok-4"].info.user_selectable);
+    assert!(catalog["xvora-4"].info.user_selectable);
     assert!(
             !catalog["grok-3"].info.user_selectable,
             "user * must not union with the fleet pin"
@@ -3712,20 +3712,20 @@ fn validate_selectable_rejects_dash_m_outside_fleet_pin() {
     let raw: toml::Value = toml::from_str(
             r#"
             [models]
-            default = "grok-4"
+            default = "xvora-4"
             [model.grok-3]
             model = "grok-3"
             base_url = "https://api.x.ai/v1"
             context_window = 256000
-            [model.grok-4]
-            model = "grok-4"
+            [model.xvora-4]
+            model = "xvora-4"
             base_url = "https://api.x.ai/v1"
             context_window = 256000
             "#,
         )
         .unwrap();
     let mut cfg = crate::agent::config::Config::new_from_toml_cfg(&raw).unwrap();
-    pin_allowed_models(&mut cfg, "[models]\nallowed_models = [\"grok-4\"]\n");
+    pin_allowed_models(&mut cfg, "[models]\nallowed_models = [\"xvora-4\"]\n");
     cfg.default_model_override = Some("grok-3".into());
     let catalog = crate::agent::models::resolve_model_catalog(&cfg, None);
     let err = crate::agent::models::validate_selectable(&cfg, &catalog).unwrap_err();
@@ -3778,29 +3778,29 @@ fn validate_hooks_path_rejects_outside_grok_home() {
     assert!(result.is_err());
     let msg = result.unwrap_err().to_string();
     assert!(
-            msg.contains("must be under ~/.grok/"),
-            "should mention ~/.grok/ restriction, got: {msg}"
+            msg.contains("must be under ~/.xvora/"),
+            "should mention ~/.xvora/ restriction, got: {msg}"
         );
 }
 #[test]
 fn validate_hooks_path_rejects_traversal_attack() {
-    let grok_home = crate::util::grok_home::grok_home();
-    let traversal = format!("{}/../evil", grok_home.display());
+    let xvora_home = crate::util::xvora_home::xvora_home();
+    let traversal = format!("{}/../evil", xvora_home.display());
     let result = validate_hooks_path(&traversal);
     assert!(result.is_err());
     let msg = result.unwrap_err().to_string();
     assert!(
-            msg.contains("must be under ~/.grok/"),
+            msg.contains("must be under ~/.xvora/"),
             "traversal should be rejected, got: {msg}"
         );
 }
 #[test]
 fn validate_hooks_path_accepts_grok_hooks_subdir() {
-    let grok_home = crate::util::grok_home::grok_home();
-    let valid_path = grok_home.join("hooks").join("my-hooks");
+    let xvora_home = crate::util::xvora_home::xvora_home();
+    let valid_path = xvora_home.join("hooks").join("my-hooks");
     let _ = std::fs::create_dir_all(&valid_path);
     let result = validate_hooks_path(valid_path.to_str().unwrap());
-    assert!(result.is_ok(), "path under ~/.grok/ should be accepted");
+    assert!(result.is_ok(), "path under ~/.xvora/ should be accepted");
 }
 #[test]
 fn managed_settings_disables_features_and_requirements_overrides() {
@@ -3841,7 +3841,7 @@ fn managed_settings_disables_features_and_requirements_overrides() {
     assert!(cfg.ui.yolo);
 }
 /// REGRESSION: external managed-settings.json is advisory, not authoritative.
-/// disableBypassPermissionsMode (mapped to features.disable_yolo) must NOT clamp the user's own grok yolo.
+/// disableBypassPermissionsMode (mapped to features.disable_yolo) must NOT clamp the user's own xvora yolo.
 #[test]
 fn managed_settings_does_not_override_user_yolo() {
     use crate::agent::config::Feature;
@@ -3881,7 +3881,7 @@ fn project_overlay_tracks_authoritative_trust_transitions() {
     let repo = tempfile::tempdir().unwrap();
     git2::Repository::init(repo.path()).unwrap();
     write_subagent_definitions(
-        &repo.path().join(".grok"),
+        &repo.path().join(".xvora"),
         &[("shared", "Project"), ("project-only", "Project")],
     );
     let mut base = SubagentsConfig::default();
@@ -3933,7 +3933,7 @@ fn project_overlay_tracks_authoritative_trust_transitions() {
 #[test]
 fn base_resolver_without_project_cwd_keeps_project_files_out() {
     let tmp = tempfile::tempdir().unwrap();
-    write_subagent_definitions(&tmp.path().join(".grok"), &[("project", "Project")]);
+    write_subagent_definitions(&tmp.path().join(".xvora"), &[("project", "Project")]);
     let base = SubagentsConfig::resolve_base_with_sources(
         false,
         &toml::Value::Table(Default::default()),
@@ -3946,8 +3946,8 @@ fn base_resolver_without_project_cwd_keeps_project_files_out() {
 #[test]
 fn explicit_grok_root_is_the_only_user_source() {
     let tmp = tempfile::tempdir().unwrap();
-    let ambient = tmp.path().join("ambient-home/.grok");
-    let configured = tmp.path().join("configured-grok-home");
+    let ambient = tmp.path().join("ambient-home/.xvora");
+    let configured = tmp.path().join("configured-xvora-home");
     write_subagent_definitions(&ambient, &[("ambient", "Ambient")]);
     write_subagent_definitions(&configured, &[("configured", "Configured")]);
     let base = SubagentsConfig::resolve_base_with_sources(
@@ -3964,9 +3964,9 @@ fn explicit_grok_root_is_the_only_user_source() {
 /// SECURITY (plugin-RCE): a PROJECT-declared `[plugins].paths` loads as an auto-enabled, auto-trusted ConfigPath plugin.
 /// It must therefore merge into the effective config ONLY when the folder is trusted; project `[plugins].disabled` is never gated.
 /// The closing set-difference proves the gate toggles ONLY that path (user/global paths pass through both verdicts untouched).
-/// The test is GROK_HOME-isolated and `#[serial]` for folder-trust store hygiene: an empty store is deterministically untrusted.
-/// `EnvGuard` restores GROK_HOME even on panic.
-/// No user-global `$GROK_HOME/config.toml` is seeded: `grok_home()` is `OnceLock`-cached.
+/// The test is xvora_home-isolated and `#[serial]` for folder-trust store hygiene: an empty store is deterministically untrusted.
+/// `EnvGuard` restores xvora_home even on panic.
+/// No user-global `$xvora_home/config.toml` is seeded: `xvora_home()` is `OnceLock`-cached.
 /// Under a shared-process harness (Bazel) such a seed is read non-deterministically.
 /// It is reliable only under nextest's process-per-test isolation.
 #[test]
@@ -3974,15 +3974,15 @@ fn explicit_grok_root_is_the_only_user_source() {
 fn resolve_effective_plugins_config_gates_project_paths_on_folder_trust() {
     use test_support::EnvGuard;
     let home = tempfile::tempdir().unwrap();
-    let _env = EnvGuard::set("GROK_HOME", home.path());
+    let _env = EnvGuard::set("xvora_home", home.path());
     let _flag = EnvGuard::unset("GROK_FOLDER_TRUST");
     let _sim = simulate_release_build();
     let repo = tempfile::tempdir().unwrap();
     git2::Repository::init(repo.path()).unwrap();
-    let grok = repo.path().join(".grok");
-    std::fs::create_dir_all(&grok).unwrap();
+    let xvora = repo.path().join(".xvora");
+    std::fs::create_dir_all(&xvora).unwrap();
     std::fs::write(
-            grok.join("config.toml"),
+            xvora.join("config.toml"),
             "[plugins]\npaths = [\"./proj-plugin\"]\ndisabled = [\"proj-bad\"]\n",
         )
         .unwrap();
@@ -4026,14 +4026,14 @@ fn resolve_effective_plugins_config_gates_project_paths_on_folder_trust() {
 /// This mirrors the Project-scope analog `discover_real_project_plugin_gated_on_project_trusted` in `xvora-agent`.
 /// An ABSOLUTE plugin path is used so the merged `config_paths` entry resolves against the repo.
 /// `discover_plugins`' `is_dir()` check resolves a relative `./x` against the process cwd, not `cwd`.
-/// The test is GROK_HOME-isolated and `#[serial]` (`EnvGuard` restores it even on panic).
+/// The test is xvora_home-isolated and `#[serial]` (`EnvGuard` restores it even on panic).
 #[test]
 #[serial_test::serial]
 fn discover_plugins_excludes_untrusted_configpath_plugin_end_to_end() {
     use agent::plugins::{TrustStore, discover_plugins};
     use test_support::EnvGuard;
     let home = tempfile::tempdir().unwrap();
-    let _env = EnvGuard::set("GROK_HOME", home.path());
+    let _env = EnvGuard::set("xvora_home", home.path());
     let _flag = EnvGuard::unset("GROK_FOLDER_TRUST");
     let _sim = simulate_release_build();
     let repo = tempfile::tempdir().unwrap();
@@ -4043,10 +4043,10 @@ fn discover_plugins_excludes_untrusted_configpath_plugin_end_to_end() {
     std::fs::create_dir_all(&plugin_dir).unwrap();
     std::fs::write(plugin_dir.join("plugin.json"), r#"{"name":"cfgpath-probe"}"#)
         .unwrap();
-    let grok = cwd.join(".grok");
-    std::fs::create_dir_all(&grok).unwrap();
+    let xvora = cwd.join(".xvora");
+    std::fs::create_dir_all(&xvora).unwrap();
     std::fs::write(
-            grok.join("config.toml"),
+            xvora.join("config.toml"),
             format!("[plugins]\npaths = ['{}']\n", plugin_dir.display()),
         )
         .unwrap();
@@ -4099,20 +4099,20 @@ fn discover_plugins_excludes_untrusted_configpath_plugin_end_to_end() {
 /// A cold key under an org kill-switch must end up allowed.
 /// If the plugins-config read ran first, the gate's remote-less backstop would record a durable kill-switch-blind deny.
 /// The `Some(false)` arm of `resolve_and_record_inner` (store-only reconcile) could never lift that deny.
-/// The test is GROK_HOME-isolated (empty store); GROK_FOLDER_TRUST is unset so the kill-switch is the only signal.
+/// The test is xvora_home-isolated (empty store); GROK_FOLDER_TRUST is unset so the kill-switch is the only signal.
 #[test]
 #[serial_test::serial]
 fn kill_switched_cold_cwd_stays_allowed_through_plugins_config_read() {
     use test_support::EnvGuard;
     let home = tempfile::tempdir().unwrap();
-    let _env = EnvGuard::set("GROK_HOME", home.path());
+    let _env = EnvGuard::set("xvora_home", home.path());
     let _flag = EnvGuard::unset("GROK_FOLDER_TRUST");
     let _sim = simulate_release_build();
     let repo = tempfile::tempdir().unwrap();
     git2::Repository::init(repo.path()).unwrap();
-    let grok = repo.path().join(".grok");
-    std::fs::create_dir_all(&grok).unwrap();
-    std::fs::write(grok.join("config.toml"), "[plugins]\npaths = [\"./proj-plugin\"]\n")
+    let xvora = repo.path().join(".xvora");
+    std::fs::create_dir_all(&xvora).unwrap();
+    std::fs::write(xvora.join("config.toml"), "[plugins]\npaths = [\"./proj-plugin\"]\n")
         .unwrap();
     let cwd = repo.path();
     let remote = crate::util::config::RemoteSettings {
@@ -4133,7 +4133,7 @@ fn kill_switched_cold_cwd_stays_allowed_through_plugins_config_read() {
             "gate must still allow the kill-switched folder after the config read"
         );
 }
-/// Writeback requires grok.com auth: remote may advertise it, but a non-xvora credential is downgraded to `Local`.
+/// Writeback requires xvora.com auth: remote may advertise it, but a non-xvora credential is downgraded to `Local`.
 #[test]
 #[serial_test::serial]
 fn from_remote_gated_requires_xai_auth_for_writeback() {

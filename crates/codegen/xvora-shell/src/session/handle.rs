@@ -11,7 +11,7 @@ use tokio::sync::{mpsc, oneshot};
 use xvora_sampling_types::ReasoningEffort;
 /// Coarse lifecycle state of a session as known to the leader/agent.
 ///
-/// A grok session is a resumable log on disk with no terminal status field of its own, so "liveness" is residency plus turn state, not a pid.
+/// A xvora session is a resumable log on disk with no terminal status field of its own, so "liveness" is residency plus turn state, not a pid.
 /// The agent's join-handle supervisor tracks this per session so a panicked actor is demoted to `Dormant` instead of lingering in the roster.
 /// This is the data source the roster/dashboard reads.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

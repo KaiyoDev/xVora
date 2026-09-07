@@ -538,7 +538,7 @@ impl LspClient {
 
     pub async fn shutdown(mut self) {
         // Dead transport — a crashed server, or the session scope's
-        // SIGKILL-on-close (see grok-shell `take_session`) landing before this
+        // SIGKILL-on-close (see xvora-shell `take_session`) landing before this
         // Drop-spawned graceful task ran. The shutdown/exit handshake can only
         // fail, so skip it (and its warnings) and just reap.
         if self.main_loop.is_finished() {

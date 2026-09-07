@@ -29,7 +29,7 @@ pub(crate) fn base_template() -> Zeroizing<String> {
     decrypt(BASE_PROMPT_ENC, PROMPT_SEEDS[0])
 }
 
-/// The base prompt template source, exposed for `grok prompt --section template`.
+/// The base prompt template source, exposed for `xvora prompt --section template`.
 pub fn base_template_source() -> Zeroizing<String> {
     base_template()
 }
@@ -38,7 +38,7 @@ pub(crate) fn apply_patch_template() -> Zeroizing<String> {
     decrypt(CODEX_PROMPT_ENC, PROMPT_SEEDS[1])
 }
 
-/// Apply-patch prompt template source, exposed for `grok prompt --section apply-patch-template`.
+/// Apply-patch prompt template source, exposed for `xvora prompt --section apply-patch-template`.
 pub fn apply_patch_template_source() -> Zeroizing<String> {
     apply_patch_template()
 }
@@ -90,7 +90,7 @@ mod tests {
         );
     }
 
-    /// Build a TemplateRenderer with the standard grok-build tool kinds.
+    /// Build a TemplateRenderer with the standard xvora-build tool kinds.
     fn default_renderer() -> TemplateRenderer {
         let tools: HashMap<ToolKind, String> = [
             (ToolKind::Read, "read_file"),

@@ -92,6 +92,16 @@ LONG_HELP_VI: dict[str, str] = {
         "Theo dõi hoặc quay lại việc đã gửi nền bằng Ctrl+G.\n"
         "Panel bên; tắt để lấy lại chiều ngang."
     ),
+    "EditPromptExternal": (
+        "Mở nháp prompt hiện tại trong $VISUAL hoặc $EDITOR, fallback sang vi nếu không có.\n"
+        "Lưu và đóng editor sẽ trả văn bản đã cập nhật về composer; không gửi prompt.\n"
+        "Khả dụng ở chế độ minimal cho nháp thông thường không đính kèm."
+    ),
+    "StashPrompt": (
+        "Lưu nháp prompt hiện tại.\n"
+        "Ctrl+S bỏ nháp và xóa composer. Ctrl+S trên composer trống sẽ khôi phục nó. Nháp cũng tự khôi phục sau khi gửi prompt tiếp theo. Dùng Alt+S nếu terminal吞 Ctrl+S.\n"
+        "Một nháp mỗi lần: nháp mới thay thế nháp cũ."
+    ),
     "ToggleQueue": (
         "Hiện/ẩn hàng đợi prompt.\n"
         "Xếp prompt follow-up trong khi lượt đang chạy; gửi tự động khi agent xong.\n"
@@ -297,13 +307,13 @@ ENUM_CHOICES: dict[str, tuple[str, str, str, str]] = {
         "Follow system dark/light appearance.",
         "Theo giao diện tối/sáng của hệ thống.",
     ),
-    "groknight": (
+    "xvonight": (
         "xVora Night",
         "xVora Night",
         "Neutral dark with magenta accent.",
         "Tối trung tính, accent magenta.",
     ),
-    "grokday": (
+    "xvoday": (
         "xVora Day",
         "xVora Day",
         "Light theme for bright environments.",
@@ -348,8 +358,8 @@ ENUM_CHOICES: dict[str, tuple[str, str, str, str]] = {
     "opt-in": (
         "Opt in",
         "Cho phép",
-        "Allow SpaceXAI to retain and use coding session data for training and product improvement.",
-        "Cho phép SpaceXAI lưu và dùng dữ liệu phiên coding để huấn luyện và cải thiện sản phẩm.",
+        "Allow xVora to retain and use coding session data for training and product improvement.",
+        "Cho phép xVora lưu và dùng dữ liệu phiên coding để huấn luyện và cải thiện sản phẩm.",
     ),
     "opt-out": (
         "Opt out",
@@ -493,8 +503,8 @@ def write_enum_full() -> None:
 EXTRA_CHROME = {
     "settings.title": ("Settings", "Cài đặt"),
     "settings.tip.long": (
-        'Tip · Ask xVora: "change theme to grokday" or "what does compact mode do?"',
-        'Mẹo · Hỏi xVora: "đổi theme sang grokday" hoặc "compact mode làm gì?"',
+        'Tip · Ask xVora: "change theme to xvoday" or "what does compact mode do?"',
+        'Mẹo · Hỏi xVora: "đổi theme sang xvoday" hoặc "compact mode làm gì?"',
     ),
     "settings.tip.short": (
         "Tip · Ask xVora to change a setting",

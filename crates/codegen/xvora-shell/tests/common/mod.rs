@@ -290,7 +290,7 @@ pub mod leader {
 
 #[allow(dead_code)]
 pub fn isolated_home() -> tempfile::TempDir {
-    let home = tempfile::TempDir::new().expect("grok home tempdir");
+    let home = tempfile::TempDir::new().expect("xvora home tempdir");
     // SAFETY: single-test binary; no other thread reads or writes the environment.
     unsafe { test_support::isolate_grok_env(home.path()) };
     home

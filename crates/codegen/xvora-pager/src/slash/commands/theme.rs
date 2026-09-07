@@ -136,7 +136,7 @@ mod tests {
         theme_cache::seed_auto_theme_defaults_for_test();
         system_appearance::clear_mock();
         // Set LOADED=true so current_kind() doesn't try to read from disk.
-        theme_cache::set(ThemeKind::GrokNight);
+        theme_cache::set(ThemeKind::XvoNight);
         f();
         system_appearance::clear_mock();
         theme_cache::reset_for_test();
@@ -227,7 +227,7 @@ mod tests {
     fn suggest_args_explicit_active_when_not_auto() {
         with_test_env(|| {
             theme_cache::set_auto_mode(false);
-            theme_cache::set(ThemeKind::GrokNight);
+            theme_cache::set(ThemeKind::XvoNight);
             let cmd = ThemeCommand;
             let models = crate::acp::model_state::ModelState::default();
             let ctx = AppCtx {
@@ -243,14 +243,14 @@ mod tests {
                 current_title: None,
             };
             let items = cmd.suggest_args(&ctx, "").expect("should return items");
-            let groknight = items
+            let xvonight = items
                 .iter()
-                .find(|i| i.insert_text == "groknight")
-                .expect("groknight should be in list");
+                .find(|i| i.insert_text == "xvonight")
+                .expect("xvonight should be in list");
             assert!(
-                groknight.description.contains("(active)"),
+                xvonight.description.contains("(active)"),
                 "explicit theme should show (active), got: {}",
-                groknight.description
+                xvonight.description
             );
         });
     }
@@ -259,7 +259,7 @@ mod tests {
     fn suggest_args_no_explicit_active_when_auto() {
         with_test_env(|| {
             theme_cache::set_auto_mode(true);
-            theme_cache::set(ThemeKind::GrokNight);
+            theme_cache::set(ThemeKind::XvoNight);
             let cmd = ThemeCommand;
             let models = crate::acp::model_state::ModelState::default();
             let ctx = AppCtx {
@@ -308,12 +308,12 @@ mod tests {
                     ..crate::settings::PagerLocalSnapshot::default()
                 },
             };
-            let result = cmd.run(&mut ctx, "groknight");
+            let result = cmd.run(&mut ctx, "xvonight");
             match result {
                 CommandResult::Action(Action::SetTheme(name)) => {
-                    assert_eq!(name, "groknight");
+                    assert_eq!(name, "xvonight");
                 }
-                other => panic!("expected Action::SetTheme(\"groknight\"), got {other:?}"),
+                other => panic!("expected Action::SetTheme(\"xvonight\"), got {other:?}"),
             }
         });
     }
@@ -323,7 +323,7 @@ mod tests {
     #[test]
     fn run_toggle_dispatches_set_theme_action() {
         with_test_env(|| {
-            theme_cache::set(ThemeKind::GrokNight);
+            theme_cache::set(ThemeKind::XvoNight);
             // Hard-fail with a clear message if the precondition breaks
             // `(0 + 1) % 0` in `run` would otherwise panic with `attempt to calculate the remainder with a divisor of zero`, a worse message
             assert!(
@@ -350,7 +350,7 @@ mod tests {
             let result = cmd.run(&mut ctx, "");
             match result {
                 CommandResult::Action(Action::SetTheme(name)) => {
-                    // available[0] is GrokNight; next is available[1]
+                    // available[0] is XvoNight; next is available[1]
                     let expected = ThemeKind::available()[1].display_name();
                     assert_eq!(name, expected);
                 }
@@ -408,13 +408,13 @@ mod tests {
                     ..crate::settings::PagerLocalSnapshot::default()
                 },
             };
-            // "dark" is an alias for GrokNight.
+            // "dark" is an alias for XvoNight.
             let result = cmd.run(&mut ctx, "dark");
             match result {
                 CommandResult::Action(Action::SetTheme(name)) => {
-                    assert_eq!(name, "groknight", "alias must normalise to canonical");
+                    assert_eq!(name, "xvonight", "alias must normalise to canonical");
                 }
-                other => panic!("expected Action::SetTheme(\"groknight\"), got {other:?}"),
+                other => panic!("expected Action::SetTheme(\"xvonight\"), got {other:?}"),
             }
         });
     }
@@ -427,30 +427,30 @@ mod tests {
             system_appearance::set_mock(Some(system_appearance::SystemAppearance::Light));
             let cmd = ThemeCommand;
             cmd.preview_arg("auto");
-            // The default auto config maps Light to GrokDay
-            assert_eq!(Theme::current_kind(), ThemeKind::GrokDay);
+            // The default auto config maps Light to XvoDay
+            assert_eq!(Theme::current_kind(), ThemeKind::XvoDay);
         });
     }
 
     #[test]
     fn preview_explicit_theme_applies_directly() {
         with_test_env(|| {
-            theme_cache::set(ThemeKind::GrokNight);
+            theme_cache::set(ThemeKind::XvoNight);
             let cmd = ThemeCommand;
-            cmd.preview_arg("grokday");
-            assert_eq!(Theme::current_kind(), ThemeKind::GrokDay);
+            cmd.preview_arg("xvoday");
+            assert_eq!(Theme::current_kind(), ThemeKind::XvoDay);
         });
     }
 
     #[test]
     fn preview_unknown_theme_is_no_op() {
         with_test_env(|| {
-            theme_cache::set(ThemeKind::GrokNight);
+            theme_cache::set(ThemeKind::XvoNight);
             let cmd = ThemeCommand;
             cmd.preview_arg("nonexistent-theme");
             assert_eq!(
                 Theme::current_kind(),
-                ThemeKind::GrokNight,
+                ThemeKind::XvoNight,
                 "unknown theme name must NOT change Theme::current_kind",
             );
         });
@@ -461,17 +461,17 @@ mod tests {
     #[test]
     fn cancel_preview_restores_previous_kind() {
         with_test_env(|| {
-            theme_cache::set(ThemeKind::GrokNight);
+            theme_cache::set(ThemeKind::XvoNight);
             let cmd = ThemeCommand;
             // Simulate user navigating into a different theme during preview.
-            cmd.preview_arg("grokday");
-            assert_eq!(Theme::current_kind(), ThemeKind::GrokDay);
+            cmd.preview_arg("xvoday");
+            assert_eq!(Theme::current_kind(), ThemeKind::XvoDay);
 
             // Then Escape (or arg picker dismissal): restore.
-            cmd.cancel_preview("groknight");
+            cmd.cancel_preview("xvonight");
             assert_eq!(
                 Theme::current_kind(),
-                ThemeKind::GrokNight,
+                ThemeKind::XvoNight,
                 "cancel_preview must restore the previous canonical",
             );
         });
@@ -480,12 +480,12 @@ mod tests {
     #[test]
     fn cancel_preview_unknown_theme_is_no_op() {
         with_test_env(|| {
-            theme_cache::set(ThemeKind::GrokDay);
+            theme_cache::set(ThemeKind::XvoDay);
             let cmd = ThemeCommand;
             cmd.cancel_preview("nonexistent-theme");
             assert_eq!(
                 Theme::current_kind(),
-                ThemeKind::GrokDay,
+                ThemeKind::XvoDay,
                 "unknown previous must NOT change Theme::current_kind",
             );
         });

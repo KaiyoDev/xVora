@@ -1,4 +1,4 @@
-//! Parsers for the managed policy keys (Claude camelCase JSON and grok
+//! Parsers for the managed policy keys (Claude camelCase JSON and xvora
 //! snake_case TOML-as-JSON): MCP allow/deny lists, marketplace lists, and
 //! boolean pins.
 

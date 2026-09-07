@@ -12,10 +12,10 @@ struct WorktreesFixture {
 
 fn locked_worktrees_fixture(temp: &tempfile::TempDir) -> WorktreesFixture {
     let root = dunce::canonicalize(temp.path()).unwrap();
-    let home = root.join("grok-home");
+    let home = root.join("xvora-home");
     let worktrees = home.join("worktrees");
     std::fs::create_dir_all(&worktrees).unwrap();
-    let env = LockedTestEnv::lock().set("GROK_HOME", &home);
+    let env = LockedTestEnv::lock().set("xvora_home", &home);
     WorktreesFixture {
         _env: env,
         root,
@@ -71,20 +71,20 @@ fn nested_subdir_cwd_derives_label_from_second_component_after_prefix() {
 
 #[test]
 fn cwd_at_slug_level_or_at_worktrees_dir_itself_has_no_identity() {
-    let worktrees = Path::new("/home/user/.grok/worktrees");
+    let worktrees = Path::new("/home/user/.xvora/worktrees");
     assert_eq!(
-        worktree_identity_in(worktrees, "/home/user/.grok/worktrees"),
+        worktree_identity_in(worktrees, "/home/user/.xvora/worktrees"),
         None
     );
     assert_eq!(
-        worktree_identity_in(worktrees, "/home/user/.grok/worktrees/xvora"),
+        worktree_identity_in(worktrees, "/home/user/.xvora/worktrees/xvora"),
         None
     );
 }
 
 #[test]
 fn cwd_outside_worktrees_dir_has_no_identity() {
-    let worktrees = Path::new("/home/user/.grok/worktrees");
+    let worktrees = Path::new("/home/user/.xvora/worktrees");
     assert_eq!(
         worktree_identity_in(worktrees, "/home/user/projects/xvora"),
         None
@@ -208,7 +208,7 @@ fn standalone_clone_behind_symlinked_worktrees_dir_reports_no_source() {
     test_utils::git::git_commit_all(&standalone, "initial");
     let link_home = root.join("link-home");
     std::os::unix::fs::symlink(&real_home, &link_home).unwrap();
-    let _env = LockedTestEnv::lock().set("GROK_HOME", &link_home);
+    let _env = LockedTestEnv::lock().set("xvora_home", &link_home);
 
     let link_worktrees = link_home.join("worktrees");
     let link_cwd = link_worktrees.join("repo").join("standalone");
@@ -232,7 +232,7 @@ fn standalone_clone_with_source_marker_and_no_db_derives_marker_source() {
     std::fs::write(standalone.join("tracked.txt"), "x").unwrap();
     test_utils::git::git_commit_all(&standalone, "initial");
     std::fs::write(
-        standalone.join(".git").join("grok-worktree-source"),
+        standalone.join(".git").join("xvora-worktree-source"),
         "/marker-source\n",
     )
     .unwrap();

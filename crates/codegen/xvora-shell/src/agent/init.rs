@@ -169,7 +169,7 @@ fn resolve_config(
     apply_post_gate_settings(&mut cfg, pre_gate_prefetch);
     crate::util::config::sync_campaign_fields(&mut cfg);
 
-    // env var > remote settings > Local. Skip remote settings for Generic (grok -p, subagents).
+    // env var > remote settings > Local. Skip remote settings for Generic (xvora -p, subagents).
     let has_xai_auth = auth_manager.current().is_some_and(|a| a.is_xai_auth());
     if cfg.storage_mode == StorageMode::Local
         && cfg.mode != crate::agent::config::AgentMode::Generic
@@ -177,9 +177,9 @@ fn resolve_config(
         cfg.storage_mode =
             StorageMode::from_remote_gated(cfg.remote_settings.as_ref(), has_xai_auth);
     }
-    // A CLI/env-set Writeback still requires grok.com auth.
+    // A CLI/env-set Writeback still requires xvora.com auth.
     if cfg.storage_mode == StorageMode::Writeback && !has_xai_auth {
-        tracing::info!("Writeback is disabled: requires auth with grok.com");
+        tracing::info!("Writeback is disabled: requires auth with xvora.com");
         cfg.storage_mode = StorageMode::Local;
     }
 
@@ -206,20 +206,20 @@ fn init_process(cfg: &AgentConfig, auth_manager: &AuthManager) {
         let limits = crate::util::limits::ProcessLimits::read();
         limits.log();
 
-        let grok_home = crate::util::grok_home::grok_home();
-        crate::builtin::extract_builtin_files(&grok_home);
+        let xvora_home = crate::util::xvora_home::xvora_home();
+        crate::builtin::extract_builtin_files(&xvora_home);
         if !cfg!(test) {
             // Deletes dirs; must never touch a unit-test process's real home.
-            crate::builtin::purge_stale_extracted_skills(&grok_home);
+            crate::builtin::purge_stale_extracted_skills(&xvora_home);
         }
 
-        crate::extensions::marketplace::purge_default_skills_installs(&grok_home);
+        crate::extensions::marketplace::purge_default_skills_installs(&xvora_home);
 
         // At boot remote_settings may still be None (fetches are backgrounded),
         // so only an env opt-in fires here; the gate is re-evaluated once
         // settings arrive (see `MvpAgent::reapply_official_marketplace`).
         if cfg.resolve_official_marketplace_auto_register().value {
-            crate::extensions::marketplace::ensure_official_marketplace_source(&grok_home);
+            crate::extensions::marketplace::ensure_official_marketplace_source(&xvora_home);
         }
 
         let telemetry_mode = cfg.resolve_telemetry_mode();
@@ -256,7 +256,7 @@ fn init_process(cfg: &AgentConfig, auth_manager: &AuthManager) {
 pub fn update_telemetry_config(config: &AgentConfig, auth_manager: &AuthManager) {
     // shared_client() aborts (panic = "abort") on an invalid user agent,
     // and that string comes from the GROK_CLIENT_NAME env var. Telemetry
-    // init must never take down its caller — `grok update` is a repair
+    // init must never take down its caller — `xvora update` is a repair
     // command — so validate the one user-controlled input first.
     let user_agent = crate::http::process_user_agent_string();
     if reqwest::header::HeaderValue::from_str(&user_agent).is_err() {

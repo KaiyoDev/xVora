@@ -23,7 +23,7 @@ static FOLLOW_UP_STEER_MTIME_NS: AtomicU64 = AtomicU64::new(0);
 
 /// Nanoseconds since epoch for the user `config.toml` mtime, or 0 if missing.
 fn follow_up_config_mtime_ns() -> u64 {
-    let path = crate::util::grok_home::grok_home().join("config.toml");
+    let path = crate::util::xvora_home::xvora_home().join("config.toml");
     std::fs::metadata(path)
         .and_then(|m| m.modified())
         .ok()
@@ -168,7 +168,7 @@ pub async fn set_contextual_hint_ssh_wrap(value: bool) -> Result<()> {
 }
 
 /// Persist `[ui].theme` via `update_config`.
-/// Caller must pass the canonical theme name (`groknight`, `tokyonight`, `auto`, etc.).
+/// Caller must pass the canonical theme name (`XvoNight`, `tokyonight`, `auto`, etc.).
 pub async fn set_theme(value: String) -> Result<()> {
     update_config(|cfg| cfg.ui.theme = Some(value)).await
 }

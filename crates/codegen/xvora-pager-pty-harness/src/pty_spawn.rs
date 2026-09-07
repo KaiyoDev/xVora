@@ -111,7 +111,7 @@ impl EnvSink for std::collections::BTreeMap<std::ffi::OsString, std::ffi::OsStri
 
 /// Compute the full Unix child environment: the [`TestSandbox`] baseline when
 /// provided (content-backed spawns), otherwise the inherited parent
-/// environment (terminal-probe and grok-wrap fixtures), plus the hygiene pass
+/// environment (terminal-probe and xvora-wrap fixtures), plus the hygiene pass
 /// and caller overrides from [`apply_child_env`].
 #[cfg(unix)]
 pub(crate) fn compute_child_env(
@@ -184,7 +184,7 @@ pub(crate) fn apply_child_env<S: EnvSink>(cmd: &mut S, env: &[EnvOp<'_>]) {
     for ssh_var in ["SSH_CONNECTION", "SSH_CLIENT", "SSH_TTY", "SSH_AUTH_SOCK"] {
         cmd.remove_var(OsStr::new(ssh_var));
     }
-    // A harness launched under `grok wrap` must not silently confirm clipboard
+    // A harness launched under `xvora wrap` must not silently confirm clipboard
     // delivery for no-sink scenarios. Explicit sink tests re-inject a marker
     // through `env` after this hygiene pass.
     for sink_var in CLIPBOARD_SINK_ENV_VARS {
@@ -413,8 +413,8 @@ mod tests {
             "hermetic baseline must remove unrelated inherited vars"
         );
         assert_eq!(
-            cmd.get_env("GROK_HOME").and_then(|v| v.to_str()),
-            sandbox.grok_home().to_str()
+            cmd.get_env("xvora_home").and_then(|v| v.to_str()),
+            sandbox.xvora_home().to_str()
         );
     }
 
@@ -432,8 +432,8 @@ mod tests {
             sandbox.home().to_str()
         );
         assert_eq!(
-            cmd.get_env("GROK_HOME").and_then(|v| v.to_str()),
-            sandbox.grok_home().to_str()
+            cmd.get_env("xvora_home").and_then(|v| v.to_str()),
+            sandbox.xvora_home().to_str()
         );
         assert_eq!(cmd.get_env("GROK_LEADER_SOCKET"), None);
     }

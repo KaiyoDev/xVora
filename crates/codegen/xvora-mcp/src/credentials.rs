@@ -1,6 +1,6 @@
 //! Persistent credential storage for MCP server OAuth tokens.
 //!
-//! Credentials are stored in `$GROK_HOME/mcp_credentials.json`, keyed by a composite key derived from the server name and URL.
+//! Credentials are stored in `$xvora_home/mcp_credentials.json`, keyed by a composite key derived from the server name and URL.
 //! This keeps MCP OAuth tokens isolated from the user's xAI auth (`auth.json`).
 //!
 //! Stores rmcp's `StoredCredentials` type directly, the same type that rmcp's `AuthorizationManager` uses internally.
@@ -56,10 +56,10 @@ pub enum McpCredentialError {
     Other(String),
 }
 
-/// File name for the credential store inside `$GROK_HOME`.
+/// File name for the credential store inside `$xvora_home`.
 const CREDENTIALS_FILENAME: &str = "mcp_credentials.json";
 
-/// On-disk credential store: `$GROK_HOME/mcp_credentials.json`.
+/// On-disk credential store: `$xvora_home/mcp_credentials.json`.
 ///
 /// Stores rmcp `StoredCredentials` per MCP server, keyed by `"{server_name}:{server_url}"`.
 #[derive(Clone, Serialize, Deserialize, Default)]
@@ -82,7 +82,7 @@ impl McpCredentialStore {
         format!("{}:{}", server_name, server_url)
     }
 
-    /// Load the credential store from the default path (`$GROK_HOME/mcp_credentials.json`).
+    /// Load the credential store from the default path (`$xvora_home/mcp_credentials.json`).
     ///
     /// Returns an empty store if the file does not exist.
     pub fn load_default() -> Result<Self> {
@@ -112,14 +112,14 @@ impl McpCredentialStore {
 
     pub fn save_default(&self) -> Result<()> {
         let path = Self::default_path().ok_or_else(|| {
-            McpCredentialError::Other("no user grok home (set $GROK_HOME or $HOME)".into())
+            McpCredentialError::Other("no user xvora home (set $xvora_home or $HOME)".into())
         })?;
         self.save_to(&path)
     }
 
     fn locked_mutate_and_save(&mut self, mutate: &dyn Fn(&mut Self)) -> Result<()> {
         let path = Self::default_path().ok_or_else(|| {
-            McpCredentialError::Other("no user grok home (set $GROK_HOME or $HOME)".into())
+            McpCredentialError::Other("no user xvora home (set $xvora_home or $HOME)".into())
         })?;
         match acquire_store_lock(&path) {
             Some(_lock) => {
@@ -213,7 +213,7 @@ impl McpCredentialStore {
         self.entries.is_empty()
     }
 
-    /// Default path: `$GROK_HOME/mcp_credentials.json`.
+    /// Default path: `$xvora_home/mcp_credentials.json`.
     fn default_path() -> Option<PathBuf> {
         Some(config::user_grok_home()?.join(CREDENTIALS_FILENAME))
     }
@@ -431,7 +431,7 @@ mod tests {
         assert!(loaded.get("test", &url).is_some());
     }
 
-    /// Raw JSON fixture in the exact shape rmcp 0.17 persisted to `$GROK_HOME/mcp_credentials.json`.
+    /// Raw JSON fixture in the exact shape rmcp 0.17 persisted to `$xvora_home/mcp_credentials.json`.
     /// Existing credential files must keep loading across rmcp upgrades (2.1's `OAuthTokenResponse` gained vendor extra token fields).
     /// So this must be a string literal, never JSON serialized by the current code.
     #[test]
@@ -490,7 +490,7 @@ mod tests {
 
     #[test]
     fn save_and_load_from_file() {
-        let dir = std::env::temp_dir().join("grok-mcp-credentials-test");
+        let dir = std::env::temp_dir().join("xvora-mcp-credentials-test");
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("test_creds.json");
 

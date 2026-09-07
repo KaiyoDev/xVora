@@ -606,13 +606,13 @@ pub(crate) const METRIC_ALLOWED_ATTR_KEYS: &[&str] = &[
 /// The underlying field is externally controlled free text from ACP client metadata, so it must never pass verbatim.
 /// Unknown values collapse to `"other"`.
 pub(crate) const KNOWN_CLIENT_IDENTIFIERS: &[&str] = &[
-    "grok-pager",
-    "grok-tui",
-    "grok-shell",
-    "grok-web",
-    "grok-desktop",
-    "grok-code-extension",
-    "grok-agent-sdk",
+    "xvora-pager",
+    "xvora-tui",
+    "xvora-shell",
+    "xvora-web",
+    "xvora-desktop",
+    "xvora-code-extension",
+    "xvora-agent-sdk",
     "nebula",
     "zed",
 ];

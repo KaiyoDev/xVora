@@ -1,4 +1,4 @@
-//! Actor-based sampling layer for xAI grok.
+//! Actor-based sampling layer for xAI xvora.
 //!
 //! This crate holds the HTTP streaming and retry logic extracted from `xvora-shell`'s session actor.
 //! It is built on the same actor pattern as `xvora-hunk-tracker`.

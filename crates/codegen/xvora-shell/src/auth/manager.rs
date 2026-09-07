@@ -307,7 +307,7 @@ impl ScopeRemoval {
 // ── Construction + builders ──────────────────────────────────────────
 
 impl AuthManager {
-    pub fn new(grok_home: &Path, grok_com_config: GrokComConfig) -> Self {
+    pub fn new(xvora_home: &Path, grok_com_config: GrokComConfig) -> Self {
         let scope = ActiveAuthBackend::default().scope_key(&grok_com_config);
         let proxy_base_url =
             crate::agent::config::EndpointsConfig::from_effective_config().proxy_url();
@@ -317,21 +317,21 @@ impl AuthManager {
             None,
             Some(serde_json::json!({
                 "scope": &scope,
-                "grok_home": grok_home.display().to_string(),
+                "xvora_home": xvora_home.display().to_string(),
                 "HOME": std::env::var("HOME").unwrap_or_else(|_| "(unset)".into()),
-                "GROK_HOME": std::env::var("GROK_HOME").unwrap_or_else(|_| "(unset)".into()),
+                "xvora_home": std::env::var("xvora_home").unwrap_or_else(|_| "(unset)".into()),
                 "GROK_AUTH_PATH": std::env::var("GROK_AUTH_PATH").unwrap_or_else(|_| "(unset)".into()),
                 "GROK_AUTH": std::env::var("GROK_AUTH").map(|_| "(set)".to_string()).unwrap_or_else(|_| "(unset)".into()),
             })),
         );
 
-        // GROK_AUTH_PATH: custom file path (overrides default $GROK_HOME/auth.json).
+        // GROK_AUTH_PATH: custom file path (overrides default $xvora_home/auth.json).
         // Resolved before the GROK_AUTH branch so inline-credential managers also honor it
         // Their later refresh persistence (`update()`) writes to this path
         // Hardcoding the default here would silently split reads (inline) from writes (default path)
         let path = std::env::var("GROK_AUTH_PATH")
             .map(PathBuf::from)
-            .unwrap_or_else(|_| grok_home.join("auth.json"));
+            .unwrap_or_else(|_| xvora_home.join("auth.json"));
 
         // GROK_AUTH: inline JSON credentials (highest priority, read-only).
         if let Ok(inline_json) = std::env::var("GROK_AUTH") {
@@ -1002,7 +1002,7 @@ impl AuthManager {
     }
 
     /// Path to the `auth.json` this manager reads/writes (respects `GROK_AUTH_PATH` / constructor home).
-    /// Prefer this over `grok_home()/auth.json` so temp-home tests and custom stores stay isolated.
+    /// Prefer this over `xvora_home()/auth.json` so temp-home tests and custom stores stay isolated.
     pub(crate) fn auth_json_path(&self) -> &Path {
         &self.path
     }
@@ -1457,7 +1457,7 @@ impl AuthManager {
             }
             TokenType::LegacySession => {
                 // Deliberate side effect: re-read auth.json
-                // A sibling process (`grok login` from another shell, the desktop app, etc.) may have refreshed the on-disk credentials
+                // A sibling process (`xvora login` from another shell, the desktop app, etc.) may have refreshed the on-disk credentials
                 // `pick_up_sibling_token` only mutates inner when the disk holds a *different valid* token
                 // The common cache-hit case is a single read
                 // Documented at module level under "Lock ordering".

@@ -3,7 +3,7 @@ use super::super::mcp::{McpConfig, parse_mcp_config_with_oauth};
 use super::*;
 use toml::Value as TomlValue;
 use toml::map::Map as TomlMap;
-/// First-run `ensure` creates a 0-byte `$GROK_HOME/config.toml`.
+/// First-run `ensure` creates a 0-byte `$xvora_home/config.toml`.
 /// Empty and whitespace-only files must parse as an empty table so the first settings write is not "refusing to overwrite unparseable".
 /// Non-empty garbage still refuses.
 #[test]
@@ -306,7 +306,7 @@ fn merge_section_updates_modeled_fields_preserving_unmodeled() {
     ui.insert("show_timestamps".into(), TomlValue::Boolean(true));
     ui.insert(
         "auto_light_theme".into(),
-        TomlValue::String("grokday".into()),
+        TomlValue::String("XvoDay".into()),
     );
     table.insert("ui".into(), TomlValue::Table(ui));
     let cfg = crate::agent::config::UiConfig {
@@ -327,7 +327,7 @@ fn merge_section_updates_modeled_fields_preserving_unmodeled() {
     );
     assert_eq!(
         ui.get("auto_light_theme").and_then(|v| v.as_str()),
-        Some("grokday"),
+        Some("XvoDay"),
         "pre-existing field not in serialized output should be preserved"
     );
 }
@@ -447,14 +447,14 @@ fn ui_config_round_trip_preserves_pager_fields() {
 yolo = true
 show_timestamps = false
 auto_dark_theme = "tokyonight"
-auto_light_theme = "grokday"
+auto_light_theme = "XvoDay"
 "#;
     let root: TomlValue = toml::from_str(toml_str).unwrap();
     let cfg = load_config_from_toml(&root);
     assert!(cfg.ui.yolo);
     assert_eq!(cfg.ui.show_timestamps, Some(false));
     assert_eq!(cfg.ui.auto_dark_theme.as_deref(), Some("tokyonight"));
-    assert_eq!(cfg.ui.auto_light_theme.as_deref(), Some("grokday"));
+    assert_eq!(cfg.ui.auto_light_theme.as_deref(), Some("XvoDay"));
     let mut table = root.as_table().unwrap().clone();
     merge_section(&mut table, "ui", &cfg.ui);
     let ui = table.get("ui").unwrap().as_table().unwrap();
@@ -468,7 +468,7 @@ auto_light_theme = "grokday"
     );
     assert_eq!(
         ui.get("auto_light_theme").and_then(|v| v.as_str()),
-        Some("grokday")
+        Some("XvoDay")
     );
     assert_eq!(ui.get("yolo").and_then(|v| v.as_bool()), Some(true));
 }
@@ -535,7 +535,7 @@ fn merge_section_full_save_config_simulation() {
 [ui]
 show_timestamps = true
 auto_dark_theme = "tokyonight"
-auto_light_theme = "grokday"
+auto_light_theme = "XvoDay"
 
 [models]
 default = "grok-3"
@@ -545,7 +545,7 @@ auto_update = true
 "#;
     let root: TomlValue = toml::from_str(original).unwrap();
     let mut cfg = load_config_from_toml(&root);
-    cfg.models.default = Some("grok-4".to_string());
+    cfg.models.default = Some("xvora-4".to_string());
     let mut table = root.as_table().unwrap().clone();
     merge_section(&mut table, "cli", &cfg.cli);
     merge_section(&mut table, "models", &cfg.models);
@@ -562,12 +562,12 @@ auto_update = true
     );
     assert_eq!(
         ui.get("auto_light_theme").and_then(|v| v.as_str()),
-        Some("grokday")
+        Some("XvoDay")
     );
     let models = table.get("models").unwrap().as_table().unwrap();
     assert_eq!(
         models.get("default").and_then(|v| v.as_str()),
-        Some("grok-4")
+        Some("xvora-4")
     );
 }
 #[test]
@@ -723,12 +723,12 @@ fn merge_section_models_only_updates_set_fields_preserves_others() {
     models.insert("unmodeled_foo".into(), TomlValue::String("keep-me".into()));
     table.insert("models".into(), TomlValue::Table(models));
     let cfg = crate::agent::config::ModelsConfig {
-        default: Some("grok-new".to_string()),
+        default: Some("xvora-new".to_string()),
         ..Default::default()
     };
     merge_section(&mut table, "models", &cfg);
     let m = table.get("models").unwrap().as_table().unwrap();
-    assert_eq!(m.get("default").and_then(|v| v.as_str()), Some("grok-new"));
+    assert_eq!(m.get("default").and_then(|v| v.as_str()), Some("xvora-new"));
     assert_eq!(
         m.get("web_search").and_then(|v| v.as_str()),
         Some("old-search")
@@ -741,10 +741,10 @@ fn merge_section_models_only_updates_set_fields_preserves_others() {
 }
 #[test]
 fn persist_preferred_model_flow_roundtrips_via_load_and_new_from_toml_cfg() {
-    let original = "[models]\ndefault = \"grok-old\"\nweb_search = \"some-search\"\n";
+    let original = "[models]\ndefault = \"xvora-old\"\nweb_search = \"some-search\"\n";
     let root: TomlValue = toml::from_str(original).unwrap();
     let mut cfg = load_config_from_toml(&root);
-    cfg.models.default = Some("grok-persisted".to_string());
+    cfg.models.default = Some("xvora-persisted".to_string());
     let mut table = if let TomlValue::Table(t) = root {
         t
     } else {
@@ -753,10 +753,10 @@ fn persist_preferred_model_flow_roundtrips_via_load_and_new_from_toml_cfg() {
     merge_section(&mut table, "models", &cfg.models);
     let reloaded_root = TomlValue::Table(table);
     let reloaded = load_config_from_toml(&reloaded_root);
-    assert_eq!(reloaded.models.default.as_deref(), Some("grok-persisted"));
+    assert_eq!(reloaded.models.default.as_deref(), Some("xvora-persisted"));
     let cfg2 =
         crate::agent::config::Config::new_from_toml_cfg(&reloaded_root).expect("new_from_toml_cfg");
-    assert_eq!(cfg2.models.default.as_deref(), Some("grok-persisted"));
+    assert_eq!(cfg2.models.default.as_deref(), Some("xvora-persisted"));
 }
 #[test]
 fn merge_section_cli_show_tips_writes_under_cli_section() {
@@ -1138,8 +1138,8 @@ fn settings_helpers_target_correct_ui_fields() {
     assert_eq!(cfg.ui.theme, Some("auto".to_string()));
     let cfg = apply(|cfg| cfg.ui.auto_dark_theme = Some("tokyonight".to_string()));
     assert_eq!(cfg.ui.auto_dark_theme, Some("tokyonight".to_string()));
-    let cfg = apply(|cfg| cfg.ui.auto_light_theme = Some("grokday".to_string()));
-    assert_eq!(cfg.ui.auto_light_theme, Some("grokday".to_string()));
+    let cfg = apply(|cfg| cfg.ui.auto_light_theme = Some("XvoDay".to_string()));
+    assert_eq!(cfg.ui.auto_light_theme, Some("XvoDay".to_string()));
     let cfg = apply(|cfg| cfg.ui.hunk_tracker_mode = Some("off".to_string()));
     assert_eq!(cfg.ui.hunk_tracker_mode, Some("off".to_string()));
     let cfg = apply(|cfg| cfg.ui.screen_mode = Some("minimal".to_string()));
@@ -1152,7 +1152,7 @@ fn set_theme_round_trips_through_merge() {
     let original = r#"
 [ui]
 compact_mode = true
-theme = "groknight"
+theme = "XvoNight"
 auto_dark_theme = "tokyonight"
 custom_user_key = "preserve-me"
 "#;
@@ -1188,8 +1188,8 @@ fn set_auto_dark_and_light_theme_round_trip_through_merge() {
     let original = r#"
 [ui]
 theme = "auto"
-auto_dark_theme = "groknight"
-auto_light_theme = "grokday"
+auto_dark_theme = "XvoNight"
+auto_light_theme = "XvoDay"
 custom_unknown_key = 42
 "#;
     let root: TomlValue = toml::from_str(original).unwrap();

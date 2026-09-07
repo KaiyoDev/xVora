@@ -1,4 +1,4 @@
-//! Wire names of the hub-synthesized Grok Bot harness tools.
+//! Wire names of the hub-synthesized xvora Bot harness tools.
 //!
 //! Single source of truth shared by the hub that registers the tools and
 //! by agent hosts that gate the tools per agent config.
@@ -17,7 +17,7 @@ pub const GROK_BOT_TOOL_IDS: &[&str] = &[
     "bot_await_turn",
 ];
 
-/// Whether `name` is a hub-synthesized Grok Bot harness tool.
+/// Whether `name` is a hub-synthesized xvora Bot harness tool.
 pub fn is_grok_bot_tool(name: &str) -> bool {
     GROK_BOT_TOOL_IDS.contains(&name)
 }
@@ -29,7 +29,7 @@ pub fn is_grok_bot_tool(name: &str) -> bool {
 pub const GROK_BOT_TOOL_DESCRIPTIONS: &[(&str, &str)] = &[
     (
         "bot_create_agent",
-        "Create a Grok Bot agent on the user's box with a short name and an \
+        "Create a xvora Bot agent on the user's box with a short name and an \
          optional persona/description. Returns the new agent's id so you can \
          send to it with bot_send_prompt. Use this to spin up a focused \
          teammate for a job. There is no tool to delete an agent, so only \
@@ -38,7 +38,7 @@ pub const GROK_BOT_TOOL_DESCRIPTIONS: &[(&str, &str)] = &[
     ),
     (
         "bot_list_agents",
-        "List Grok Bot agents on the user's box. Returns each agent's id \
+        "List xvora Bot agents on the user's box. Returns each agent's id \
          (and name / activity flags). Use this to get an agent_id for \
          bot_send_prompt, bot_await_turn, or a transcript tool. Takes no \
          arguments. Prefer listing before creating a duplicate with \
@@ -46,7 +46,7 @@ pub const GROK_BOT_TOOL_DESCRIPTIONS: &[(&str, &str)] = &[
     ),
     (
         "bot_send_prompt",
-        "Send a prompt to a Grok Bot agent. Use this to deliver user text \
+        "Send a prompt to a xvora Bot agent. Use this to deliver user text \
          (and optional workspace files via paths) to an existing agent_id \
          from bot_list_agents or bot_create_agent. mode (default \
          fire_and_forget) is fire_and_forget | blocking | async. \
@@ -71,7 +71,7 @@ pub const GROK_BOT_TOOL_DESCRIPTIONS: &[(&str, &str)] = &[
     ),
     (
         "bot_get_agent_transcript",
-        "Read a Grok Bot agent's full transcript from the box. Use this when \
+        "Read a xvora Bot agent's full transcript from the box. Use this when \
          you need the entire conversation, not just recent entries. This \
          command wakes a hibernated box. Prefer bot_get_agent_transcript_tail \
          for the latest page, bot_get_agent_transcript_page for a \
@@ -82,7 +82,7 @@ pub const GROK_BOT_TOOL_DESCRIPTIONS: &[(&str, &str)] = &[
     ),
     (
         "bot_get_agent_transcript_page",
-        "Read one time-bounded page of a Grok Bot agent's retained transcript \
+        "Read one time-bounded page of a xvora Bot agent's retained transcript \
          from the box. Requires limit and until_ms (inclusive unix-epoch \
          milliseconds). Optional since_ms is an inclusive lower bound; \
          optional before_seq is an exclusive sequence cursor from a previous \
@@ -94,7 +94,7 @@ pub const GROK_BOT_TOOL_DESCRIPTIONS: &[(&str, &str)] = &[
     ),
     (
         "bot_get_agent_transcript_tail",
-        "Read the latest page of a Grok Bot agent's transcript from the box. \
+        "Read the latest page of a xvora Bot agent's transcript from the box. \
          Requires limit. Pass before_seq from a previous page to walk older \
          entries. Use this as the covering read after a fire-and-forget send \
          or a finished turn. This command wakes a hibernated box. Prefer \
@@ -104,7 +104,7 @@ pub const GROK_BOT_TOOL_DESCRIPTIONS: &[(&str, &str)] = &[
     ),
     (
         "bot_get_agent_transcript_window",
-        "Read a Grok Bot agent's transcript from the box, including \
+        "Read a xvora Bot agent's transcript from the box, including \
          per-thread counts (threadCounts) when present. Shares tail's \
          limit / before_seq pagination (omit before_seq for the latest \
          page). This command wakes a hibernated box. Use this when the \
@@ -116,7 +116,7 @@ pub const GROK_BOT_TOOL_DESCRIPTIONS: &[(&str, &str)] = &[
     ),
     (
         "bot_transcript_offbox",
-        "Read a Grok Bot agent's transcript off-box. Never wakes the \
+        "Read a xvora Bot agent's transcript off-box. Never wakes the \
          box. Use this for cold hydration, for agents that cannot stream \
          live turns (waiting and live box events are unsupported), or whenever you must \
          not wake the box. Pass cursor from a previous off-box page to \
@@ -127,7 +127,7 @@ pub const GROK_BOT_TOOL_DESCRIPTIONS: &[(&str, &str)] = &[
     ),
     (
         "bot_await_turn",
-        "Re-await a Grok Bot turn after a timeout, a lost notification, or \
+        "Re-await a xvora Bot turn after a timeout, a lost notification, or \
          pod death. Pass the handle from bot_send_prompt unchanged. Without \
          a handle, waits for the agent to go idle and returns the last \
          send-message (agent-level). Do not send another prompt; that would \
@@ -140,7 +140,7 @@ pub const GROK_BOT_TOOL_DESCRIPTIONS: &[(&str, &str)] = &[
     ),
 ];
 
-/// The model-facing description for a Grok Bot tool id, if known.
+/// The model-facing description for a xvora Bot tool id, if known.
 pub fn grok_bot_tool_description(name: &str) -> Option<&'static str> {
     GROK_BOT_TOOL_DESCRIPTIONS
         .iter()
@@ -148,7 +148,7 @@ pub fn grok_bot_tool_description(name: &str) -> Option<&'static str> {
         .map(|(_, desc)| *desc)
 }
 
-/// Flattened JSON Schema for a Grok Bot tool's arguments.
+/// Flattened JSON Schema for a xvora Bot tool's arguments.
 ///
 /// Same shape the hub advertises via `schema_for_kind`. Pre-bind synthesis
 /// uses this so constrained decoding can emit required fields (`agent_id`,
@@ -200,7 +200,7 @@ pub fn grok_bot_tool_arguments_schema(name: &str) -> Option<serde_json::Value> {
                 "paths": {
                     "type": "array",
                     "items": {"type": "string"},
-                    "description": "Workspace files to attach. Each path is client-fs-base-relative (the bound session cwd when that cwd is under the workspace root, otherwise the workspace root). Same contract as grok.com client-fs and grok-build model paths. Empty or omitted means no files. At most 8 paths; each file is capped at 25 MiB. Requires a bound workspace that serves workspace.client_fs_read_file. Attachments are refused for live streaming agents. Hub reads raw bytes, uploads to the box, then sends. First attach failure fails the whole send."
+                    "description": "Workspace files to attach. Each path is client-fs-base-relative (the bound session cwd when that cwd is under the workspace root, otherwise the workspace root). Same contract as xvora.com client-fs and xvora-build model paths. Empty or omitted means no files. At most 8 paths; each file is capped at 25 MiB. Requires a bound workspace that serves workspace.client_fs_read_file. Attachments are refused for live streaming agents. Hub reads raw bytes, uploads to the box, then sends. First attach failure fails the whole send."
                 }
             }
         }),

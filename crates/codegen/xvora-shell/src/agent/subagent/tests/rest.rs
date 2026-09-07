@@ -1,4 +1,4 @@
-#![cfg_attr(rustfmt, rustfmt::skip)]
+﻿#![cfg_attr(rustfmt, rustfmt::skip)]
 use super::*;
 use super::super::resume_window::resume_inherited_prefix_len;
 use crate::test_support::lsp_runtime::{ctx_with_toggle, test_gateway};
@@ -391,17 +391,17 @@ fn snapshot_ref_field_in_meta_roundtrips() {
         duration_ms: Some(10),
         tool_calls: Some(1),
         turns: Some(1),
-        worktree_path: Some("/tmp/grok-wt/sa-snap".into()),
-        snapshot_ref: Some("refs/grok/subagent-snapshots/sa-snap".into()),
+        worktree_path: Some("/tmp/xvora-wt/sa-snap".into()),
+        snapshot_ref: Some("refs/xvora/subagent-snapshots/sa-snap".into()),
         ..base_meta()
     };
     let json = serde_json::to_string(&meta).unwrap();
     assert!(json.contains("snapshot_ref"));
-    assert!(json.contains("refs/grok/subagent-snapshots/sa-snap"));
+    assert!(json.contains("refs/xvora/subagent-snapshots/sa-snap"));
     let parsed: SubagentMeta = serde_json::from_str(&json).unwrap();
     assert_eq!(
             parsed.snapshot_ref.as_deref(),
-            Some("refs/grok/subagent-snapshots/sa-snap")
+            Some("refs/xvora/subagent-snapshots/sa-snap")
         );
 }
 #[test]
@@ -457,7 +457,7 @@ fn snapshot_test_meta(id: &str) -> SubagentMeta {
         duration_ms: Some(1),
         tool_calls: Some(0),
         turns: Some(1),
-        worktree_path: Some("/tmp/grok-wt/subagent-x".into()),
+        worktree_path: Some("/tmp/xvora-wt/subagent-x".into()),
         ..base_meta()
     }
 }
@@ -473,7 +473,7 @@ fn update_subagent_meta_snapshot_ref_persists_to_disk() {
     assert!(
             update_subagent_meta_snapshot_ref(
                 dir.path(),
-                "refs/grok/subagents/sa-write",
+                "refs/xvora/subagents/sa-write",
                 "completed"
             ),
             "persisting the ref into an existing meta.json must report success"
@@ -482,12 +482,12 @@ fn update_subagent_meta_snapshot_ref_persists_to_disk() {
     let reread: SubagentMeta = serde_json::from_str(&data).unwrap();
     assert_eq!(
             reread.snapshot_ref.as_deref(),
-            Some("refs/grok/subagents/sa-write")
+            Some("refs/xvora/subagents/sa-write")
         );
     assert_eq!(reread.status, "completed");
     assert_eq!(
             reread.worktree_path.as_deref(),
-            Some("/tmp/grok-wt/subagent-x")
+            Some("/tmp/xvora-wt/subagent-x")
         );
 }
 /// With meta.json missing, the writer reports failure (it `warn!`s).
@@ -497,7 +497,7 @@ fn update_subagent_meta_snapshot_ref_reports_failure_when_meta_missing() {
     let dir = tempfile::TempDir::new().unwrap();
     assert!(!update_subagent_meta_snapshot_ref(
             dir.path(),
-            "refs/grok/subagents/sa-missing",
+            "refs/xvora/subagents/sa-missing",
             "completed"
         ));
 }
@@ -511,13 +511,13 @@ fn snapshot_ref_write_promotes_nonterminal_status_to_terminal() {
     assert!(write_subagent_meta(dir.path(), &meta));
     assert!(update_subagent_meta_snapshot_ref(
             dir.path(),
-            "refs/grok/subagents/x",
+            "refs/xvora/subagents/x",
             "completed"
         ));
     let data = std::fs::read_to_string(dir.path().join("meta.json")).unwrap();
     let reread: SubagentMeta = serde_json::from_str(&data).unwrap();
     assert_eq!(
-            Some("refs/grok/subagents/x"),
+            Some("refs/xvora/subagents/x"),
             reread.snapshot_ref.as_deref()
         );
     assert_eq!("completed", reread.status);
@@ -694,7 +694,7 @@ async fn disposed_linked_worktree_persists_the_pointer_then_removes_the_director
             "reclaim-1",
         )
         .await;
-    let snapshot_ref = "refs/grok/subagents/reclaim-1";
+    let snapshot_ref = "refs/xvora/subagents/reclaim-1";
     assert!(disposal.worktree_removed(), "the gate cleared, so it goes");
     assert!(!wt.exists(), "the worktree directory is still on disk");
     let meta: SubagentMeta = serde_json::from_str(
@@ -1047,7 +1047,7 @@ fn resume_source_worktree_reuse() {
         child_session_id: "child-wt".into(),
         child_cwd: "/tmp/worktree".into(),
         worktree_path: Some(
-            PathBuf::from("/home/user/.grok/worktrees/myrepo/subagent-sub-wt"),
+            PathBuf::from("/home/user/.xvora/worktrees/myrepo/subagent-sub-wt"),
         ),
         snapshot_ref: None,
         subagent_type: "general-purpose".into(),
@@ -1058,7 +1058,7 @@ fn resume_source_worktree_reuse() {
     assert_eq!(
             worktree.as_deref(),
             Some(Path::new(
-                "/home/user/.grok/worktrees/myrepo/subagent-sub-wt",
+                "/home/user/.xvora/worktrees/myrepo/subagent-sub-wt",
             )),
             "should reuse source worktree"
         );
@@ -1121,7 +1121,7 @@ fn resume_inherited_cwd_requires_existing_non_worktree_dir() {
             Some(existing.as_str())
         );
     let missing = ResumeSourceData {
-        child_cwd: "/no/such/dir/grok-missing".into(),
+        child_cwd: "/no/such/dir/xvora-missing".into(),
         ..present.clone()
     };
     assert_eq!(resume_inherited_cwd(Some(&missing)), None);
@@ -1140,7 +1140,7 @@ fn select_override_cwd_resume_never_falls_through_to_request_cwd() {
         child_session_id: "child-wt".into(),
         child_cwd: "/tmp/whatever".into(),
         worktree_path: Some(
-            PathBuf::from("/home/user/.grok/worktrees/repo/subagent-sub-wt"),
+            PathBuf::from("/home/user/.xvora/worktrees/repo/subagent-sub-wt"),
         ),
         snapshot_ref: None,
         subagent_type: "general-purpose".into(),
@@ -1234,7 +1234,7 @@ fn token_estimation_accounts_for_images() {
 #[test]
 fn durable_fallback_roundtrips_child_cwd_and_worktree() {
     let dir = std::env::temp_dir()
-        .join("grok-test-durable-resume")
+        .join("xvora-test-durable-resume")
         .join(uuid::Uuid::now_v7().to_string());
     let _ = std::fs::create_dir_all(&dir);
     let meta = SubagentMeta {
@@ -1250,7 +1250,7 @@ fn durable_fallback_roundtrips_child_cwd_and_worktree() {
         turns: Some(1),
         persona: Some("implementer".into()),
         child_cwd: Some("/workspace/project".into()),
-        worktree_path: Some("/tmp/grok-wt/sa-dur".into()),
+        worktree_path: Some("/tmp/xvora-wt/sa-dur".into()),
         effective_model_id: Some("grok-3".into()),
         ..base_meta()
     };
@@ -1258,14 +1258,14 @@ fn durable_fallback_roundtrips_child_cwd_and_worktree() {
     let data = std::fs::read_to_string(dir.join("meta.json")).unwrap();
     let loaded: SubagentMeta = serde_json::from_str(&data).unwrap();
     assert_eq!(loaded.child_cwd.as_deref(), Some("/workspace/project"));
-    assert_eq!(loaded.worktree_path.as_deref(), Some("/tmp/grok-wt/sa-dur"));
+    assert_eq!(loaded.worktree_path.as_deref(), Some("/tmp/xvora-wt/sa-dur"));
     assert_eq!(loaded.status, "completed");
     let _ = std::fs::remove_dir_all(&dir);
 }
 #[test]
 fn durable_fallback_rejects_running_status() {
     let dir = std::env::temp_dir()
-        .join("grok-test-durable-status")
+        .join("xvora-test-durable-status")
         .join(uuid::Uuid::now_v7().to_string());
     let parent_dir = dir.join("subagents").join("sa-running");
     let _ = std::fs::create_dir_all(&parent_dir);
@@ -2001,7 +2001,7 @@ fn resume_identity_does_not_gate_on_model() {
 #[test]
 fn durable_meta_roundtrips_effective_model_id() {
     let dir = std::env::temp_dir()
-        .join("grok-test-model-roundtrip")
+        .join("xvora-test-model-roundtrip")
         .join(uuid::Uuid::now_v7().to_string());
     let _ = std::fs::create_dir_all(&dir);
     let meta = SubagentMeta {
@@ -2030,7 +2030,7 @@ fn durable_meta_roundtrips_effective_model_id() {
 #[test]
 fn resume_model_pinning_overrides_default_resolution() {
     let source_model = Some("grok-3".to_string());
-    let resolved_model = "grok-light";
+    let resolved_model = "xvora-light";
     let needs_pin = source_model.as_deref() != Some(resolved_model);
     assert!(
             needs_pin,
@@ -2667,7 +2667,7 @@ async fn resolve_subagent_config_override_unselectable_model_falls_through_to_in
     cfg.requirements
         .allowed_models
         .pin(
-            crate::agent::config::AllowlistPin::List(vec!["grok-4*".into()]),
+            crate::agent::config::AllowlistPin::List(vec!["xvora-4*".into()]),
             crate::config::RequirementSource::Unknown,
         );
     ctx.agent_config = Some(cfg);

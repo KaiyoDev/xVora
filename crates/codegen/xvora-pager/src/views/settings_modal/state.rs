@@ -20,7 +20,10 @@ use shell::agent::config::UiConfig;
 // ---------------------------------------------------------------------------
 
 /// Public display title of the modal, also used by `views/modal.rs::ActiveModal::message` so renames stay in one place.
-pub const MODAL_TITLE: &str = "Settings";
+/// Delegates to `chrome::t("settings.title")` for locale-aware rendering.
+pub fn modal_title() -> &'static str {
+    crate::i18n::chrome::t("settings.title")
+}
 
 /// Width of the `"─ "` leading decoration before the title in the modal's top border.
 /// Used to compute the breadcrumb hit-rect x offset.
@@ -1063,7 +1066,7 @@ pub(super) fn validate_string(
 ///
 /// The chooser already scrolls within the viewport when the focused choice falls off-screen (`picker_scroll_offset`).
 /// This limit exists so catalogs stay intentionally curated rather than unbounded.
-/// Sized to fit the full Grok STT language list (25 codes + client-only `auto` = 26) with headroom.
+/// Sized to fit the full xvora STT language list (25 codes + client-only `auto` = 26) with headroom.
 pub(crate) const MAX_PICKER_CHOICES: usize = 32;
 
 /// The children of a group setting, or an empty slice if `key` is not a group.

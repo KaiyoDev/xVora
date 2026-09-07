@@ -1,7 +1,7 @@
 //! E2E: the Up browse is one reverse-chronological list holding every kind of thing typed at the composer, interleaved in send order.
 //!
 //! The panel paints oldest at the top, so a newest-first list lands on strictly descending rows.
-//! `#` notes need `[features] remember_mode = true`, which the run seeds into the sandbox `$GROK_HOME/config.toml`.
+//! `#` notes need `[features] remember_mode = true`, which the run seeds into the sandbox `$xvora_home/config.toml`.
 
 use std::time::Duration;
 
@@ -48,10 +48,10 @@ async fn run() -> Result<()> {
     content.set_response(format!("{FIRST_ACK} acknowledged."));
 
     // `#` notes are gated off by default, so the sixth entry needs the flag before the pager boots.
-    let grok_home = content.home().join(".grok");
-    std::fs::create_dir_all(&grok_home).context("create sandbox .grok")?;
+    let xvora_home = content.home().join(".xvora");
+    std::fs::create_dir_all(&xvora_home).context("create sandbox .xvora")?;
     std::fs::write(
-        grok_home.join("config.toml"),
+        xvora_home.join("config.toml"),
         "[features]\nremember_mode = true\n",
     )
     .context("seed remember_mode config")?;

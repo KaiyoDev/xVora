@@ -1,4 +1,4 @@
-//! `grok mcp doctor`: runtime health check for MCP servers.
+//! `xvora mcp doctor`: runtime health check for MCP servers.
 
 use std::collections::HashMap;
 use std::path::Path;
@@ -139,18 +139,18 @@ fn discover_servers(cwd: &Path) -> (Vec<ConfigSourceStatus>, Vec<DiscoveredServe
 
     let mut sources = Vec::new();
 
-    let grok_home = tools::util::grok_home::grok_home();
-    let user_config = grok_home.join("config.toml");
+    let xvora_home = tools::util::xvora_home::xvora_home();
+    let user_config = xvora_home.join("config.toml");
     if user_config.is_file() {
         sources.push(ConfigSourceStatus {
-            path: "~/.grok/config.toml".to_string(),
+            path: "~/.xvora/config.toml".to_string(),
             status: ConfigSourceState::Found {
                 server_count: config_count,
             },
         });
     } else {
         sources.push(ConfigSourceStatus {
-            path: "~/.grok/config.toml".to_string(),
+            path: "~/.xvora/config.toml".to_string(),
             status: ConfigSourceState::NotFound,
         });
     }
@@ -452,12 +452,12 @@ pub async fn run_doctor(cwd: &Path, name_filter: Option<&str>) -> DoctorReport {
 
     let disabled_names = crate::util::config::disabled_mcp_server_names(cwd);
 
-    // Folder-trust gate: `grok mcp doctor` actually STARTS each server (`check_server_start`)
+    // Folder-trust gate: `xvora mcp doctor` actually STARTS each server (`check_server_start`)
     // In an untrusted clone that would spawn the repo's project-scoped servers
     // Resolve the doctor cwd once (no prompt), then skip (do not start) any project-scoped server when untrusted
     // Uses the same name lookup (`project_scoped_mcp_names`) as the session/agent-pool gates
     //
-    // `remote = None` is intentional: standalone `grok mcp doctor` has no loaded `RemoteSettings`
+    // `remote = None` is intentional: standalone `xvora mcp doctor` has no loaded `RemoteSettings`
     // A remote-only org opt-out (`folder_trust_enabled = false`) isn't seen here
     // Gating conservatively (treating the feature as enabled) is the deliberate fail-secure choice
     // Local env/user/managed config disable is still honored by `feature_enabled`
@@ -556,7 +556,7 @@ pub fn print_report(report: &DoctorReport) {
 
     if report.servers.is_empty() {
         println!("  No MCP servers configured.");
-        println!("  Run `grok mcp add --help` to get started.");
+        println!("  Run `xvora mcp add --help` to get started.");
         println!();
         return;
     }
@@ -586,7 +586,7 @@ pub fn print_report(report: &DoctorReport) {
         report.healthy_count,
         report.failing_count,
         if report.failing_count > 0 {
-            " Run `grok mcp doctor --json` for full diagnostics."
+            " Run `xvora mcp doctor --json` for full diagnostics."
         } else {
             ""
         }

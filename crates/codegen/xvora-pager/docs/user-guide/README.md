@@ -1,6 +1,6 @@
-# Grok Build User Guide
+# xVora User Guide
 
-Learn how to install, configure, and extend Grok Build, the terminal-based AI coding assistant from SpaceXAI.
+Learn how to install, configure, and extend xVora, the terminal-based AI coding assistant from SpaceXAI.
 
 ---
 
@@ -20,7 +20,7 @@ Start here. These guides cover what you need on your first day.
 
 ## Tier 2: Core Feature Docs
 
-Customize and extend Grok Build.
+Customize and extend xVora.
 
 | # | Document | Description |
 |---|----------|-------------|
@@ -37,11 +37,11 @@ Customize and extend Grok Build.
 
 ## Tier 3: Advanced Usage Docs
 
-Automate, script, and integrate Grok Build with other systems.
+Automate, script, and integrate xVora with other systems.
 
 | # | Document | Description |
 |---|----------|-------------|
-| 14 | [Headless Mode and Scripting](14-headless-mode.md) | `grok -p`, output formats, CI/CD integration, and piping |
+| 14 | [Headless Mode and Scripting](14-headless-mode.md) | `xvora -p`, output formats, CI/CD integration, and piping |
 | 15 | [Agent Mode and IDE Integration](15-agent-mode.md) | ACP stdio transport, WebSocket relay, and SDK integration |
 | 16 | [Subagents and Personas](16-subagents.md) | Parallel child sessions, agent types, personas, and capability modes |
 | 17 | [Session Management](17-sessions.md) | Save, load, resume, rewind, compact, and the session persistence format |
@@ -54,4 +54,4 @@ Automate, script, and integrate Grok Build with other systems.
 | 24 | [Monitoring Usage (External OpenTelemetry)](24-monitoring-usage.md) | Customer OTEL export |
 | 25 | [Status Line](25-status-line.md) | The bottom status row: built-in segments, command scripts, and the stdin JSON contract |
 | 26 | [Configuration Reference](26-config-reference.md) | Field list for `config.toml`, `managed_config.toml`, and `requirements.toml` |
-| 27 | [grok clone](27-grok-clone.md) | Depth-1 Grove clone, `--full-history`, and safe deepen/switch commands |
+| 27 | [xvora clone](27-xvora-clone.md) | Depth-1 Grove clone, `--full-history`, and safe deepen/switch commands |

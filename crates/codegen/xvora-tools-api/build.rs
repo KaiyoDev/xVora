@@ -45,6 +45,6 @@ fn main() {
             ".xvora.grok.tools.v1.FinalizeToolServerConfigResponse.callback_status",
             "#[serde(default)]",
         )
-        .compile_protos(&["proto/grok-tools.proto"], &["proto/"])
+        .compile_protos(&["proto/xvora-tools.proto"], &["proto/"])
         .unwrap();
 }

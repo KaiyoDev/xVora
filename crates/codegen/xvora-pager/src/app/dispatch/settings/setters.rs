@@ -1420,8 +1420,8 @@ pub(in crate::app::dispatch) fn set_auto_dark_theme(app: &mut AppView, new: Stri
         .as_deref()
         .and_then(crate::theme::canonical_name)
         .filter(|s| *s != "auto")
-        // No prior config: fall back to GrokNight (the default).
-        .unwrap_or_else(|| crate::theme::ThemeKind::GrokNight.display_name());
+        // No prior config: fall back to XvoNight (the default).
+        .unwrap_or_else(|| crate::theme::ThemeKind::XvoNight.display_name());
     let new_canonical = match crate::theme::canonical_name(&new) {
         Some(c) if c != crate::theme::ThemeKind::Auto.display_name() => c,
         _ => {
@@ -1534,7 +1534,7 @@ pub(in crate::app::dispatch) fn set_auto_light_theme(
         .as_deref()
         .and_then(crate::theme::canonical_name)
         .filter(|s| *s != "auto")
-        .unwrap_or_else(|| crate::theme::ThemeKind::GrokDay.display_name());
+        .unwrap_or_else(|| crate::theme::ThemeKind::XvoDay.display_name());
     let new_canonical = match crate::theme::canonical_name(&new) {
         Some(c) if c != crate::theme::ThemeKind::Auto.display_name() => c,
         _ => {
@@ -1715,7 +1715,7 @@ pub(in crate::app::dispatch) fn set_default_model(
 
     // Persist the **model ID** (catalog key), not the display name.
     // The shell's `resolve_default_model` matches by slug / map key,
-    // so persisting the human-readable name (e.g. "Grok Build")
+    // so persisting the human-readable name (e.g. "xvora build")
     // would silently fail to resolve on the next startup.
     //
     // Chat (`--chat` / GROK_CHAT_MODE) catalogs use opaque `/rest/modes`
@@ -1977,6 +1977,33 @@ pub(in crate::app::dispatch) fn set_max_thoughts_width(app: &mut AppView, new: i
 
 // The `auto_compact_threshold_percent` setter was removed alongside its registry entry
 // The mirror field stays for compat
+
+// ---------------------------------------------------------------------------
+// locale (language) — process-wide, no PersistSetting
+// Changing locale does not write config; it updates the in-process i18n cache.
+// ---------------------------------------------------------------------------
+
+/// Apply a locale change immediately (no restart needed).
+/// Called from the settings modal when the user picks "vi" or "en".
+pub(in crate::app::dispatch) fn set_locale(app: &mut AppView, new: String) -> Vec<Effect> {
+    let prev = crate::i18n::locale();
+    crate::i18n::set_locale(&new);
+    let label = if new == "vi" {
+        "Tiếng Việt"
+    } else {
+        "English"
+    };
+    tracing::info!(
+        target = "settings",
+        key = "language",
+        value = new,
+        "locale changed",
+    );
+    // Refresh open settings modals so labels render in the new language.
+    super::ui::refresh_open_settings_modals(app);
+    app.show_toast(&format!("\u{2713} Language: {label}"));
+    vec![]
+}
 
 // ---------------------------------------------------------------------------
 // show_tips and auto_update are SHELL-OWNED `Option<bool>` setters

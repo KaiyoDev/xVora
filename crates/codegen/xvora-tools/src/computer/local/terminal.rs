@@ -3098,7 +3098,7 @@ async fn capture_login_env() -> HashMap<String, String> {
 }
 
 /// Layer login-shell captured vars (except `PATH`) onto `cmd`, dropping those the
-/// active policy filters out and those already set in grok's own environment.
+/// active policy filters out and those already set in xvora's own environment.
 #[cfg(unix)]
 fn layer_login_env_vars(
     cmd: &mut tokio::process::Command,
@@ -3107,7 +3107,7 @@ fn layer_login_env_vars(
 ) {
     if let Some(login) = login_env {
         for (key, value) in login {
-            // `var_os` reads grok's own env (not the possibly-cleared child env);
+            // `var_os` reads xvora's own env (not the possibly-cleared child env);
             // the policy filters the capture so an rc export cannot bypass it.
             if key != "PATH"
                 && std::env::var_os(key).is_none()
@@ -3147,9 +3147,9 @@ fn layer_login_path(
     }
 }
 
-/// Fixed layer order: policy base, login capture (filtered), grok control vars,
+/// Fixed layer order: policy base, login capture (filtered), xvora control vars,
 /// request env (filtered), pager vars, login `PATH`, agent marker last. Applied
-/// incrementally, not via `env_clear`: the no-op-policy path must inherit grok's
+/// incrementally, not via `env_clear`: the no-op-policy path must inherit xvora's
 /// environment untouched (non-UTF-8 vars included).
 #[cfg(unix)]
 fn apply_child_env(
@@ -3231,7 +3231,7 @@ fn spawn_shell_command(
             .stderr(Stdio::piped())
             .kill_on_drop(true);
 
-        // Mirrors the unix `apply_child_env` order; `inv.env` is grok's trusted
+        // Mirrors the unix `apply_child_env` order; `inv.env` is xvora's trusted
         // shell setup, so it is not filtered.
         let active_policy = shell_env_policy.filter(|p| !p.is_noop());
         crate::util::shell_env_policy::install_policy_base_env(&mut cmd, active_policy);
@@ -4589,7 +4589,7 @@ mod tests {
 
         let mut req = make_request("echo \"[$GPG_TTY]\"");
         req.env
-            .insert("GPG_TTY".to_string(), "/grok-sentinel-tty".to_string());
+            .insert("GPG_TTY".to_string(), "/xvora-sentinel-tty".to_string());
 
         let result = backend.run(req).await.unwrap();
         assert_eq!(result.exit_code, Some(0));

@@ -2,7 +2,7 @@
 #[allow(unused_imports)]
 use super::common::*;
 
-/// Launching `grok "<prompt>"` (the prompt as a positional CLI arg) auto-starts a new session and submits it as the first turn.
+/// Launching `xvora "<prompt>"` (the prompt as a positional CLI arg) auto-starts a new session and submits it as the first turn.
 /// No keystrokes are injected.
 /// The full loop runs: CLI positional, TUI launch, NewSession, SendPrompt, shell agent, mock inference, streamed chunks, pager render.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -14,7 +14,7 @@ async fn initial_prompt_positional_auto_submits() {
     ));
 
     let binary = pager_binary().expect("resolve pager binary");
-    // Pass the prompt as a positional argument, exactly like `grok "go"`.
+    // Pass the prompt as a positional argument, exactly like `xvora "go"`.
     let mut harness =
         PtyHarness::spawn_with_content(&binary, DEFAULT_ROWS, DEFAULT_COLS, &content, &[PROMPT])
             .expect("spawn pager with initial prompt");

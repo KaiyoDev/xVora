@@ -1,11 +1,11 @@
-//! Cross-session memory for Grok.
+//! Cross-session memory for xvora.
 //!
-//! Memory files are markdown under `~/.grok/memory/`, one global file plus a subdirectory per workspace.
+//! Memory files are markdown under `~/.xvora/memory/`, one global file plus a subdirectory per workspace.
 //!
 //! ## Data Layout
 //!
 //! ```text
-//! ~/.grok/memory/
+//! ~/.xvora/memory/
 //!   ├── MEMORY.md                         # Global curated knowledge
 //!   └── {workspace_hash}/                 # Per-workspace (blake3(cwd)[..16])
 //!       ├── MEMORY.md                     # Project-level curated knowledge

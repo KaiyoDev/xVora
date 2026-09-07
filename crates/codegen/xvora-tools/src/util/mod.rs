@@ -4,7 +4,6 @@ pub mod command_display;
 pub mod env;
 pub mod fs;
 pub mod git_detect;
-pub mod grok_home;
 pub mod hash;
 pub mod image_compress;
 pub mod image_validate;
@@ -20,6 +19,7 @@ pub mod truncate;
 pub mod unicode_confusables;
 #[cfg(any(bundle_rg, bundle_fd, bundle_bfs, bundle_ugrep, test))]
 pub(crate) mod vendor;
+pub mod xvora_home;
 
 pub use crate::implementations::grok_build::grep::ripgrep::rg_path;
 pub use command_display::strip_redundant_session_cd;
@@ -28,7 +28,6 @@ pub use env::detach_from_tty;
 pub use env::substitute_plugin_tokens;
 pub use env::{GROK_AGENT_ENV, GROK_AGENT_ENV_VALUE, apply_grok_agent_marker, pager_env};
 pub use fs::{UnicodePathMatch, canonicalize_with_timeout, try_resolve_unicode_filename};
-pub use grok_home::{grok_application, grok_home};
 pub use path_suggestions::format_not_found_error;
 pub use remap::{remap_json_keys, remap_schema_properties, reverse_map};
 pub use shell_env_policy::{
@@ -45,3 +44,4 @@ pub use truncate::{
     truncate_str_with_marker,
 };
 pub use tty_utils::detach_std_command;
+pub use xvora_home::{grok_application, xvora_home};

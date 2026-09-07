@@ -50,7 +50,7 @@ enum WorktreeCommand {
         #[arg(long)]
         max_age: Option<String>,
         /// Skip the live-process and protected-path guards.
-        /// This does not override the safety check; use `grok worktree rm` for that.
+        /// This does not override the safety check; use `xvora worktree rm` for that.
         #[arg(short, long)]
         force: bool,
     },
@@ -375,7 +375,7 @@ mod tests {
     }
     #[test]
     fn ext_envelope_unwraps_success_result() {
-        let json = r#"{"result": {"path": "/home/user/.grok/worktrees.db"}, "error": null}"#;
+        let json = r#"{"result": {"path": "/home/user/.xvora/worktrees.db"}, "error": null}"#;
         #[derive(serde::Deserialize)]
         struct PathResp {
             path: String,
@@ -383,7 +383,7 @@ mod tests {
         let envelope: ExtEnvelope<PathResp> = serde_json::from_str(json).unwrap();
         assert!(envelope.error.is_none());
         let inner = envelope.result.unwrap();
-        assert_eq!(inner.path, "/home/user/.grok/worktrees.db");
+        assert_eq!(inner.path, "/home/user/.xvora/worktrees.db");
     }
     #[test]
     fn ext_envelope_unwraps_error_result() {

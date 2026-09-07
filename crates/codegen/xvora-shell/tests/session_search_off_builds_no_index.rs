@@ -1,4 +1,4 @@
-//! Its own binary: the grok home resolves once per process.
+//! Its own binary: the xvora home resolves once per process.
 
 use agent_client_protocol as acp;
 use shell::session::info::Info;
@@ -10,7 +10,7 @@ use test_support::EnvGuard;
 async fn saved_session_is_neither_indexed_nor_found_with_search_off() {
     let dir = tempfile::TempDir::new().unwrap();
     let root = dir.path();
-    let _home = EnvGuard::set("GROK_HOME", root);
+    let _home = EnvGuard::set("xvora_home", root);
     let _off = EnvGuard::set("GROK_SESSION_SEARCH", "0");
 
     let config = shell::config::load_agent_config_disk_only().expect("config loads");

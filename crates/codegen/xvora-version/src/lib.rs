@@ -1,4 +1,4 @@
-//! Installed grok CLI version, kept in sync with the shipping binaries.
+//! Installed xvora CLI version, kept in sync with the shipping binaries.
 
 use std::sync::OnceLock;
 

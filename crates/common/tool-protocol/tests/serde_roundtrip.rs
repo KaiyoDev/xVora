@@ -1041,13 +1041,13 @@ fn session_bind_result_image_capabilities_round_trip() {
         resolve_error: None,
         image_capabilities: vec![
             IMAGE_CAPABILITIES_V1.to_owned(),
-            "grok-files.occ".to_owned(),
+            "xvora-files.occ".to_owned(),
         ],
     };
     let v = roundtrip(&populated);
     assert_eq!(
         v["image_capabilities"],
-        json!(["capabilities.v1", "grok-files.occ"])
+        json!(["capabilities.v1", "xvora-files.occ"])
     );
 
     let v = roundtrip(&SessionBindResult::default());

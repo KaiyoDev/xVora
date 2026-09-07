@@ -563,7 +563,7 @@ mod tests {
         let with_kind = serde_json::to_value(Event::TurnStarted {
             session_id: "s".into(),
             turn_number: 2,
-            model_id: "grok-4".into(),
+            model_id: "xvora-4".into(),
             yolo_mode: false,
             conversation_message_count: 3,
             session_relationship: SessionRelationship::Primary,
@@ -577,7 +577,7 @@ mod tests {
         let normal = serde_json::to_value(Event::TurnStarted {
             session_id: "s".into(),
             turn_number: 1,
-            model_id: "grok-4".into(),
+            model_id: "xvora-4".into(),
             yolo_mode: false,
             conversation_message_count: 0,
             session_relationship: SessionRelationship::Primary,
@@ -611,26 +611,26 @@ mod tests {
             attempt: 2,
             consecutive_failures: 6,
             every: 3,
-            model_id: "grok-4".to_string(),
+            model_id: "xvora-4".to_string(),
         };
         let v = serde_json::to_value(&ev).unwrap();
         assert_eq!(v["type"], "goal_strategist_fired");
         assert_eq!(v["attempt"], 2);
         assert_eq!(v["consecutive_failures"], 6);
         assert_eq!(v["every"], 3);
-        assert_eq!(v["model_id"], "grok-4");
+        assert_eq!(v["model_id"], "xvora-4");
     }
 
     #[test]
     fn goal_summarizer_events_serialize_tag_and_fields() {
         let fired = Event::GoalSummarizerFired {
             attempt: 2,
-            model_id: "grok-4".to_string(),
+            model_id: "xvora-4".to_string(),
         };
         let v = serde_json::to_value(&fired).unwrap();
         assert_eq!(v["type"], "goal_summarizer_fired");
         assert_eq!(v["attempt"], 2);
-        assert_eq!(v["model_id"], "grok-4");
+        assert_eq!(v["model_id"], "xvora-4");
 
         let completed = Event::GoalSummarizerCompleted {
             attempt: 2,
@@ -658,7 +658,7 @@ mod tests {
         let ev = Event::GoalRoleModelResolved {
             role: "skeptic",
             skeptic_idx: Some(2),
-            model_id: "grok-4".to_string(),
+            model_id: "xvora-4".to_string(),
             agent_type: "general-purpose".to_string(),
             source: "remote",
         };
@@ -666,7 +666,7 @@ mod tests {
         assert_eq!(v["type"], "goal_role_model_resolved");
         assert_eq!(v["role"], "skeptic");
         assert_eq!(v["skeptic_idx"], 2);
-        assert_eq!(v["model_id"], "grok-4");
+        assert_eq!(v["model_id"], "xvora-4");
         assert_eq!(v["agent_type"], "general-purpose");
         assert_eq!(v["source"], "remote");
     }
@@ -676,7 +676,7 @@ mod tests {
         let ev = Event::GoalRoleModelResolved {
             role: "planner",
             skeptic_idx: None,
-            model_id: "grok-4".to_string(),
+            model_id: "xvora-4".to_string(),
             agent_type: "general-purpose".to_string(),
             source: "remote",
         };

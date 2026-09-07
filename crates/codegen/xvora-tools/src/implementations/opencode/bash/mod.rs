@@ -3,7 +3,7 @@
 //! Executes shell commands with optional timeout and working directory
 //! override. Delegates to the shared `TerminalBackend` for process
 //! management, output streaming, and background task support. The
-//! grok-tools-server serves this tool on the stateless local backend
+//! xvora-tools-server serves this tool on the stateless local backend
 //! (fresh shell per command; persistent shell state is only enabled when
 //! `Cursor:Shell` is served), which is what the description documents.
 //!

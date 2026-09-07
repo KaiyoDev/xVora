@@ -28,14 +28,14 @@ const MIN_DEVICE_CODE_EXPIRY_FALLBACK_SECS: i64 = 10 * 60;
 pub(crate) enum DeviceCodeError {
     #[error(
         "Device-code login is not available for this deployment. \
-         Try `grok login` or set XAI_API_KEY instead."
+         Try `xvora login` or set XAI_API_KEY instead."
     )]
     NotEnabled,
 }
 
 // --- Public types ---
 
-/// Low-cardinality hint sent to the OAuth2 provider as the `x-grok-client-surface` header.
+/// Low-cardinality hint sent to the OAuth2 provider as the `x-xvora-client-surface` header.
 /// It lets device-flow metrics separate logins a human can actually finish (`Ui`, `Cli`) from headless automation (`Headless`).
 /// Headless automation mints a device code but can never reach the browser consent page.
 /// That traffic otherwise pollutes the device-flow conversion denominator.
@@ -136,13 +136,13 @@ pub(crate) async fn request_device_code(
         client
             .post(&url)
             // Lets oauth2-provider segment device-flow success by client version.
-            .header("x-grok-client-version", version::VERSION)
+            .header("x-xvora-client-version", version::VERSION)
             // Lets oauth2-provider separate human-completable logins from headless automation in the device-flow funnel metrics
-            .header("x-grok-client-surface", surface.as_str())
+            .header("x-xvora-client-surface", surface.as_str())
             .form(&[
                 ("client_id", client_id),
                 ("scope", scope_str.as_str()),
-                ("referrer", "grok-build"),
+                ("referrer", "xvora-build"),
             ]),
         &url,
     )
@@ -190,7 +190,7 @@ pub(crate) async fn request_device_code(
 
 /// Poll the token endpoint until the user approves (or denies, or the code expires).
 ///
-/// On success, persists credentials to `~/.grok/auth.json` and returns
+/// On success, persists credentials to `~/.xvora/auth.json` and returns
 /// the authenticated `GrokAuth`.
 ///
 /// Callers should have already displayed `device_code.verification_uri` and `device_code.user_code` to the user before calling this.
@@ -216,14 +216,14 @@ pub(crate) async fn complete_device_code_login(
         tokio::time::sleep(poll_interval).await;
 
         if tokio::time::Instant::now() > deadline {
-            anyhow::bail!("Device code expired. Run `grok login --device-auth` again.");
+            anyhow::bail!("Device code expired. Run `xvora login --device-auth` again.");
         }
 
         let resp = with_alpha_test_key(
             client
                 .post(&token_url)
-                .header("x-grok-client-version", version::VERSION)
-                .header("x-grok-client-surface", surface.as_str())
+                .header("x-xvora-client-version", version::VERSION)
+                .header("x-xvora-client-surface", surface.as_str())
                 .form(&[
                     ("grant_type", DEVICE_GRANT_TYPE),
                     ("device_code", device_code.device_code.as_str()),
@@ -257,7 +257,7 @@ pub(crate) async fn complete_device_code_login(
             }
             "expired_token" => {
                 tracing::warn!(description = detail, "device auth token expired");
-                anyhow::bail!("Device code expired. Run `grok login --device-auth` again.");
+                anyhow::bail!("Device code expired. Run `xvora login --device-auth` again.");
             }
             other => {
                 tracing::warn!(
@@ -525,11 +525,11 @@ pub(crate) mod tests {
     }
 
     fn auth_manager_with_grok_home(
-        grok_home: &std::path::Path,
+        xvora_home: &std::path::Path,
         proxy_base_url: &str,
     ) -> Arc<AuthManager> {
         Arc::new(
-            AuthManager::new(grok_home, GrokComConfig::default())
+            AuthManager::new(xvora_home, GrokComConfig::default())
                 .with_proxy_base_url(proxy_base_url),
         )
     }
@@ -537,14 +537,14 @@ pub(crate) mod tests {
     #[test]
     fn build_auth_persists_credentials_without_proxy_fetch() {
         let temp_dir = tempfile::tempdir().unwrap();
-        let grok_home = temp_dir.path().join(".grok");
-        std::fs::create_dir_all(&grok_home).unwrap();
-        let auth_manager = auth_manager_with_grok_home(&grok_home, "http://127.0.0.1:9");
+        let xvora_home = temp_dir.path().join(".xvora");
+        std::fs::create_dir_all(&xvora_home).unwrap();
+        let auth_manager = auth_manager_with_grok_home(&xvora_home, "http://127.0.0.1:9");
         let tokens = super::TokenOk {
             access_token: "access-token".to_string(),
             refresh_token: Some("refresh-token".to_string()),
             expires_in: Some(900),
-            scope: Some("openid email offline_access grok-cli:access".to_string()),
+            scope: Some("openid email offline_access xvora-cli:access".to_string()),
             id_token: Some(
                 "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJ1c2VyLTEyMyIsImVtYWlsIjoiZGV2aWNlLWF1dGhAbG9jYWwudGVzdCJ9.sig".to_string(),
             ),
@@ -579,9 +579,9 @@ pub(crate) mod tests {
     fn build_auth_seeds_team_metadata_from_access_token() {
         ensure_crypto_provider();
         let temp_dir = tempfile::tempdir().unwrap();
-        let grok_home = temp_dir.path().join(".grok");
-        std::fs::create_dir_all(&grok_home).unwrap();
-        let auth_manager = auth_manager_with_grok_home(&grok_home, "http://127.0.0.1:9");
+        let xvora_home = temp_dir.path().join(".xvora");
+        std::fs::create_dir_all(&xvora_home).unwrap();
+        let auth_manager = auth_manager_with_grok_home(&xvora_home, "http://127.0.0.1:9");
         let header = jsonwebtoken::Header::new(jsonwebtoken::Algorithm::HS256);
         let claims = serde_json::json!({
             "sub": "user-42",
@@ -589,7 +589,7 @@ pub(crate) mod tests {
             "aud": "client-id",
             "exp": 9999999999u64,
             "iat": 1000000000u64,
-            "scope": "offline_access grok-cli:access team:read",
+            "scope": "offline_access xvora-cli:access team:read",
             "principal_type": "Team",
             "principal_id": "team-123",
             "client_id": "client-id",
@@ -604,7 +604,7 @@ pub(crate) mod tests {
             .unwrap(),
             refresh_token: Some("refresh-token".to_owned()),
             expires_in: Some(900),
-            scope: Some("offline_access grok-cli:access team:read".to_owned()),
+            scope: Some("offline_access xvora-cli:access team:read".to_owned()),
             id_token: None,
         };
 
@@ -653,10 +653,10 @@ pub(crate) mod tests {
     fn assert_build_auth_rejected(cfg: GrokComConfig, token_principal: &str, expected_err: &str) {
         ensure_crypto_provider();
         let temp_dir = tempfile::tempdir().unwrap();
-        let grok_home = temp_dir.path().join(".grok");
-        std::fs::create_dir_all(&grok_home).unwrap();
+        let xvora_home = temp_dir.path().join(".xvora");
+        std::fs::create_dir_all(&xvora_home).unwrap();
         let auth_manager =
-            Arc::new(AuthManager::new(&grok_home, cfg).with_proxy_base_url("http://127.0.0.1:9"));
+            Arc::new(AuthManager::new(&xvora_home, cfg).with_proxy_base_url("http://127.0.0.1:9"));
 
         let err = tokio::runtime::Runtime::new()
             .unwrap()
@@ -674,7 +674,7 @@ pub(crate) mod tests {
             "rejected login must not persist credentials",
         );
         assert!(
-            !grok_home.join("auth.json").exists(),
+            !xvora_home.join("auth.json").exists(),
             "rejected login must not write auth.json",
         );
     }
@@ -696,10 +696,10 @@ pub(crate) mod tests {
             ..GrokComConfig::default()
         };
         let temp_dir = tempfile::tempdir().unwrap();
-        let grok_home = temp_dir.path().join(".grok");
-        std::fs::create_dir_all(&grok_home).unwrap();
+        let xvora_home = temp_dir.path().join(".xvora");
+        std::fs::create_dir_all(&xvora_home).unwrap();
         let auth_manager =
-            Arc::new(AuthManager::new(&grok_home, cfg).with_proxy_base_url("http://127.0.0.1:9"));
+            Arc::new(AuthManager::new(&xvora_home, cfg).with_proxy_base_url("http://127.0.0.1:9"));
 
         let auth = tokio::runtime::Runtime::new()
             .unwrap()

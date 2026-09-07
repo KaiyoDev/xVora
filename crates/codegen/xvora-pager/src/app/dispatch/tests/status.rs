@@ -1394,16 +1394,16 @@ fn dispatch_confirm_reset_setting_reset_dispatches_typed_setter_for_shared_enum(
             &mut app,
         );
 
-        // Reset dispatches SetTheme("groknight"), the registered default
+        // Reset dispatches SetTheme("XvoNight"), the registered default
         assert_eq!(effects.len(), 1);
         match &effects[0] {
             Effect::PersistSetting { key, value, .. } => {
                 assert_eq!(*key, "theme");
-                assert_eq!(value, &SettingValue::Enum("groknight"));
+                assert_eq!(value, &SettingValue::Enum("XvoNight"));
             }
             other => panic!("expected PersistSetting, got {other:?}"),
         }
-        assert_eq!(app.current_ui.theme.as_deref(), Some("groknight"));
+        assert_eq!(app.current_ui.theme.as_deref(), Some("XvoNight"));
     });
 }
 
@@ -1444,7 +1444,7 @@ fn context_info_response() -> shell::session::SessionInfoResponse {
         cwd: "/tmp/test".to_string(),
         data: SessionInfoData {
             agent_name: None,
-            model: Some("grok-build".to_string()),
+            model: Some("xvora-build".to_string()),
             model_display_name: None,
             resolved_model_id: None,
             model_fingerprint: None,

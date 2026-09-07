@@ -86,7 +86,7 @@ impl WorkspaceStore {
         }
     }
 
-    /// Finish an open of a file written by a newer grok: gate at the connection so even a bug in this crate cannot write.
+    /// Finish an open of a file written by a newer xvora: gate at the connection so even a bug in this crate cannot write.
     /// Reads remain available while the newer schema is read-compatible.
     fn open_newer_schema(
         conn: rusqlite::Connection,
@@ -100,7 +100,7 @@ impl WorkspaceStore {
             path = %effective.display(),
             found,
             supported = USER_VERSION,
-            "workspace store written by a newer grok; opening read-only"
+            "workspace store written by a newer xvora; opening read-only"
         );
         Ok(Self {
             conn,

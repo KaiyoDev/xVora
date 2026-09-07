@@ -87,7 +87,7 @@ struct GitSnapshot {
 pub struct CwdGitInfo {
     /// Branch shorthand. `Some("")` for detached HEAD.
     pub branch: Option<String>,
-    /// Whether `cwd` is a worktree rather than the primary checkout (linked `git worktree`, grok standalone clone, or worktree DB hit).
+    /// Whether `cwd` is a worktree rather than the primary checkout (linked `git worktree`, xvora standalone clone, or worktree DB hit).
     pub is_worktree: bool,
     /// Tilde-shortened path to the main repo when in a worktree.
     pub main_repo: Option<String>,
@@ -227,11 +227,11 @@ fn compute_snapshot(cwd: &Path) -> GitSnapshot {
         .then(|| repo.commondir().parent().map(collapse_home))
         .flatten();
 
-    // Standalone grok worktrees are CoW clones (`.git` is a directory), so `path != commondir` is false; the source marker is the back-pointer
+    // Standalone xvora worktrees are CoW clones (`.git` is a directory), so `path != commondir` is false; the source marker is the back-pointer
     let mut marker_main_repo = None;
     for ancestor in cwd.ancestors() {
         let git = ancestor.join(".git");
-        if let Ok(contents) = std::fs::read_to_string(git.join("grok-worktree-source"))
+        if let Ok(contents) = std::fs::read_to_string(git.join("xvora-worktree-source"))
             && let trimmed = contents.trim()
             && !trimmed.is_empty()
         {
@@ -583,7 +583,7 @@ mod tests {
             clone
                 .path
                 .join(".git")
-                .join("grok-worktree-source")
+                .join("xvora-worktree-source")
                 .is_file(),
             "standalone clone carries the source marker"
         );
@@ -623,12 +623,12 @@ mod tests {
         assert_eq!(info.branch.as_deref(), Some("dep-branch"));
     }
 
-    #[serial_test::serial(GROK_HOME)]
+    #[serial_test::serial(xvora_home)]
     #[test]
     fn compute_cwd_git_info_nested_repo_does_not_inherit_db_record() {
         let home = tempfile::tempdir().unwrap();
-        // serial(GROK_HOME) orders peers; EnvVarGuard restores on drop so later `open_default()` callers do not see a deleted temp home
-        let _grok_home = crate::test_util::EnvVarGuard::set("GROK_HOME", home.path());
+        // serial(xvora_home) orders peers; EnvVarGuard restores on drop so later `open_default()` callers do not see a deleted temp home
+        let _grok_home = crate::test_util::EnvVarGuard::set("xvora_home", home.path());
         let _ = fast_worktree::db::WorktreeDb::open(home.path());
 
         let wt = crate::test_util::TempGitRepo::init("wt-branch");

@@ -880,9 +880,9 @@ thread_local! {
     /// Per-test override for the session `mermaid/` cache dir. View-side tests
     /// set this to a private tempdir so [`AgentView::mermaid_out_path`] resolves
     /// a hermetic, writable cache dir *without* mutating the process-global
-    /// `GROK_HOME` (whose `grok_home()` value is cached first-write-wins, an
+    /// `xvora_home` (whose `xvora_home()` value is cached first-write-wins, an
     /// isolation hazard under the full parallel suite; PNGs could land in the
-    /// real `~/.grok`). Thread-local, so each parallel test is independent; the
+    /// real `~/.xvora`). Thread-local, so each parallel test is independent; the
     /// `TempDir` guard lives here so the dir outlives the view. Mirrors the
     /// `subagent::REPLAY_GROK_HOME` test override. Production never sets this.
     static TEST_MERMAID_DIR: std::cell::RefCell<Option<tempfile::TempDir>> =
@@ -920,7 +920,7 @@ impl AgentView {
 
     /// Per-session destination path for a diagram's PNG, or `None` until session identity is known (no on-disk cache before then).
     fn mermaid_out_path(&self, key: &MermaidCacheKey) -> Option<PathBuf> {
-        // Test override: a hermetic per-test cache dir (no `GROK_HOME` mutation)
+        // Test override: a hermetic per-test cache dir (no `xvora_home` mutation)
         #[cfg(test)]
         if let Some(path) = TEST_MERMAID_DIR.with(|d| {
             d.borrow()
@@ -1141,7 +1141,7 @@ mod tests {
     fn key(source: &str) -> MermaidCacheKey {
         MermaidCacheKey::derive(
             source,
-            ThemeKind::GrokNight,
+            ThemeKind::XvoNight,
             80,
             MermaidRenderQuality::Terminal,
         )
@@ -1656,22 +1656,22 @@ mod tests {
     fn is_render_subcommand_matches_only_argv1() {
         let argv = |v: &[&str]| v.iter().map(std::ffi::OsString::from).collect::<Vec<_>>();
         assert!(is_render_subcommand(&argv(&[
-            "grok",
+            "xvora",
             MERMAID_RENDER_SUBCOMMAND
         ])));
         assert!(is_render_subcommand(&argv(&[
-            "grok",
+            "xvora",
             MERMAID_RENDER_SUBCOMMAND,
             "--out",
             "/tmp/x.png",
         ])));
         // Normal invocations are not the render child.
-        assert!(!is_render_subcommand(&argv(&["grok"])));
-        assert!(!is_render_subcommand(&argv(&["grok", "chat"])));
+        assert!(!is_render_subcommand(&argv(&["xvora"])));
+        assert!(!is_render_subcommand(&argv(&["xvora", "chat"])));
         assert!(!is_render_subcommand(&argv(&[])));
         // The subcommand only counts as argv[1], not deeper in the args.
         assert!(!is_render_subcommand(&argv(&[
-            "grok",
+            "xvora",
             "chat",
             MERMAID_RENDER_SUBCOMMAND,
         ])));
@@ -1929,14 +1929,10 @@ mod tests {
     fn per_theme_renders_land_in_distinct_files() {
         let dir = tempfile::tempdir().unwrap();
         let src = "flowchart LR\nA-->B";
-        let dark_key = MermaidCacheKey::derive(
-            src,
-            ThemeKind::GrokNight,
-            80,
-            MermaidRenderQuality::Terminal,
-        );
+        let dark_key =
+            MermaidCacheKey::derive(src, ThemeKind::XvoNight, 80, MermaidRenderQuality::Terminal);
         let light_key =
-            MermaidCacheKey::derive(src, ThemeKind::GrokDay, 80, MermaidRenderQuality::Terminal);
+            MermaidCacheKey::derive(src, ThemeKind::XvoDay, 80, MermaidRenderQuality::Terminal);
         assert_ne!(
             dark_key.cache_filename(),
             light_key.cache_filename(),
@@ -1978,9 +1974,9 @@ mod tests {
     // These drive the click, render, poll, action path through a real `AgentView` whose on-disk cache dir is a private tempdir
     // The unit tests above (pure helpers) and the `make_agent`-based view tests (no session dir) can't do that
 
-    /// Point this test's session `mermaid/` cache dir at a private tempdir: hermetic, with no process-global `GROK_HOME` mutation.
+    /// Point this test's session `mermaid/` cache dir at a private tempdir: hermetic, with no process-global `xvora_home` mutation.
     /// The `TempDir` lives in the [`TEST_MERMAID_DIR`] thread-local for the test thread's lifetime (so the dir outlives the view).
-    /// Each parallel test gets its own dir, so there is no cross-test contamination and no `grok_home()` cache race.
+    /// Each parallel test gets its own dir, so there is no cross-test contamination and no `xvora_home()` cache race.
     fn use_test_mermaid_dir() {
         let tmp = tempfile::tempdir().expect("tempdir creation");
         TEST_MERMAID_DIR.with(|d| *d.borrow_mut() = Some(tmp));
@@ -1990,7 +1986,7 @@ mod tests {
     /// The fixed width makes the render width bucket, hence the cache key, deterministic.
     fn agent_with_session(name: &str) -> AgentView {
         use_test_mermaid_dir();
-        let cwd = PathBuf::from("/grok-mermaid-test").join(name);
+        let cwd = PathBuf::from("/xvora-mermaid-test").join(name);
         let mut agent = crate::app::agent_view::test_agent_view(Some(name), cwd);
         agent.last_terminal_size = (100, 40);
         agent
@@ -2170,7 +2166,7 @@ mod tests {
 
         // An on-click render in flight, keyed at the click-time theme and width
         let click_key =
-            MermaidCacheKey::derive(src, ThemeKind::GrokNight, 80, MermaidRenderQuality::Open);
+            MermaidCacheKey::derive(src, ThemeKind::XvoNight, 80, MermaidRenderQuality::Open);
         let mut rt = MermaidRuntime::new();
         rt.pending.push(PendingMermaidAction {
             key: click_key.clone(),
@@ -2180,7 +2176,7 @@ mod tests {
 
         // A later (live) theme and width derives a DIFFERENT full key for the same source; full-key matching would miss the pending render...
         let live_key =
-            MermaidCacheKey::derive(src, ThemeKind::GrokDay, 240, MermaidRenderQuality::Open);
+            MermaidCacheKey::derive(src, ThemeKind::XvoDay, 240, MermaidRenderQuality::Open);
         assert_ne!(
             click_key, live_key,
             "a theme/width change alters the full cache key",

@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::auth::{AuthManager, GrokAuth};
 
-const GROK_WEB_URL: &str = "https://grok.com";
+const GROK_WEB_URL: &str = "https://xvora.com";
 
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -44,7 +44,7 @@ pub struct ListConversationsPage {
     pub next_page_token: Option<String>,
 }
 
-/// Body for `PUT /rest/app-chat/conversations/{id}` (grok-web `chatUpdateConversation`).
+/// Body for `PUT /rest/app-chat/conversations/{id}` (xvora-web `chatUpdateConversation`).
 #[derive(Debug, Clone, Default, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateConversationBody {
@@ -128,9 +128,9 @@ impl ConversationsClient {
                 self.auth.grok_com_config().token_header.clone(),
             )
             .header("x-userid", &auth.user_id)
-            .header("x-grok-client-version", version::VERSION)
+            .header("x-xvora-client-version", version::VERSION)
             .header(
-                "x-grok-client-identifier",
+                "x-xvora-client-identifier",
                 crate::http::process_client_identifier(),
             )
             .header(

@@ -1,9 +1,9 @@
 //! E2E: the settings modal's locked coding-data row, driven off the seeded auth entry through the full pipeline.
 //! The pipeline runs auth.json, shell `GrokAuth`, auth meta, `AppView::coding_data_sharing_lock()`, `PagerLocalSnapshot`, then the render:
 //!
-//! - ZDR team (`team_blocked_reasons` = `BLOCKED_REASON_NO_LOGS`): the value column shows exactly `ZDR` (no Opt in / Opt out) and no `›` chevron.
+//! - ZDR team (`team_blocked_reasons` = `BLOCKED_REASON_NO_LOGS`): the value column shows exactly `ZDR` (no Opt in / Opt out) and no `â€º` chevron.
 //!   Expanding the row shows only "Your team has Zero Data Retention."
-//! - Team non-admin (`team_role` = `MEMBER`): the value shows `Opt out · Admin Managed` and no chevron.
+//! - Team non-admin (`team_role` = `MEMBER`): the value shows `Opt out Â· Admin Managed` and no chevron.
 //!   Expanding shows only "Managed by your team admin."
 //!
 //! Both accounts also suppress the welcome privacy banner even with `GROK_PRIVACY_NOTICE_ROLLOUT=1`.
@@ -27,17 +27,17 @@ use xvora_pager_pty_harness::{
 
 const ROWS: u16 = 50;
 const COLS: u16 = 120;
-const BANNER_TITLE: &str = "Help improve Grok";
+const BANNER_TITLE: &str = "Help improve xvora";
 /// Head of the row's label (`Coding data, retention, and training`).
 /// The modal truncates long labels, so match the stable prefix.
 const ROW_LABEL: &str = "Coding data";
-const CHEVRON: &str = "\u{203A}"; // ›
+const CHEVRON: &str = "\u{203A}"; // â€º
 const ZDR_REASON: &str = "Your team has Zero Data Retention.";
 const TEAM_REASON: &str = "Managed by your team admin.";
 /// Head of the row's description in `settings/defs.rs`.
 /// It is kept short so it can't span one of the modal's word wraps.
 /// `contains_text` joins rows with `\n`, so a match on wrapped copy would silently never fire.
-const DESCRIPTION_PREFIX: &str = "Opt-in to provide SpaceXAI";
+const DESCRIPTION_PREFIX: &str = "Opt-in to provide xVora";
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 #[ignore] // opt-in: spawns the real pager binary in a PTY (CI runs with --ignored)
@@ -122,7 +122,7 @@ async fn run_team_member() -> Result<()> {
     let line = open_settings_and_grab_row_line(&mut pager)?;
     assert!(
         line.contains("Opt out \u{00B7} Admin Managed"),
-        "team-managed lock must show `Opt out · Admin Managed`: {line:?}\nscreen:\n{}",
+        "team-managed lock must show `Opt out Â· Admin Managed`: {line:?}\nscreen:\n{}",
         pager.screen_contents()
     );
     assert!(
@@ -195,7 +195,7 @@ fn assert_no_banner_on_welcome(pager: &mut PtyHarness) -> Result<()> {
 ///
 /// Navigation is always via the modal's `/` filter: typing the query clamps the selection to the filtered set (`clamp_selected_to_visible`).
 /// Enter commits back to Browse PRESERVING query and selection, so afterwards the row is both in the viewport and FOCUSED.
-/// That is the precondition for the `→` expansion in [`expand_focused_row`].
+/// That is the precondition for the `â†’` expansion in [`expand_focused_row`].
 /// The lowercase query cannot collide with the case-sensitive label.
 fn open_settings_and_grab_row_line(pager: &mut PtyHarness) -> Result<String> {
     pager.inject_keys(keys::ENTER).context("start session")?;
@@ -226,7 +226,7 @@ fn open_settings_and_grab_row_line(pager: &mut PtyHarness) -> Result<String> {
         .with_context(|| format!("{ROW_LABEL:?} line not found:\n{screen}"))
 }
 
-/// Expand the focused row with `→` (Browse-mode `KeyCode::Right` inserts the focused key into `expanded_keys`) and wait for `reason` to render.
+/// Expand the focused row with `â†’` (Browse-mode `KeyCode::Right` inserts the focused key into `expanded_keys`) and wait for `reason` to render.
 /// Callers reach here from [`open_settings_and_grab_row_line`], which leaves the coding-data row focused.
 fn expand_focused_row(pager: &mut PtyHarness, reason: &str) -> Result<()> {
     pager.inject_keys(keys::RIGHT).context("expand row")?;

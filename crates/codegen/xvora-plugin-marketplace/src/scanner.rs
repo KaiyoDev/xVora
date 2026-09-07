@@ -1,5 +1,5 @@
 //! Marketplace plugin discovery runs in one of two modes:
-//! 1. **Indexed:** if an index file exists, use it (see `index::load_index` for lookup order; `.grok-plugin/marketplace.json` is preferred).
+//! 1. **Indexed:** if an index file exists, use it (see `index::load_index` for lookup order; `.xvora-plugin/marketplace.json` is preferred).
 //! 2. **Filesystem fallback:** walk `plugins/*/` and resolve manifests directly.
 
 use std::path::Path;
@@ -308,7 +308,7 @@ mod tests {
     #[test]
     fn url_sourced_entry_carries_keywords() {
         let dir = tempfile::tempdir().unwrap();
-        let grok_dir = dir.path().join(".grok-plugin");
+        let grok_dir = dir.path().join(".xvora-plugin");
         std::fs::create_dir_all(&grok_dir).unwrap();
         std::fs::write(
             grok_dir.join("marketplace.json"),
@@ -342,7 +342,7 @@ mod tests {
     #[test]
     fn url_sourced_entry_with_path_sets_remote_subdir() {
         let dir = tempfile::tempdir().unwrap();
-        let grok_dir = dir.path().join(".grok-plugin");
+        let grok_dir = dir.path().join(".xvora-plugin");
         std::fs::create_dir_all(&grok_dir).unwrap();
         std::fs::write(
             grok_dir.join("marketplace.json"),
@@ -428,20 +428,20 @@ mod tests {
     #[test]
     fn grok_plugin_dir_index_drives_scan_end_to_end() {
         let dir = tempfile::tempdir().unwrap();
-        make_plugin(dir.path(), "grok-plugin", "1.0.0");
+        make_plugin(dir.path(), "xvora-plugin", "1.0.0");
 
-        let grok_dir = dir.path().join(".grok-plugin");
+        let grok_dir = dir.path().join(".xvora-plugin");
         std::fs::create_dir_all(&grok_dir).unwrap();
         std::fs::write(
             grok_dir.join("marketplace.json"),
             r#"{
-                "name": "grok-marketplace",
+                "name": "xvora-marketplace",
                 "plugins": [{
-                    "name": "grok-plugin",
-                    "description": "From the .grok-plugin index",
+                    "name": "xvora-plugin",
+                    "description": "From the .xvora-plugin index",
                     "category": "design",
-                    "source": { "type": "local", "path": "./plugins/grok-plugin" },
-                    "tags": ["grok"]
+                    "source": { "type": "local", "path": "./plugins/xvora-plugin" },
+                    "tags": ["xvora"]
                 }]
             }"#,
         )
@@ -449,9 +449,9 @@ mod tests {
 
         let plugins = scan_marketplace(dir.path()).entries;
         assert_eq!(plugins.len(), 1);
-        assert_eq!(plugins[0].name, "grok-plugin");
+        assert_eq!(plugins[0].name, "xvora-plugin");
         assert_eq!(plugins[0].category.as_deref(), Some("design"));
-        assert_eq!(plugins[0].tags, vec!["grok"]);
+        assert_eq!(plugins[0].tags, vec!["xvora"]);
         assert!(plugins[0].keywords.is_empty());
     }
 
@@ -502,7 +502,7 @@ mod tests {
     }
 
     fn write_grok_file(dir: &Path, file: &str, content: &str) {
-        let grok_dir = dir.join(".grok-plugin");
+        let grok_dir = dir.join(".xvora-plugin");
         std::fs::create_dir_all(&grok_dir).unwrap();
         std::fs::write(grok_dir.join(file), content).unwrap();
     }

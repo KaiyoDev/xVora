@@ -1,4 +1,4 @@
-#![cfg_attr(rustfmt, rustfmt::skip)]
+﻿#![cfg_attr(rustfmt, rustfmt::skip)]
 #![allow(unused_imports)]
 use std::path::PathBuf;
 use std::sync::OnceLock;
@@ -752,7 +752,7 @@ pub struct MvpAgent {
     pub(crate) sampling_config: RefCell<SamplingConfig>,
     pub(crate) auth_manager: Arc<AuthManager>,
     pub(crate) models_manager: crate::agent::models::ModelsManager,
-    /// grok.com chat-product catalog (`/rest/modes`) for chat sessions; distinct from `models_manager` (the build `/v1/models` catalog).
+    /// xvora.com chat-product catalog (`/rest/modes`) for chat sessions; distinct from `models_manager` (the build `/v1/models` catalog).
     pub(crate) chat_modes: crate::agent::chat_modes::ChatModesManager,
     /// Single-flight guard for interactive login (device poll / loopback wait).
     /// Owns the active attempt's cancel token and its code/url channels; a new `authenticate` or `x.ai/auth/cancel` cancels the prior attempt.
@@ -805,7 +805,7 @@ pub struct MvpAgent {
     memory_config: Option<crate::config::MemoryConfig>,
     /// Optional channel to the leader's `ConfigFileWatcher` for dynamic per-cwd registration as new sessions open.
     /// Each successful session insert in `spawn_and_register_session` sends the session's cwd to the watcher task spawned in `agent/app.rs`.
-    /// That task calls [`crate::config::watcher::ConfigFileWatcher::watch_path`] (a **non-recursive** watch on `<cwd>/` and `<cwd>/.grok/`).
+    /// That task calls [`crate::config::watcher::ConfigFileWatcher::watch_path`] (a **non-recursive** watch on `<cwd>/` and `<cwd>/.xvora/`).
     ///
     /// `None` outside leader mode and in tests; the registration is a no-op in that case.
     /// That is fine: the existing per-extra-path loop already covers the leader's startup cwd.
@@ -870,7 +870,7 @@ pub struct MvpAgent {
     /// One-shot guard for the lazy launch-dir population of `plugin_registry_handle`.
     ///
     /// Boot-time plugin discovery is deferred past ACP `initialize`, so the shared snapshot starts empty.
-    /// The walk (cwd to git root, plus user and marketplace dirs) stalled grok-desktop's first `initialize`.
+    /// The walk (cwd to git root, plus user and marketplace dirs) stalled xvora-desktop's first `initialize`.
     /// It is built once on the first session-creating call via [`Self::ensure_plugin_registry`]; this flag keeps that to a single discovery walk.
     plugin_registry_initialized: std::cell::Cell<bool>,
     /// Single-flight guard for the proactive bundle sync background task.
@@ -1018,7 +1018,7 @@ pub(crate) fn inherited_harness_template(
 ///
 /// When a zero-turn switch rebuilds the harness (`did_rebuild`), the handle must adopt the rebuilt harness's agent type.
 /// Otherwise the name is left unchanged.
-/// Compatible stock switches (e.g. `grok-build` to `grok-build-plan`) intentionally preserve the session's original ACP `agentProfile`.
+/// Compatible stock switches (e.g. `xvora-build` to `xvora-build-plan`) intentionally preserve the session's original ACP `agentProfile`.
 pub(crate) fn agent_name_after_model_switch(
     did_rebuild: bool,
     rebuilt_agent_type: &str,
@@ -1033,7 +1033,7 @@ pub(crate) fn agent_name_after_model_switch(
 /// Harness compatibility for zero-turn / mid-turn model switching.
 ///
 /// Two stock (non-strict) agents are interchangeable: they share the default wire format and toolset.
-/// So switching e.g. `grok-build` to `grok-build-plan` doesn't require rebuilding the harness.
+/// So switching e.g. `xvora-build` to `xvora-build-plan` doesn't require rebuilding the harness.
 /// A rebuild would destroy a client-supplied `_meta.agentProfile`.
 ///
 /// Strict harnesses (`codex`, …) are only compatible with themselves.
@@ -1218,7 +1218,7 @@ impl AuthRequestMeta {
 /// Every authenticated request to cli-chat-proxy (web search, image gen, and any future tools that go through the proxy) must carry these headers.
 ///
 /// Headers injected:
-///  - `x-grok-client-version`: required by the proxy's version-gate check.
+///  - `x-xvora-client-version`: required by the proxy's version-gate check.
 ///    Uses `client_version` when provided, otherwise falls back to cli-chat-proxy compile-time `CARGO_PKG_VERSION`.
 ///  - `X-XAI-Token-Auth` / `x-authenticateresponse`: required by the cli-chat-proxy auth middleware when the `base_url` is a known proxy URL.
 ///  - optional extra access header: only set when the corresponding key is `Some` *and* the `base_url` points at a matching non-production host.
@@ -1232,14 +1232,14 @@ fn inject_proxy_headers(
     base_url: &str,
 ) {
     headers
-        .entry("x-grok-client-version".to_string())
+        .entry("x-xvora-client-version".to_string())
         .or_insert_with(|| {
             client_version
                 .map(String::from)
                 .unwrap_or_else(|| version::VERSION.to_string())
         });
     headers
-        .entry("x-grok-client-identifier".to_string())
+        .entry("x-xvora-client-identifier".to_string())
         .or_insert_with(crate::http::process_client_identifier);
     if crate::util::is_cli_chat_proxy_url(base_url) {
         headers
@@ -1949,7 +1949,7 @@ impl MvpAgent {
         if let crate::session::storage::search::IndexDecision::On(index) = self
             .search_index()
         {
-            index.bootstrap_once(crate::util::grok_home::grok_home());
+            index.bootstrap_once(crate::util::xvora_home::xvora_home());
         }
     }
     pub(crate) fn search_index(
@@ -1978,19 +1978,19 @@ impl MvpAgent {
         }
         #[cfg(test)] self.auto_gc_spawn_count.set(self.auto_gc_spawn_count.get() + 1);
         let auto_gc_policy = self.cfg.borrow().resolve_worktree_auto_gc();
-        let grok_home = fast_worktree::resolve_grok_home();
+        let xvora_home = fast_worktree::resolve_grok_home();
         tokio::task::spawn_blocking(move || Self::reclaim_worktrees(
-            grok_home,
+            xvora_home,
             auto_gc_policy,
         ));
     }
-    /// The caller resolves the home: read here, $GROK_HOME would be read when the blocking thread starts.
+    /// The caller resolves the home: read here, $xvora_home would be read when the blocking thread starts.
     /// This deletes worktrees under what it finds.
     pub(super) fn reclaim_worktrees(
-        grok_home: anyhow::Result<std::path::PathBuf>,
+        xvora_home: anyhow::Result<std::path::PathBuf>,
         policy: fast_worktree::ResolvedWorktreeAutoGc,
     ) {
-        if let Err(e) = grok_home
+        if let Err(e) = xvora_home
             .and_then(|home| fast_worktree::WorktreeDb::open(&home))
             .and_then(|db| fast_worktree::maybe_auto_gc(&db, &policy))
         {
@@ -2154,7 +2154,7 @@ impl MvpAgent {
         });
     }
     /// Spawn a best-effort bundle sync.
-    /// Re-fires on every call site (init, cached_token, grok.com/oidc); the cheap pre-checks below absorb repeats so reconnects are cheap.
+    /// Re-fires on every call site (init, cached_token, xvora.com/oidc); the cheap pre-checks below absorb repeats so reconnects are cheap.
     ///
     /// Pre-spawn gating order (cheapest first, all synchronous):
     /// 1. Auth gate: avoid spawning a no-op task on every init.
@@ -2163,7 +2163,7 @@ impl MvpAgent {
     ///    initialize, cached_token, and oidc fired in quick succession before
     ///    the first sync's tar extract finished), drop this call to avoid
     ///    racing concurrent extracts that would interleave per-file writes
-    ///    against `~/.grok/bundled/` and the manifest.
+    ///    against `~/.xvora/bundled/` and the manifest.
     pub(crate) fn maybe_sync_bundle_in_background(&self, force: bool) {
         use crate::extensions::bundle::{
             BUNDLE_SYNC_TTL, bundle_cache_is_fresh, has_bundle_credentials,

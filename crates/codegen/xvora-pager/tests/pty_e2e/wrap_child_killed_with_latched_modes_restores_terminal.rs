@@ -2,7 +2,7 @@
 #[allow(unused_imports)]
 use super::common::*;
 
-/// Dirty-death e2e: when the wrapped child dies with DEC private modes still latched, `grok wrap` must emit the matching resets.
+/// Dirty-death e2e: when the wrapped child dies with DEC private modes still latched, `xvora wrap` must emit the matching resets.
 /// Otherwise the outer terminal is left broken.
 ///
 /// The child SIGKILLs itself after enabling alt screen, all-motion mouse tracking, SGR mouse encoding, bracketed paste, and cursor hide.

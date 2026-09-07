@@ -134,7 +134,7 @@ impl HookRegistry {
 pub enum HookSource<'a> {
     /// A JSON settings file; only its `hooks` key is used.
     SettingsFile(&'a Path),
-    /// A directory of `*.json` hook files (e.g. `~/.grok/hooks/`).
+    /// A directory of `*.json` hook files (e.g. `~/.xvora/hooks/`).
     Directory(&'a Path),
 }
 
@@ -219,7 +219,7 @@ pub fn collect_specs_from_sources(
 /// Exception: the copy with the highest [`HookProvenance::authority_rank`] wins regardless of arrival order.
 /// Otherwise a byte-identical hook in a user-writable layer (which loads earlier) would shadow the root-owned copy's provenance.
 /// With it would go the no-disable rule and the pinned timeout/env.
-/// Rank ordering also settles managed-vs-managed pairs (`$GROK_HOME/requirements.toml` arrives before `/etc/grok`).
+/// Rank ordering also settles managed-vs-managed pairs (`$xvora_home/requirements.toml` arrives before `/etc/xvora`).
 pub fn registry_from_specs_deduped(specs: Vec<HookSpec>) -> HookRegistry {
     let mut hooks: HashMap<HookEventName, Vec<HookSpec>> = HashMap::new();
     let mut seen_content: HashMap<(HookEventName, String, String, String), (HookEventName, usize)> =
@@ -761,7 +761,7 @@ mod tests {
         assert_eq!(hooks.len(), 1);
         assert_eq!(hooks[0].layer, HookProvenance::Requirements);
 
-        // Managed-vs-managed pair: `$GROK_HOME/requirements.toml` arrives before `/etc/grok`, but the root-owned tier outranks it
+        // Managed-vs-managed pair: `$xvora_home/requirements.toml` arrives before `/etc/xvora`, but the root-owned tier outranks it
         // The no-disable rule and pinned fields must not resolve under the user-writable copy
         let registry = registry_from_specs_deduped(vec![
             spec(

@@ -6,7 +6,7 @@
 //! Either way the auth flow fell through to the built-in browser login, so a configured provider looked like it had been ignored.
 //!
 //! The test drives the public entry point: `try_ensure_fresh_auth`, then `AuthManager::auth`, the external refresher, and the platform shell.
-//! It is hermetic: a throwaway `GROK_HOME`, no network, and a provider command that needs no binary beyond what the platform shell already provides.
+//! It is hermetic: a throwaway `xvora_home`, no network, and a provider command that needs no binary beyond what the platform shell already provides.
 
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -16,13 +16,13 @@ use shell::auth::{AuthMode, GrokAuth, GrokComConfig, try_ensure_fresh_auth};
 
 const SEED_TOKEN: &str = "stale-token-that-must-be-replaced";
 
-/// `grok_home()` memoizes into a `OnceLock`, so every phase below shares this one directory.
+/// `xvora_home()` memoizes into a `OnceLock`, so every phase below shares this one directory.
 /// That is why the phases live in a single test rather than racing each other as separate ones.
 fn use_temp_grok_home(dir: &Path) {
     // SAFETY: single-threaded test entry, before any thread that reads the
     // environment is spawned.
     unsafe {
-        std::env::set_var("GROK_HOME", dir);
+        std::env::set_var("xvora_home", dir);
     }
 }
 
@@ -71,8 +71,8 @@ async fn auth_provider_command_mints_the_session_credential() {
     use_temp_grok_home(home.path());
 
     // `echo <token>` is valid in both `sh -c` and `cmd /C`, so this phase needs no external binary and runs identically on every platform
-    let token = mint_with_provider(home.path(), "echo grok-ext-token").await;
-    assert_eq!(token, "grok-ext-token");
+    let token = mint_with_provider(home.path(), "echo xvora-ext-token").await;
+    assert_eq!(token, "xvora-ext-token");
 
     // Windows only: an absolute native path, the form an operator actually writes in config.toml, and the exact shape a POSIX shell mangles
     // Run after the portable phase so a failure here is unambiguously about backslash handling rather than the provider path in general

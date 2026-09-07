@@ -1,4 +1,4 @@
-//! Managed MCP gateway catalog and tool calls via the Grok API.
+//! Managed MCP gateway catalog and tool calls via the xvora API.
 //!
 //! Catalog: `GET /v1/mcp/tools/list` returns `managed_gateway:*` rows.
 //! Call: `POST /v1/mcp/tools/call`.
@@ -154,7 +154,7 @@ async fn get_authenticated_json<T: serde::de::DeserializeOwned>(
         .timeout(std::time::Duration::from_secs(10))
         .header("Authorization", format!("Bearer {auth_key}"))
         .header("X-XAI-Token-Auth", "xvora-cli")
-        .header("x-grok-client-version", version::VERSION)
+        .header("x-xvora-client-version", version::VERSION)
         .send()
         .await
     {
@@ -207,7 +207,7 @@ pub async fn call_gateway_tool(
         .timeout(GATEWAY_TOOL_CALL_TIMEOUT)
         .header("Authorization", format!("Bearer {auth_key}"))
         .header("X-XAI-Token-Auth", "xvora-cli")
-        .header("x-grok-client-version", version::VERSION)
+        .header("x-xvora-client-version", version::VERSION)
         .json(&request)
         .send()
         .await
@@ -263,7 +263,7 @@ async fn gateway_error_message(status: reqwest::StatusCode, response: reqwest::R
     }
 }
 
-/// Fetch the managed MCP gateway tool catalog from the Grok API (`GET /v1/mcp/tools/list`).
+/// Fetch the managed MCP gateway tool catalog from the xvora API (`GET /v1/mcp/tools/list`).
 ///
 /// `Ok(catalog)` means the server answered and the catalog contents are authoritative for this fetch, even when empty.
 /// `Err(_)` means freshness is unknown and callers must leave any cache retryable rather than committing an empty catalog.

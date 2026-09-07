@@ -58,7 +58,7 @@ impl SleepInhibitor {
     #[cfg(target_os = "macos")]
     fn platform_inhibit(&self) -> bool {
         let mut assertion_id: u32 = 0;
-        let reason = core_foundation::string::CFString::new("grok: agent turn in progress");
+        let reason = core_foundation::string::CFString::new("xvora: agent turn in progress");
         let assertion_type =
             core_foundation::string::CFString::from_static_string("NoIdleSleepAssertion");
 
@@ -97,7 +97,7 @@ impl SleepInhibitor {
         let mut cmd = std::process::Command::new("systemd-inhibit");
         cmd.args([
             "--what=idle",
-            "--who=grok",
+            "--who=xvora",
             "--why=agent turn in progress",
             "sleep",
             "infinity",
@@ -108,7 +108,7 @@ impl SleepInhibitor {
         tty_utils::detach_std_command(&mut cmd);
         // The spawned process is the lock holder: `systemd-inhibit` keeps the idle-inhibit fd itself and runs `sleep infinity` as its child
         // That is the same pid `release()` SIGTERMs on a clean turn end
-        // Bind that pid to us so a crashed or killed grok (SIGKILL, `panic=abort` SIGABRT, no Drop runs) cannot leave it running forever
+        // Bind that pid to us so a crashed or killed xvora (SIGKILL, `panic=abort` SIGABRT, no Drop runs) cannot leave it running forever
         // A leaked `systemd-inhibit` holds the idle lock and pid slots on shared hosts
         tty_utils::kill_on_parent_death_std(&mut cmd);
         #[allow(clippy::disallowed_methods)] // bound by kill-on-parent-death; released each turn

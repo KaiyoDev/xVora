@@ -266,9 +266,9 @@ fn slash_model_valid_dispatches_set_default_model_with_switch_and_persist() {
         .available
         .insert(
             model_id.clone(),
-            acp::ModelInfo::new(model_id.clone(), "Grok 4.5".to_string()),
+            acp::ModelInfo::new(model_id.clone(), "xvora 4.5".to_string()),
         );
-    let effects = dispatch(Action::SendPrompt("/model Grok 4.5".into()), &mut app);
+    let effects = dispatch(Action::SendPrompt("/model xvora 4.5".into()), &mut app);
     assert_eq!(
         effects.len(),
         2,
@@ -942,7 +942,7 @@ fn deep_link_preview_esc_closes_modal_and_forwards_revert_action() {
     );
     match outcome {
         InputOutcome::Action(Action::PreviewTheme(name)) => {
-            assert_eq!(name, "groknight");
+            assert_eq!(name, "XvoNight");
         }
         other => panic!("expected Action(PreviewTheme), got {other:?}"),
     }
@@ -1234,8 +1234,8 @@ fn clear_default_model_persists_but_keeps_live_current() {
     use agent_client_protocol as acp;
     use std::sync::Arc;
     let mut app = test_app_with_agent();
-    let id = acp::ModelId::new(Arc::from("grok-test"));
-    let info = acp::ModelInfo::new(id.clone(), "Grok Test".to_string());
+    let id = acp::ModelId::new(Arc::from("xvora-test"));
+    let info = acp::ModelInfo::new(id.clone(), "xvora Test".to_string());
     let agent_id = AgentId(0);
     app.agents
         .get_mut(&agent_id)
@@ -1281,7 +1281,7 @@ fn set_default_model_resolves_known_name() {
     use std::sync::Arc;
     let mut app = test_app_with_agent();
     let id = acp::ModelId::new(Arc::from("grok-4.5"));
-    let info = acp::ModelInfo::new(id.clone(), "Grok 4.5".to_string());
+    let info = acp::ModelInfo::new(id.clone(), "xvora 4.5".to_string());
     let agent_id = AgentId(0);
     app.agents
         .get_mut(&agent_id)
@@ -1311,8 +1311,8 @@ fn set_default_model_idempotent_when_already_current() {
     use agent_client_protocol as acp;
     use std::sync::Arc;
     let mut app = test_app_with_agent();
-    let id = acp::ModelId::new(Arc::from("grok-already"));
-    let info = acp::ModelInfo::new(id.clone(), "Grok Already".to_string());
+    let id = acp::ModelId::new(Arc::from("xvora-already"));
+    let info = acp::ModelInfo::new(id.clone(), "xvora Already".to_string());
     let agent_id = AgentId(0);
     app.agents
         .get_mut(&agent_id)
@@ -2980,11 +2980,11 @@ fn dispatch_cycle_mode_refreshes_open_modal_snapshot() {
         "current_value_for must read the refreshed snapshot",
     );
 }
-/// `dispatch(Action::SetTheme("grokday"), &mut app)` emits exactly one `Effect::PersistSetting` and mutates `app.current_ui.theme`.
+/// `dispatch(Action::SetTheme("XvoDay"), &mut app)` emits exactly one `Effect::PersistSetting` and mutates `app.current_ui.theme`.
 /// It also fires a toast and toggles AUTO_MODE off (kind is concrete).
 ///
-/// The test persists `grokday` (a non-truecolor theme) because the asserted payload is the registry's CANONICAL, not the live theme cache.
-/// `clamp_to_terminal` might fold the cache to GrokNight in non-truecolor test environments.
+/// The test persists `XvoDay` (a non-truecolor theme) because the asserted payload is the registry's CANONICAL, not the live theme cache.
+/// `clamp_to_terminal` might fold the cache to XvoNight in non-truecolor test environments.
 /// The cache contract is exercised separately by the `*_applies_when_*` tests.
 #[test]
 fn set_theme_emits_persist_setting_with_correct_payload() {
@@ -2992,8 +2992,8 @@ fn set_theme_emits_persist_setting_with_correct_payload() {
     with_theme_test_env(|| {
         let mut app = test_app_with_agent();
         assert_eq!(app.current_ui.theme, None);
-        crate::theme::cache::set(crate::theme::ThemeKind::GrokNight);
-        let effects = dispatch(Action::SetTheme("grokday".into()), &mut app);
+        crate::theme::cache::set(crate::theme::ThemeKind::XvoNight);
+        let effects = dispatch(Action::SetTheme("XvoDay".into()), &mut app);
         assert_eq!(effects.len(), 1);
         match &effects[0] {
             Effect::PersistSetting {
@@ -3002,12 +3002,12 @@ fn set_theme_emits_persist_setting_with_correct_payload() {
                 rollback_value,
             } => {
                 assert_eq!(*key, "theme");
-                assert_eq!(*value, SettingValue::Enum("grokday"));
-                assert_eq!(*rollback_value, SettingValue::Enum("groknight"));
+                assert_eq!(*value, SettingValue::Enum("XvoDay"));
+                assert_eq!(*rollback_value, SettingValue::Enum("XvoNight"));
             }
             other => panic!("expected PersistSetting, got {other:?}"),
         }
-        assert_eq!(app.current_ui.theme.as_deref(), Some("grokday"));
+        assert_eq!(app.current_ui.theme.as_deref(), Some("XvoDay"));
         assert!(
             !crate::theme::cache::is_auto_mode(),
             "concrete theme commit must disable AUTO_MODE",
@@ -3015,14 +3015,14 @@ fn set_theme_emits_persist_setting_with_correct_payload() {
     });
 }
 /// Same payload contract as `set_theme_emits_persist_setting_with_correct_payload` for the auto-dark sibling.
-/// Uses `grokday` to avoid the `clamp_to_terminal` ambiguity in non-truecolor test envs.
+/// Uses `XvoDay` to avoid the `clamp_to_terminal` ambiguity in non-truecolor test envs.
 /// `apply_kind` doesn't fire here (parent theme is not auto by default), but a non-truecolor canonical keeps the test robust across environments.
 #[test]
 fn set_auto_dark_theme_emits_persist_setting_with_correct_payload() {
     use crate::settings::SettingValue;
     with_theme_test_env(|| {
         let mut app = test_app_with_agent();
-        let effects = dispatch(Action::SetAutoDarkTheme("grokday".into()), &mut app);
+        let effects = dispatch(Action::SetAutoDarkTheme("XvoDay".into()), &mut app);
         assert_eq!(effects.len(), 1);
         match &effects[0] {
             Effect::PersistSetting {
@@ -3031,12 +3031,12 @@ fn set_auto_dark_theme_emits_persist_setting_with_correct_payload() {
                 rollback_value,
             } => {
                 assert_eq!(*key, "auto_dark_theme");
-                assert_eq!(*value, SettingValue::Enum("grokday"));
-                assert_eq!(*rollback_value, SettingValue::Enum("groknight"));
+                assert_eq!(*value, SettingValue::Enum("XvoDay"));
+                assert_eq!(*rollback_value, SettingValue::Enum("XvoNight"));
             }
             other => panic!("expected PersistSetting, got {other:?}"),
         }
-        assert_eq!(app.current_ui.auto_dark_theme.as_deref(), Some("grokday"));
+        assert_eq!(app.current_ui.auto_dark_theme.as_deref(), Some("XvoDay"));
     });
 }
 #[test]
@@ -3044,7 +3044,7 @@ fn set_auto_light_theme_emits_persist_setting_with_correct_payload() {
     use crate::settings::SettingValue;
     with_theme_test_env(|| {
         let mut app = test_app_with_agent();
-        let effects = dispatch(Action::SetAutoLightTheme("groknight".into()), &mut app);
+        let effects = dispatch(Action::SetAutoLightTheme("XvoNight".into()), &mut app);
         assert_eq!(effects.len(), 1);
         match &effects[0] {
             Effect::PersistSetting {
@@ -3053,15 +3053,12 @@ fn set_auto_light_theme_emits_persist_setting_with_correct_payload() {
                 rollback_value,
             } => {
                 assert_eq!(*key, "auto_light_theme");
-                assert_eq!(*value, SettingValue::Enum("groknight"));
-                assert_eq!(*rollback_value, SettingValue::Enum("grokday"));
+                assert_eq!(*value, SettingValue::Enum("XvoNight"));
+                assert_eq!(*rollback_value, SettingValue::Enum("XvoDay"));
             }
             other => panic!("expected PersistSetting, got {other:?}"),
         }
-        assert_eq!(
-            app.current_ui.auto_light_theme.as_deref(),
-            Some("groknight"),
-        );
+        assert_eq!(app.current_ui.auto_light_theme.as_deref(), Some("XvoNight"),);
     });
 }
 /// PREVIEW Actions emit ZERO `Effect::PersistSetting` and do NOT mutate `app.current_ui.theme`.
@@ -3111,9 +3108,9 @@ fn preview_auto_light_theme_emits_no_persist_and_no_current_ui_mutation() {
 }
 /// Auto-theme commit applies the live theme **only** when `theme="auto"` AND the system is in the matching mode.
 ///
-/// Scenario: `theme="groknight"` (concrete) while the system is Dark, and the user commits `auto_dark_theme="grokday"`.
-/// The setting is dormant (parent theme is concrete, not auto), so the live display must stay on GrokNight.
-/// Uses `grokday` to avoid `clamp_to_terminal` ambiguity in non-truecolor envs.
+/// Scenario: `theme="XvoNight"` (concrete) while the system is Dark, and the user commits `auto_dark_theme="XvoDay"`.
+/// The setting is dormant (parent theme is concrete, not auto), so the live display must stay on XvoNight.
+/// Uses `XvoDay` to avoid `clamp_to_terminal` ambiguity in non-truecolor envs.
 #[test]
 fn set_auto_dark_theme_does_not_apply_when_theme_is_not_auto() {
     with_theme_test_env(|| {
@@ -3121,24 +3118,24 @@ fn set_auto_dark_theme_does_not_apply_when_theme_is_not_auto() {
             crate::theme::system_appearance::SystemAppearance::Dark,
         ));
         let mut app = test_app_with_agent();
-        let _ = dispatch(Action::SetTheme("groknight".into()), &mut app);
+        let _ = dispatch(Action::SetTheme("XvoNight".into()), &mut app);
         assert_eq!(
             crate::theme::cache::current_kind(),
-            crate::theme::ThemeKind::GrokNight,
+            crate::theme::ThemeKind::XvoNight,
         );
-        let _ = dispatch(Action::SetAutoDarkTheme("grokday".into()), &mut app);
+        let _ = dispatch(Action::SetAutoDarkTheme("XvoDay".into()), &mut app);
         assert_eq!(
             crate::theme::cache::current_kind(),
-            crate::theme::ThemeKind::GrokNight,
+            crate::theme::ThemeKind::XvoNight,
             "auto_dark_theme commit must NOT change live display when theme is not auto",
         );
-        assert_eq!(app.current_ui.auto_dark_theme.as_deref(), Some("grokday"));
+        assert_eq!(app.current_ui.auto_dark_theme.as_deref(), Some("XvoDay"));
     });
 }
 /// Auto-theme commit DOES apply the live theme when both (a) the parent theme is auto AND (b) the system matches.
 ///
-/// Uses `GrokDay` (non-truecolor-requiring) for the dark-mode fixture: the test environment may not report truecolor support.
-/// `Theme::apply_kind` clamps truecolor-only themes (TokyoNight, RosePineMoon) to GrokNight, so a non-truecolor theme avoids the clamp.
+/// Uses `XvoDay` (non-truecolor-requiring) for the dark-mode fixture: the test environment may not report truecolor support.
+/// `Theme::apply_kind` clamps truecolor-only themes (TokyoNight, RosePineMoon) to XvoNight, so a non-truecolor theme avoids the clamp.
 /// The "live apply" contract is what matters; the specific theme picked is incidental.
 #[test]
 fn set_auto_dark_theme_applies_when_theme_is_auto_and_system_is_dark() {
@@ -3151,19 +3148,19 @@ fn set_auto_dark_theme_applies_when_theme_is_auto_and_system_is_dark() {
         assert!(crate::theme::cache::is_auto_mode());
         assert_eq!(
             crate::theme::cache::current_kind(),
-            crate::theme::ThemeKind::GrokNight,
+            crate::theme::ThemeKind::XvoNight,
         );
-        let _ = dispatch(Action::SetAutoDarkTheme("grokday".into()), &mut app);
+        let _ = dispatch(Action::SetAutoDarkTheme("XvoDay".into()), &mut app);
         assert_eq!(
             crate::theme::cache::current_kind(),
-            crate::theme::ThemeKind::GrokDay,
+            crate::theme::ThemeKind::XvoDay,
             "auto_dark_theme commit must update live display when theme=auto + system=Dark",
         );
     });
 }
 /// Auto-theme commit does NOT apply when system is in the non-matching mode (auto_dark_theme while the system is Light).
-/// Uses `groknight` for the auto_dark_theme value to avoid `clamp_to_terminal` ambiguity.
-/// We want a concrete kind that's clearly different from GrokDay, the active resolved theme.
+/// Uses `XvoNight` for the auto_dark_theme value to avoid `clamp_to_terminal` ambiguity.
+/// We want a concrete kind that's clearly different from XvoDay, the active resolved theme.
 #[test]
 fn set_auto_dark_theme_does_not_apply_when_system_is_light() {
     with_theme_test_env(|| {
@@ -3174,19 +3171,19 @@ fn set_auto_dark_theme_does_not_apply_when_system_is_light() {
         let _ = dispatch(Action::SetTheme("auto".into()), &mut app);
         assert_eq!(
             crate::theme::cache::current_kind(),
-            crate::theme::ThemeKind::GrokDay,
+            crate::theme::ThemeKind::XvoDay,
         );
-        let _ = dispatch(Action::SetAutoDarkTheme("groknight".into()), &mut app);
+        let _ = dispatch(Action::SetAutoDarkTheme("XvoNight".into()), &mut app);
         assert_eq!(
             crate::theme::cache::current_kind(),
-            crate::theme::ThemeKind::GrokDay,
+            crate::theme::ThemeKind::XvoDay,
             "auto_dark_theme commit must NOT change live display when system=Light",
         );
-        assert_eq!(app.current_ui.auto_dark_theme.as_deref(), Some("groknight"),);
+        assert_eq!(app.current_ui.auto_dark_theme.as_deref(), Some("XvoNight"),);
     });
 }
 /// Symmetric to the dark test: `set_auto_light_theme` applies only when the theme is auto and the system is Light.
-/// Uses a non-truecolor theme (`groknight`) for the same clamp reason as the dark variant.
+/// Uses a non-truecolor theme (`XvoNight`) for the same clamp reason as the dark variant.
 #[test]
 fn set_auto_light_theme_applies_when_theme_is_auto_and_system_is_light() {
     with_theme_test_env(|| {
@@ -3197,12 +3194,12 @@ fn set_auto_light_theme_applies_when_theme_is_auto_and_system_is_light() {
         let _ = dispatch(Action::SetTheme("auto".into()), &mut app);
         assert_eq!(
             crate::theme::cache::current_kind(),
-            crate::theme::ThemeKind::GrokDay,
+            crate::theme::ThemeKind::XvoDay,
         );
-        let _ = dispatch(Action::SetAutoLightTheme("groknight".into()), &mut app);
+        let _ = dispatch(Action::SetAutoLightTheme("XvoNight".into()), &mut app);
         assert_eq!(
             crate::theme::cache::current_kind(),
-            crate::theme::ThemeKind::GrokNight,
+            crate::theme::ThemeKind::XvoNight,
             "auto_light_theme must update display when theme=auto + system=Light",
         );
     });
@@ -3272,15 +3269,15 @@ fn set_auto_light_theme_rejects_auto_value() {
 fn set_theme_toast_format_uses_display_name() {
     with_theme_test_env(|| {
         let mut app = test_app_with_agent();
-        let _ = dispatch(Action::SetTheme("grokday".into()), &mut app);
+        let _ = dispatch(Action::SetTheme("XvoDay".into()), &mut app);
         let toast = read_toast(&app);
         assert!(
             toast.contains("Theme"),
             "toast must contain label, got: {toast:?}",
         );
         assert!(
-            toast.contains("Grok Day"),
-            "toast must use display name `Grok Day`, not canonical `grokday`, got: {toast:?}",
+            toast.contains("xvora Day"),
+            "toast must use display name `xvora Day`, not canonical `XvoDay`, got: {toast:?}",
         );
         assert!(toast.contains('\u{2713}'), "toast must contain the ✓ glyph");
     });
@@ -3289,10 +3286,10 @@ fn set_theme_toast_format_uses_display_name() {
 fn set_auto_dark_theme_toast_format_uses_display_name() {
     with_theme_test_env(|| {
         let mut app = test_app_with_agent();
-        let _ = dispatch(Action::SetAutoDarkTheme("grokday".into()), &mut app);
+        let _ = dispatch(Action::SetAutoDarkTheme("XvoDay".into()), &mut app);
         let toast = read_toast(&app);
         assert!(toast.contains("Auto dark theme"));
-        assert!(toast.contains("Grok Day"));
+        assert!(toast.contains("xvora Day"));
         assert!(toast.contains('\u{2713}'));
     });
 }
@@ -3300,43 +3297,43 @@ fn set_auto_dark_theme_toast_format_uses_display_name() {
 fn set_auto_light_theme_toast_format_uses_display_name() {
     with_theme_test_env(|| {
         let mut app = test_app_with_agent();
-        let _ = dispatch(Action::SetAutoLightTheme("groknight".into()), &mut app);
+        let _ = dispatch(Action::SetAutoLightTheme("XvoNight".into()), &mut app);
         let toast = read_toast(&app);
         assert!(toast.contains("Auto light theme"));
-        assert!(toast.contains("Grok Night"));
+        assert!(toast.contains("xvora Night"));
     });
 }
 /// `apply_setting_rollback` for theme keys: a failed persist reverts `app.current_ui.theme` AND the live cache.
 /// Mirror of `rollback_known_key_reverts_cache_and_no_effect`.
 ///
-/// Uses the non-truecolor themes `grokday` and `groknight` to avoid the `clamp_to_terminal` interaction in test envs without truecolor support.
+/// Uses the non-truecolor themes `XvoDay` and `XvoNight` to avoid the `clamp_to_terminal` interaction in test envs without truecolor support.
 #[test]
 fn rollback_theme_reverts_current_ui_and_cache() {
     use crate::settings::SettingValue;
     with_theme_test_env(|| {
         let mut app = test_app_with_agent();
-        let _ = dispatch(Action::SetTheme("grokday".into()), &mut app);
-        assert_eq!(app.current_ui.theme.as_deref(), Some("grokday"));
+        let _ = dispatch(Action::SetTheme("XvoDay".into()), &mut app);
+        assert_eq!(app.current_ui.theme.as_deref(), Some("XvoDay"));
         assert_eq!(
             crate::theme::cache::current_kind(),
-            crate::theme::ThemeKind::GrokDay,
+            crate::theme::ThemeKind::XvoDay,
         );
         let _ = dispatch(
             Action::TaskComplete(TaskResult::SettingPersistFailed {
                 key: "theme",
-                rollback_value: SettingValue::Enum("groknight"),
+                rollback_value: SettingValue::Enum("XvoNight"),
                 error: "disk full".into(),
             }),
             &mut app,
         );
         assert_eq!(
             app.current_ui.theme.as_deref(),
-            Some("groknight"),
+            Some("XvoNight"),
             "rollback must update app.current_ui.theme",
         );
         assert_eq!(
             crate::theme::cache::current_kind(),
-            crate::theme::ThemeKind::GrokNight,
+            crate::theme::ThemeKind::XvoNight,
             "rollback must update the live theme cache too",
         );
     });
@@ -3346,17 +3343,17 @@ fn rollback_auto_dark_theme_reverts_current_ui() {
     use crate::settings::SettingValue;
     with_theme_test_env(|| {
         let mut app = test_app_with_agent();
-        let _ = dispatch(Action::SetAutoDarkTheme("grokday".into()), &mut app);
-        assert_eq!(app.current_ui.auto_dark_theme.as_deref(), Some("grokday"));
+        let _ = dispatch(Action::SetAutoDarkTheme("XvoDay".into()), &mut app);
+        assert_eq!(app.current_ui.auto_dark_theme.as_deref(), Some("XvoDay"));
         let _ = dispatch(
             Action::TaskComplete(TaskResult::SettingPersistFailed {
                 key: "auto_dark_theme",
-                rollback_value: SettingValue::Enum("groknight"),
+                rollback_value: SettingValue::Enum("XvoNight"),
                 error: "disk full".into(),
             }),
             &mut app,
         );
-        assert_eq!(app.current_ui.auto_dark_theme.as_deref(), Some("groknight"),);
+        assert_eq!(app.current_ui.auto_dark_theme.as_deref(), Some("XvoNight"),);
     });
 }
 #[test]
@@ -3364,20 +3361,17 @@ fn rollback_auto_light_theme_reverts_current_ui() {
     use crate::settings::SettingValue;
     with_theme_test_env(|| {
         let mut app = test_app_with_agent();
-        let _ = dispatch(Action::SetAutoLightTheme("groknight".into()), &mut app);
-        assert_eq!(
-            app.current_ui.auto_light_theme.as_deref(),
-            Some("groknight"),
-        );
+        let _ = dispatch(Action::SetAutoLightTheme("XvoNight".into()), &mut app);
+        assert_eq!(app.current_ui.auto_light_theme.as_deref(), Some("XvoNight"),);
         let _ = dispatch(
             Action::TaskComplete(TaskResult::SettingPersistFailed {
                 key: "auto_light_theme",
-                rollback_value: SettingValue::Enum("grokday"),
+                rollback_value: SettingValue::Enum("XvoDay"),
                 error: "disk full".into(),
             }),
             &mut app,
         );
-        assert_eq!(app.current_ui.auto_light_theme.as_deref(), Some("grokday"));
+        assert_eq!(app.current_ui.auto_light_theme.as_deref(), Some("XvoDay"));
     });
 }
 /// Edge case: if the rollback value is `"auto"` (corrupted hand-edit), `apply_setting_rollback` clears `app.current_ui.auto_dark_theme` to `None`.
@@ -3388,8 +3382,8 @@ fn rollback_auto_dark_theme_with_auto_value_clears_to_none() {
     use crate::settings::SettingValue;
     with_theme_test_env(|| {
         let mut app = test_app_with_agent();
-        let _ = dispatch(Action::SetAutoDarkTheme("grokday".into()), &mut app);
-        assert_eq!(app.current_ui.auto_dark_theme.as_deref(), Some("grokday"));
+        let _ = dispatch(Action::SetAutoDarkTheme("XvoDay".into()), &mut app);
+        assert_eq!(app.current_ui.auto_dark_theme.as_deref(), Some("XvoDay"));
         let _ = dispatch(
             Action::TaskComplete(TaskResult::SettingPersistFailed {
                 key: "auto_dark_theme",
@@ -3410,11 +3404,8 @@ fn rollback_auto_light_theme_with_auto_value_clears_to_none() {
     use crate::settings::SettingValue;
     with_theme_test_env(|| {
         let mut app = test_app_with_agent();
-        let _ = dispatch(Action::SetAutoLightTheme("groknight".into()), &mut app);
-        assert_eq!(
-            app.current_ui.auto_light_theme.as_deref(),
-            Some("groknight"),
-        );
+        let _ = dispatch(Action::SetAutoLightTheme("XvoNight".into()), &mut app);
+        assert_eq!(app.current_ui.auto_light_theme.as_deref(), Some("XvoNight"),);
         let _ = dispatch(
             Action::TaskComplete(TaskResult::SettingPersistFailed {
                 key: "auto_light_theme",

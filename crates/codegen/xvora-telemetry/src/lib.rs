@@ -1,4 +1,4 @@
-//! Telemetry engine for Grok Build sessions.
+//! Telemetry engine for xvora build sessions.
 //! Covers product events, Mixpanel emission, Sentry error reporting, OpenTelemetry tracing, and the structured unified log.
 //!
 //! Extracted from `xvora-file-utils` so telemetry has its own ownership boundary (see CODEOWNERS).

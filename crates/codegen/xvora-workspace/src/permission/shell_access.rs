@@ -407,10 +407,10 @@ impl ProtectedEditReason {
                 "Note: This edit contains changes under `/etc`, which is system configuration and can affect this machine beyond the current project.",
             ),
             Self::GrokConfig => Some(
-                "Note: This edit contains changes to Grok config, which can alter permissions, tools, and other behavior in later sessions.",
+                "Note: This edit contains changes to xvora config, which can alter permissions, tools, and other behavior in later sessions.",
             ),
             Self::GrokSandbox => Some(
-                "Note: This edit contains changes to the Grok sandbox config, which can loosen filesystem and network restrictions on commands.",
+                "Note: This edit contains changes to the xvora sandbox config, which can loosen filesystem and network restrictions on commands.",
             ),
             Self::ClaudeSettings => Some(
                 "Note: This edit contains changes to Claude-compatible settings, which can install hooks or change permission mode without a separate execution approval.",
@@ -523,9 +523,9 @@ fn protected_edit_reason(path: &Path) -> Option<ProtectedEditReason> {
     None
 }
 
-/// Grok config files that alter permissions or sandbox restrictions; a silent edit would let the agent loosen its own guardrails.
-/// Matched directly inside any `.grok` dir (user-global default and workspace overlays) and directly under a custom `$GROK_HOME`.
-/// A custom home has no `.grok` component, so the component match alone cannot see it.
+/// xvora config files that alter permissions or sandbox restrictions; a silent edit would let the agent loosen its own guardrails.
+/// Matched directly inside any `.xvora` dir (user-global default and workspace overlays) and directly under a custom `$xvora_home`.
+/// A custom home has no `.xvora` component, so the component match alone cannot see it.
 fn protected_grok_config_file(path: &Path, components: &[&str]) -> Option<ProtectedEditReason> {
     protected_grok_config_file_with_home(path, components, config::user_grok_home().as_deref())
 }
@@ -544,12 +544,12 @@ fn protected_grok_config_file_with_home(
         Some(config::SANDBOX_CONFIG_FILENAME) => ProtectedEditReason::GrokSandbox,
         _ => return None,
     };
-    let in_dot_grok = components.len() >= 2 && components[components.len() - 2] == ".grok";
+    let in_dot_grok = components.len() >= 2 && components[components.len() - 2] == ".xvora";
     let in_grok_home = || grok_home_matches(user_grok_home, |home| path.parent() == Some(home));
     (in_dot_grok || in_grok_home()).then_some(reason)
 }
 
-/// True when `pred` holds for the user grok home in either its lexical or physically-resolved form.
+/// True when `pred` holds for the user xvora home in either its lexical or physically-resolved form.
 /// Both forms are checked because callers hold a lexical and a resolved candidate path, and the home itself may sit behind a symlink.
 /// The comparison is byte-exact (no case folding), like every other resolved-path check in this module.
 fn grok_home_matches(home: Option<&Path>, pred: impl Fn(&Path) -> bool) -> bool {
@@ -560,13 +560,15 @@ fn grok_home_matches(home: Option<&Path>, pred: impl Fn(&Path) -> bool) -> bool 
     })
 }
 
-fn path_is_under_user_grok_hook_root(path: &Path, grok_home: &Path) -> bool {
-    path.starts_with(grok_home.join("hooks")) || path == grok_home.join("hooks-paths")
+fn path_is_under_user_grok_hook_root(path: &Path, xvora_home: &Path) -> bool {
+    path.starts_with(xvora_home.join("hooks")) || path == xvora_home.join("hooks-paths")
 }
 
 fn protected_grok_hook_root(path: &Path, components: &[&str]) -> bool {
-    components.windows(2).any(|pair| pair == [".grok", "hooks"])
-        || components.ends_with(&[".grok", "hooks-paths"])
+    components
+        .windows(2)
+        .any(|pair| pair == [".xvora", "hooks"])
+        || components.ends_with(&[".xvora", "hooks-paths"])
         || grok_home_matches(config::user_grok_home().as_deref(), |home| {
             path_is_under_user_grok_hook_root(path, home)
         })
@@ -1375,10 +1377,10 @@ mod tests {
         for path in [
             "/home/user/.zshrc",
             "/etc",
-            "/etc/grok-test",
+            "/etc/xvora-test",
             "/work/subdir/../.git/hooks/pre-commit",
-            "/home/user/.grok/sandbox.toml",
-            "/work/project/.grok/sandbox.toml",
+            "/home/user/.xvora/sandbox.toml",
+            "/work/project/.xvora/sandbox.toml",
         ] {
             assert!(
                 edit_target_protection(Path::new(path)).is_some(),
@@ -1387,7 +1389,7 @@ mod tests {
         }
         for path in [
             "/work/src/main.rs",
-            "/work/project/.grok/config.toml/backup",
+            "/work/project/.xvora/config.toml/backup",
             "/work/project/sandbox.toml",
             "/work/project/requirements.toml",
             "/work/project/managed_config.toml",
@@ -1430,7 +1432,7 @@ mod tests {
     fn edit_target_protection_classifies_reasons() {
         let cases = [
             (
-                "/home/user/.grok/hooks/evil.json",
+                "/home/user/.xvora/hooks/evil.json",
                 ProtectedEditReason::HookRoot,
             ),
             ("/work/.git/hooks/pre-commit", ProtectedEditReason::GitHooks),
@@ -1438,23 +1440,23 @@ mod tests {
             ("/home/user/.zshrc", ProtectedEditReason::StartupFile),
             ("/etc/hosts", ProtectedEditReason::Etc),
             (
-                "/home/user/.grok/config.toml",
+                "/home/user/.xvora/config.toml",
                 ProtectedEditReason::GrokConfig,
             ),
             (
-                "/home/user/.grok/sandbox.toml",
+                "/home/user/.xvora/sandbox.toml",
                 ProtectedEditReason::GrokSandbox,
             ),
             (
-                "/work/project/.grok/sandbox.toml",
+                "/work/project/.xvora/sandbox.toml",
                 ProtectedEditReason::GrokSandbox,
             ),
             (
-                "/home/user/.grok/managed_config.toml",
+                "/home/user/.xvora/managed_config.toml",
                 ProtectedEditReason::GrokConfig,
             ),
             (
-                "/home/user/.grok/requirements.toml",
+                "/home/user/.xvora/requirements.toml",
                 ProtectedEditReason::GrokConfig,
             ),
             (
@@ -1484,14 +1486,14 @@ mod tests {
     #[test]
     fn sensitive_edit_targets_include_hook_roots() {
         for path in [
-            "/home/user/.grok/hooks/evil.json",
-            "/home/user/.grok/hooks/nested/deep.json",
-            "/home/user/.grok/hooks-paths",
+            "/home/user/.xvora/hooks/evil.json",
+            "/home/user/.xvora/hooks/nested/deep.json",
+            "/home/user/.xvora/hooks-paths",
             "/home/user/.claude/settings.json",
             "/home/user/.claude/settings.local.json",
             "/home/user/.cursor/hooks.json",
-            "/work/project/.grok/hooks/local.json",
-            "/work/project/.grok/hooks-paths",
+            "/work/project/.xvora/hooks/local.json",
+            "/work/project/.xvora/hooks-paths",
         ] {
             assert!(
                 edit_target_protection(Path::new(path)).is_some(),
@@ -1499,8 +1501,8 @@ mod tests {
             );
         }
         for path in [
-            "/home/user/.grok/hooks-disabled/note.json",
-            "/home/user/.grok/hooks-evil/note.json",
+            "/home/user/.xvora/hooks-disabled/note.json",
+            "/home/user/.xvora/hooks-evil/note.json",
             "/home/user/project/src/hooks.json",
             "/home/user/.claude/other.json",
             "/home/user/.cursor/settings.json",
@@ -1514,24 +1516,24 @@ mod tests {
 
     #[test]
     fn path_is_under_user_grok_hook_root_matches_relocated_home() {
-        let home = Path::new("/custom/grok-home");
+        let home = Path::new("/custom/xvora-home");
         for path in [
-            "/custom/grok-home/hooks/x.json",
-            "/custom/grok-home/hooks/nested/deep.json",
-            "/custom/grok-home/hooks",
-            "/custom/grok-home/hooks-paths",
+            "/custom/xvora-home/hooks/x.json",
+            "/custom/xvora-home/hooks/nested/deep.json",
+            "/custom/xvora-home/hooks",
+            "/custom/xvora-home/hooks-paths",
         ] {
             assert!(
                 path_is_under_user_grok_hook_root(Path::new(path), home),
-                "must match under custom grok home: {path}"
+                "must match under custom xvora home: {path}"
             );
         }
         for path in [
-            "/custom/grok-home/hooks-disabled/note.json",
-            "/custom/grok-home/hooks-evil/note.json",
-            "/custom/grok-home/config.toml",
+            "/custom/xvora-home/hooks-disabled/note.json",
+            "/custom/xvora-home/hooks-evil/note.json",
+            "/custom/xvora-home/config.toml",
             "/custom/other/hooks/x.json",
-            "/custom/grok-home-extra/hooks/x.json",
+            "/custom/xvora-home-extra/hooks/x.json",
         ] {
             assert!(
                 !path_is_under_user_grok_hook_root(Path::new(path), home),
@@ -1561,16 +1563,16 @@ mod tests {
             ws.path().join("module-hooks-link"),
         )
         .unwrap();
-        let grok_hook = outside.path().join(".grok/hooks/evil.json");
+        let grok_hook = outside.path().join(".xvora/hooks/evil.json");
         std::fs::create_dir_all(grok_hook.parent().unwrap()).unwrap();
         std::fs::write(&grok_hook, b"{}").unwrap();
-        symlink(&grok_hook, ws.path().join("grok-hook-link")).unwrap();
+        symlink(&grok_hook, ws.path().join("xvora-hook-link")).unwrap();
 
         for path in [
             ws.path().join("file-link"),
             ws.path().join("hooks-link/new-hook"),
             ws.path().join("module-hooks-link/new-hook"),
-            ws.path().join("grok-hook-link"),
+            ws.path().join("xvora-hook-link"),
         ] {
             assert!(
                 edit_target_protection(&path).is_some(),
@@ -1580,7 +1582,7 @@ mod tests {
         }
     }
 
-    /// A custom `$GROK_HOME` has no `.grok` path component, so the live `config.toml` / `sandbox.toml` must be caught by the home-prefix branch.
+    /// A custom `$xvora_home` has no `.xvora` path component, so the live `config.toml` / `sandbox.toml` must be caught by the home-prefix branch.
     #[test]
     fn grok_config_files_under_custom_grok_home_are_protected() {
         let home = tempfile::tempdir().unwrap();
@@ -1608,7 +1610,7 @@ mod tests {
             assert_eq!(
                 protected_grok_config_file_with_home(&path, &components, Some(home_path)),
                 Some(reason),
-                "{file} directly under $GROK_HOME must be protected"
+                "{file} directly under $xvora_home must be protected"
             );
         }
         // Same file names elsewhere (or with no resolvable home) stay ordinary.
@@ -1631,8 +1633,8 @@ mod tests {
         );
     }
 
-    /// The resolved-symlink arm of the grok-home match must decide.
-    /// `$GROK_HOME` points at a symlink while the edit targets the physical home directory, so the lexical parent-equality arm cannot fire.
+    /// The resolved-symlink arm of the xvora-home match must decide.
+    /// `$xvora_home` points at a symlink while the edit targets the physical home directory, so the lexical parent-equality arm cannot fire.
     #[test]
     #[cfg(unix)]
     fn grok_config_under_symlinked_grok_home_is_protected() {
@@ -1672,11 +1674,11 @@ mod tests {
     fn resolved_root_alias_matches_physical_destination() {
         let resolved_root = resolve_following_symlinks(Path::new("/etc")).unwrap();
         assert!(resolved_path_is_within_root(
-            &resolved_root.join("grok-test"),
+            &resolved_root.join("xvora-test"),
             Path::new("/etc")
         ));
         assert!(!resolved_path_is_within_root(
-            Path::new("/tmp/grok-test"),
+            Path::new("/tmp/xvora-test"),
             Path::new("/etc")
         ));
     }

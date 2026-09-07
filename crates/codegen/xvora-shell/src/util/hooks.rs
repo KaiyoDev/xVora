@@ -49,19 +49,19 @@ pub(crate) fn discover_hook_source_paths(
     git_root: Option<&Path>,
     compat: &tools::types::compat::CompatConfig,
 ) -> HookSourcePaths {
-    let grok = config::user_grok_home();
+    let xvora = config::user_grok_home();
     let home = dirs::home_dir();
     let include_claude = include_claude_hooks(compat);
     let include_cursor = include_cursor_hooks(compat);
 
-    // An unreadable hooks-paths file keeps the fixed Grok sources; a hard resolve failure omits all Grok global sources
+    // An unreadable hooks-paths file keeps the fixed xvora sources; a hard resolve failure omits all xvora global sources
     let mut global: Vec<PathBuf> =
-        match resolve_global_hook_sources(grok.as_deref(), /* reject_symlinks */ false) {
+        match resolve_global_hook_sources(xvora.as_deref(), /* reject_symlinks */ false) {
             Ok(resolved) => {
                 if let Some(e) = &resolved.configured_error {
                     tracing::warn!(
                         error = %e,
-                        "hooks-paths unreadable; retaining fixed Grok hook discovery sources only"
+                        "hooks-paths unreadable; retaining fixed xvora hook discovery sources only"
                     );
                 }
                 resolved
@@ -72,7 +72,7 @@ pub(crate) fn discover_hook_source_paths(
             Err(e) => {
                 tracing::warn!(
                     error = %e,
-                    "global hook source resolve hard-failed; omitting Grok global sources"
+                    "global hook source resolve hard-failed; omitting xvora global sources"
                 );
                 Vec::new()
             }
@@ -94,7 +94,7 @@ pub(crate) fn discover_hook_source_paths(
             project.push(root.join(".claude").join("settings.json"));
             project.push(root.join(".claude").join("settings.local.json"));
         }
-        project.push(root.join(".grok").join("hooks"));
+        project.push(root.join(".xvora").join("hooks"));
         if include_cursor {
             project.push(root.join(".cursor").join("hooks.json"));
         }

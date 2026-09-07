@@ -78,7 +78,7 @@ pub(crate) fn build_instruction_items(
     items
 }
 
-/// This is the verified `max_prompt_length` for current `grok-build` / `grok-4.5` product backends (`500000`).
+/// This is the verified `max_prompt_length` for current `xvora-build` / `grok-4.5` product backends (`500000`).
 /// Applied via `min(window, CAP)`, so a smaller real window still wins (e.g. a 256k legacy model or a debug override).
 const RECAP_CONTEXT_WINDOW_CAP: u64 = 500_000;
 
@@ -95,10 +95,10 @@ const RECAP_BUDGET_HEADROOM_TOKENS: u64 = 4_000;
 /// Best-effort: returns a structurally-valid, non-empty request trimmed to the estimated prompt budget.
 /// The budget uses the same bytes/4 estimator that compaction triggers on, preventing `ic_400_prompt_too_long` on long sessions.
 /// Not an absolute guarantee: a degenerate tiny window, an oversized retained `System` prefix, or estimator optimism can still exceed the real limit.
-/// (The 85% threshold, the headroom, and the 500k cap make that unlikely for normal grok-build sessions.)
+/// (The 85% threshold, the headroom, and the 500k cap make that unlikely for normal xvora-build sessions.)
 ///
 /// * Fast path: if the whole snapshot already fits, returns `build_instruction_items(...)` verbatim.
-///   This keeps the grok prefix KV cache warm and honors the caller's `strip_reasoning`.
+///   This keeps the xvora prefix KV cache warm and honors the caller's `strip_reasoning`.
 /// * Over budget: strips reasoning (the prefix cache is lost once we trim) and normalizes the trailing boundary ([`pop_trailing_tool_run`]).
 ///   Then front-trims to fit via `fit_conversation_to_budget` (System kept, most-recent turn truncated in place, never emptied).
 ///   The instruction is appended last.
@@ -132,7 +132,7 @@ pub(crate) fn budget_instruction_items(
     let instruction_item = ConversationItem::user(instruction.clone());
     let snapshot_budget = prompt_budget.saturating_sub(estimate_item_tokens(&instruction_item));
 
-    // Un-stripped estimate is a safe upper bound (stripping only shrinks); the verbatim path keeps the grok prefix cache warm
+    // Un-stripped estimate is a safe upper bound (stripping only shrinks); the verbatim path keeps the xvora prefix cache warm
     let pre_tokens = estimate_conversation_tokens(&conversation);
     if pre_tokens <= snapshot_budget {
         return build_instruction_items(conversation, instruction, strip_reasoning);
@@ -731,7 +731,7 @@ mod tests {
             ConversationItem::assistant("did stuff"),
             ConversationItem::user("z".repeat(40_000)),
         ];
-        // The grok backend passes strip_reasoning=false, but the over-budget branch must strip reasoning anyway
+        // The xvora backend passes strip_reasoning=false, but the over-budget branch must strip reasoning anyway
         // The prefix cache is already lost once trimmed
         let out = budget_recap_items(conv, "system-reminder", false, 8_000);
         assert!(
@@ -748,13 +748,13 @@ mod tests {
             ConversationItem::assistant("did stuff"),
             ConversationItem::user("small"),
         ];
-        // The snapshot fits under a large window on grok (strip_reasoning=false), so it is returned verbatim
+        // The snapshot fits under a large window on xvora (strip_reasoning=false), so it is returned verbatim
         // Reasoning is kept so the prefix KV cache stays warm
         let out = budget_recap_items(conv, "system-reminder", false, 256_000);
         assert!(
             out.iter()
                 .any(|i| matches!(i, ConversationItem::Reasoning(_))),
-            "fits path on grok must keep reasoning verbatim"
+            "fits path on xvora must keep reasoning verbatim"
         );
     }
 

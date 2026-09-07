@@ -1,4 +1,4 @@
-//! Leader-follower IPC architecture for grok-shell.
+//! Leader-follower IPC architecture for xvora-shell.
 //!
 //! This module implements a single-leader-per-machine architecture where one leader
 //! process manages the agent state while multiple clients (TUI, IDE extensions, headless)
@@ -12,7 +12,7 @@
 //! │  ┌─────────────────────────────────────────────────────────┐│
 //! │  │                      Agent (MvpAgent)                    ││
 //! │  │   - Shared state across all clients                      ││
-//! │  │   - Persists to ~/.grok/                                 ││
+//! │  │   - Persists to ~/.xvora/                                 ││
 //! │  └─────────────────────────────────────────────────────────┘│
 //! │                           ▲                                  │
 //! │                           │ ACP                              │
@@ -23,7 +23,7 @@
 //! │  │   - Tracks session ownership for routing                 ││
 //! │  └────────────────────────┬────────────────────────────────┘│
 //! └───────────────────────────┼──────────────────────────────────┘
-//!                             │ IPC (Unix socket at ~/.grok/leader.sock)
+//!                             │ IPC (Unix socket at ~/.xvora/leader.sock)
 //!         ┌───────────────────┼───────────────────┐
 //!         ▼                   ▼                   ▼
 //! ┌───────────────┐   ┌───────────────┐   ┌───────────────┐
@@ -92,7 +92,7 @@ const RELAY_ON_DEMAND_FLAG: &str = "--relay-on-demand";
 const CLIENT_LEADER_VERSION: &str = version::VERSION;
 /// Max wait for an evicted leader to exit before force-killing (relaunch drain ~5s).
 const EVICT_WAIT_TIMEOUT: Duration = Duration::from_secs(8);
-/// How long the SAME live grok flock-holder may stay unconnectable before
+/// How long the SAME live xvora flock-holder may stay unconnectable before
 /// `connect_or_spawn` treats it as a "zombie leader" and evicts it.
 const ZOMBIE_EVICT_DEADLINE: Duration = Duration::from_secs(30);
 /// Whether `leader_version` is a strictly-older parseable semver than `baseline`.
@@ -116,7 +116,7 @@ fn should_evict(leader_version: Option<&str>, client_version: &str) -> bool {
 const RECONNECT_BASE_DELAY: Duration = Duration::from_secs(1);
 /// Maximum delay between reconnection attempts (caps exponential backoff).
 const RECONNECT_MAX_DELAY: Duration = Duration::from_secs(30);
-/// Maximum reconnection attempts for bounded mode (headless/`grok -p`).
+/// Maximum reconnection attempts for bounded mode (headless/`xvora -p`).
 /// TUI mode uses unlimited retries controlled by a cancellation token.
 const RECONNECT_MAX_ATTEMPTS_BOUNDED: u32 = 5;
 /// Environment URLs to pass to the leader subprocess.
@@ -264,7 +264,7 @@ fn build_live_leader_info(payload: ControlPayload) -> Result<LiveLeaderInfo, Lea
 async fn fetch_live_leader_info(socket_path: &Path) -> Result<LiveLeaderInfo, LeaderTargetError> {
     let client = LeaderClient::connect(
         socket_path.to_path_buf(),
-        "grok-leader-discovery",
+        "xvora-leader-discovery",
         ClientMode::Stdio,
         ClientCapabilities::default(),
     )
@@ -518,7 +518,7 @@ async fn discover_leaders_in(root: &Path) -> Vec<LeaderDescriptor> {
     entries
 }
 pub async fn discover_leaders() -> Vec<LeaderDescriptor> {
-    discover_leaders_in(&crate::util::grok_home::grok_home()).await
+    discover_leaders_in(&crate::util::xvora_home::xvora_home()).await
 }
 /// (pid, leader_binary_version) of socket-verified (Reachable) leaders; a
 /// stale-lock-only descriptor is skipped (its `pid_from_lock` may be recycled).
@@ -928,7 +928,7 @@ pub enum ReconnectPolicy {
     /// Suitable for interactive TUI sessions where the user expects persistence.
     Unbounded,
     /// Retry up to a fixed number of attempts, then fail.
-    /// Suitable for headless/`grok -p` where hanging forever is unacceptable.
+    /// Suitable for headless/`xvora -p` where hanging forever is unacceptable.
     Bounded { max_attempts: u32 },
 }
 impl ReconnectPolicy {
@@ -954,7 +954,7 @@ impl ReconnectPolicy {
 /// ```ignore
 /// let (status_tx, status_rx) = LeaderReconnector::status_channel();
 /// let reconnector = LeaderReconnector::new(
-///     "grok-tui", ClientMode::Stdio, env_urls, caps, status_tx,
+///     "xvora-tui", ClientMode::Stdio, env_urls, caps, status_tx,
 /// );
 ///
 /// // When connection dies:
@@ -1241,7 +1241,7 @@ type ZombieTimer = Option<(u32, Instant)>;
 enum ZombieAction {
     /// Not a zombie candidate this round; timer cleared.
     Clear,
-    /// A live grok holder is still unconnectable; timer (re)armed, keep waiting.
+    /// A live xvora holder is still unconnectable; timer (re)armed, keep waiting.
     Wait,
     /// The SAME holder PID has been unconnectable for the full deadline, so evict it.
     Evict { pid: u32, waited: Duration },
@@ -1274,11 +1274,11 @@ fn zombie_evict_decision(
         }
     }
 }
-/// The live *grok* PID that ACTUALLY holds the flock on the lock file, if any.
-/// `None` for a dead / non-grok PID, OR when the file PID can't be confirmed to be the real flock holder,
+/// The live *xvora* PID that ACTUALLY holds the flock on the lock file, if any.
+/// `None` for a dead / non-xvora PID, OR when the file PID can't be confirmed to be the real flock holder,
 /// so the auto-kill zombie net never SIGKILLs a process that does not hold the flock (a stale-but-live PID left in `leader.lock`,
 /// or a brief spawner that held the flock without rewriting the file).
-/// Uses the stricter (name-matching) grok check since this drives the auto-kill path.
+/// Uses the stricter (name-matching) xvora check since this drives the auto-kill path.
 ///
 /// Linux confirms the holder via `/proc/locks`.
 /// macOS/BSD have no `/proc/locks`, so the holder is unconfirmable and this returns `None` (eviction skipped),
@@ -1447,7 +1447,7 @@ async fn evict_zombie_leader(pid: u32, sock_path: &Path, waited: Duration) {
 ///
 /// # Arguments
 ///
-/// * `client_type`: Identifier for the client type (e.g., "grok-tui", "vscode")
+/// * `client_type`: Identifier for the client type (e.g., "xvora-tui", "vscode")
 /// * `mode`: Communication mode (Stdio or Headless)
 /// * `env_urls`: Environment URLs for the leader subprocess
 /// * `capabilities`: Client capabilities (e.g., yolo_mode) to register with the leader
@@ -1641,35 +1641,35 @@ pub async fn connect_or_spawn(
 }
 /// Resolve the binary to spawn as the leader subprocess.
 ///
-/// For a **managed install** — the running binary lives under `grok_home`
-/// (e.g. `~/.grok/...`) — prefer the managed `~/.grok/bin/grok` symlink. After an
-/// auto-update or `grok update` atomically swaps that symlink, `current_exe()` still resolves (via `/proc/self/exe` on Linux) to the *old* versioned
+/// For a **managed install** — the running binary lives under `xvora_home`
+/// (e.g. `~/.xvora/...`) — prefer the managed `~/.xvora/bin/xvora` symlink. After an
+/// auto-update or `xvora update` atomically swaps that symlink, `current_exe()` still resolves (via `/proc/self/exe` on Linux) to the *old* versioned
 /// target, so spawning it would relaunch the stale binary.
 /// The symlink always points to the freshly-installed version.
 /// This mirrors `update::auto_update::resolve_restart_exe`.
 ///
-/// For a **dev / out-of-tree binary** (`cargo run`, integration tests, installs not under `grok_home`),
+/// For a **dev / out-of-tree binary** (`cargo run`, integration tests, installs not under `xvora_home`),
 /// keep `current_exe()` so the spawned leader matches the calling binary.
 ///
-/// Falls back to `~/.grok/bin/grok` only when `current_exe()` is unavailable.
+/// Falls back to `~/.xvora/bin/xvora` only when `current_exe()` is unavailable.
 fn resolve_exe_for_spawn() -> Result<std::path::PathBuf, ConnectionError> {
-    resolve_binary_with_home(&crate::util::grok_home::grok_home())
+    resolve_binary_with_home(&crate::util::xvora_home::xvora_home())
 }
-fn resolve_binary_with_home(grok_home: &Path) -> Result<std::path::PathBuf, ConnectionError> {
-    resolve_binary_impl(grok_home, std::env::current_exe().ok())
+fn resolve_binary_with_home(xvora_home: &Path) -> Result<std::path::PathBuf, ConnectionError> {
+    resolve_binary_impl(xvora_home, std::env::current_exe().ok())
 }
-/// Binary file name for the managed grok install (`grok` / `grok.exe`).
+/// Binary file name for the managed xvora install (`xvora` / `xvora.exe`).
 fn managed_grok_bin_name() -> &'static str {
     if cfg!(windows) { "xvora.exe" } else { "xvora" }
 }
 /// Core leader-binary resolution with the current-exe path injected, for testability.
 fn resolve_binary_impl(
-    grok_home: &Path,
+    xvora_home: &Path,
     current_exe: Option<std::path::PathBuf>,
 ) -> Result<std::path::PathBuf, ConnectionError> {
-    let managed_bin = grok_home.join("bin").join(managed_grok_bin_name());
+    let managed_bin = xvora_home.join("bin").join(managed_grok_bin_name());
     if let Some(ref exe) = current_exe
-        && path_is_under(exe, grok_home)
+        && path_is_under(exe, xvora_home)
         && managed_bin.exists()
     {
         return Ok(managed_bin);
@@ -1696,8 +1696,8 @@ fn spawn_leader_subprocess(env_urls: &LeaderEnvUrls) -> Result<u32, ConnectionEr
     cmd.arg("agent").arg("leader");
     cmd.arg("--no-exit-on-disconnect");
     cmd.arg(RELAY_ON_DEMAND_FLAG);
-    cmd.arg("--grok-ws-url").arg(&env_urls.grok_ws_url);
-    cmd.arg("--grok-ws-origin").arg(&env_urls.grok_ws_origin);
+    cmd.arg("--xvora-ws-url").arg(&env_urls.grok_ws_url);
+    cmd.arg("--xvora-ws-origin").arg(&env_urls.grok_ws_origin);
     if let Some(socket) = std::env::var_os(crate::leader::LEADER_SOCKET_ENV) {
         cmd.env(crate::leader::LEADER_SOCKET_ENV, socket);
     }
@@ -1713,7 +1713,7 @@ fn spawn_leader_subprocess(env_urls: &LeaderEnvUrls) -> Result<u32, ConnectionEr
     }
     cmd.stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null());
-    let log_path = crate::util::grok_home::grok_home().join("leader.log");
+    let log_path = crate::util::xvora_home::xvora_home().join("leader.log");
     match std::fs::File::create(&log_path) {
         Ok(log_file) => {
             info!("Leader stderr → log file");
@@ -1798,7 +1798,7 @@ mod tests {
     use std::fs;
     use tempfile::TempDir;
     const TEST_DEADLINE: Duration = Duration::from_secs(30);
-    /// No live grok holder yields `Clear`, and any pending timer is reset.
+    /// No live xvora holder yields `Clear`, and any pending timer is reset.
     #[test]
     fn zombie_decision_clears_when_no_holder() {
         let mut timer: ZombieTimer = Some((100, Instant::now()));
@@ -2590,7 +2590,7 @@ mod tests {
         let temp = TempDir::new().unwrap();
         let bin_dir = temp.path().join("bin");
         std::fs::create_dir_all(&bin_dir).unwrap();
-        std::fs::write(bin_dir.join("grok"), "fake-binary").unwrap();
+        std::fs::write(bin_dir.join("xvora"), "fake-binary").unwrap();
         let result = resolve_binary_with_home(temp.path()).unwrap();
         let current = std::env::current_exe().unwrap();
         assert_eq!(result, current);
@@ -2607,9 +2607,9 @@ mod tests {
         let temp = TempDir::new().unwrap();
         let bin_dir = temp.path().join("bin");
         std::fs::create_dir_all(&bin_dir).unwrap();
-        let target_v2 = bin_dir.join("grok-v2");
+        let target_v2 = bin_dir.join("xvora-v2");
         std::fs::write(&target_v2, "new-binary").unwrap();
-        std::os::unix::fs::symlink(&target_v2, bin_dir.join("grok")).unwrap();
+        std::os::unix::fs::symlink(&target_v2, bin_dir.join("xvora")).unwrap();
         let result = resolve_binary_with_home(temp.path()).unwrap();
         let current = std::env::current_exe().unwrap();
         assert_eq!(result, current);
@@ -2620,11 +2620,11 @@ mod tests {
         let temp = TempDir::new().unwrap();
         let bin_dir = temp.path().join("bin");
         std::fs::create_dir_all(&bin_dir).unwrap();
-        let new_target = bin_dir.join("grok-v2");
+        let new_target = bin_dir.join("xvora-v2");
         std::fs::write(&new_target, "new-binary").unwrap();
-        let managed = bin_dir.join("grok");
+        let managed = bin_dir.join("xvora");
         std::os::unix::fs::symlink(&new_target, &managed).unwrap();
-        let stale_target = bin_dir.join("grok-v1");
+        let stale_target = bin_dir.join("xvora-v1");
         std::fs::write(&stale_target, "old-binary").unwrap();
         let result = resolve_binary_impl(temp.path(), Some(stale_target)).unwrap();
         assert_eq!(result, managed);

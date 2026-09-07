@@ -3,12 +3,12 @@ use agent_client_protocol::{self as acp, ImageContent};
 use serde::Deserialize;
 use std::path::PathBuf;
 use workspace::file_system::{FileReference, render_embedded_resource, render_file_reference};
-/// Some templates put `<user_query>` last (context first); Grok puts it first.
+/// Some templates put `<user_query>` last (context first); xvora puts it first.
 /// Keeping them separate lets the caller truncate context without searching for the query boundary in a flat string.
 #[derive(Debug, Clone)]
 pub struct ParsedPrompt {
     /// Context blocks: `<attached_files>` payloads and resource-link sections.
-    /// Grok mode may include editor open/focus metadata; the compat mode does not.
+    /// xvora mode may include editor open/focus metadata; the compat mode does not.
     /// Empty string when there is no context.
     pub context: String,
     /// The user's query, already wrapped in `<user_query>` tags (or raw when verbatim).
@@ -30,7 +30,7 @@ impl ParsedPrompt {
         )
     }
     /// Layout:
-    /// - **Grok mode:** `<user_query>`, then `<skill_information>`, then context
+    /// - **xvora mode:** `<user_query>`, then `<skill_information>`, then context
     /// - **Query-last mode:** context, then `<user_query>`, then `<skill_information>`
     ///
     /// The `<skill_information>` block always follows `<user_query>` immediately.
@@ -57,7 +57,7 @@ impl ParsedPrompt {
 /// - `<attached_files>` (bare), resource links, then `<user_query>` last
 /// - File references use `<code_selection>` tags
 ///
-/// When `is_cursor` is false, produces original Grok-format output:
+/// When `is_cursor` is false, produces original xvora-format output:
 /// - `<user_query>` first, then `<system-reminder>` wrapped `<attached_files>` and resource links
 /// - File references use `<file_contents>` tags
 pub async fn parse_prompt(
@@ -285,7 +285,7 @@ fn render_regular_links(links: &[&acp::ResourceLink]) -> String {
     }
     s.trim_end_matches('\n').to_string()
 }
-/// Grok-format resource links: `<focused_files>` / `<open_files>` with metadata inside a `<system-reminder>` wrapper.
+/// xvora-format resource links: `<focused_files>` / `<open_files>` with metadata inside a `<system-reminder>` wrapper.
 fn render_resource_links_grok(resource_links: &[acp::ResourceLink]) -> String {
     let mut regular_links = Vec::new();
     let mut focused_files = Vec::new();
@@ -362,7 +362,7 @@ mod tests {
             format!("{query}\n\n{context}")
         }
     }
-    /// Shorthand: render and assemble for grok mode.
+    /// Shorthand: render and assemble for xvora mode.
     fn render_grok(
         message: &str,
         embedded: Vec<String>,
@@ -577,7 +577,7 @@ mod tests {
         assert!(result.contains("embedded content"));
         assert!(
             result.starts_with("<user_query>"),
-            "Grok should start with <user_query>, got: {result}"
+            "xvora should start with <user_query>, got: {result}"
         );
     }
     #[test]
@@ -590,7 +590,7 @@ mod tests {
         let rr_pos = result.find("Referenced resources:").unwrap();
         assert!(
             uq_pos < rr_pos,
-            "Grok: <user_query> ({uq_pos}) should come before resource links ({rr_pos})\ngot: {result}"
+            "xvora: <user_query> ({uq_pos}) should come before resource links ({rr_pos})\ngot: {result}"
         );
         assert!(result.contains("<system-reminder>"));
     }

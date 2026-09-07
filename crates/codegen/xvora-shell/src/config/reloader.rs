@@ -20,23 +20,23 @@ pub enum ConfigUpdate {
     AuthCleared,
     /// A **broadcast** MCP reload; it applies to every active session regardless of cwd. Fires for two cases:
     ///
-    /// 1. The global `[mcp_servers]` table in `~/.grok/config.toml`
+    /// 1. The global `[mcp_servers]` table in `~/.xvora/config.toml`
     ///    changed.
     /// 2. The user's home-level `~/.claude.json` changed.
     ///    `load_claude_json_mcp_servers_as_configs` reads this file for every session, so the reload cannot be narrowed by cwd.
     ///
     /// Project-scoped changes emit [`Self::ProjectMcpServersChanged`] instead so the reload can be narrowed to matching cwds.
-    /// Those are `<cwd>/.grok/config.toml`, `<cwd>/.mcp.json`, and the project-level `<cwd>/.claude.json`.
+    /// Those are `<cwd>/.xvora/config.toml`, `<cwd>/.mcp.json`, and the project-level `<cwd>/.claude.json`.
     ///
     /// This stays a unit variant deliberately: adding a payload would force pattern-match updates across `mvp_agent`, `app`, `session/handle`, etc.
     McpServersChanged,
-    /// A **project-scoped** MCP config file changed (`<cwd>/.grok/config.toml`, `<cwd>/.mcp.json`, or `<cwd>/.claude.json`).
+    /// A **project-scoped** MCP config file changed (`<cwd>/.xvora/config.toml`, `<cwd>/.mcp.json`, or `<cwd>/.claude.json`).
     /// The agent should reload MCP only for sessions whose cwd matches `cwd` (or sits beneath it).
     ///
     /// Strictly additive to [`Self::McpServersChanged`]: the unit variant continues to fire for global-config edits.
     /// The two cases are split so per-project reloads don't thrash unrelated sessions.
     ProjectMcpServersChanged {
-        /// The project root whose `.grok/`, `.mcp.json`, or `.claude.json` file was edited.
+        /// The project root whose `.xvora/`, `.mcp.json`, or `.claude.json` file was edited.
         /// Sessions whose cwd equals this path, or is a descendant of it, are the reload targets.
         cwd: PathBuf,
     },
@@ -50,8 +50,8 @@ pub enum ConfigUpdate {
     /// The `[model.*]` entries in config.toml changed.
     /// The agent should re-resolve its model list (BYOK models added/removed, default or surprise changed).
     ModelsChanged,
-    /// `~/.grok/models_cache.json` was rewritten on disk (possibly by another
-    /// grok process sharing the home dir). The agent should consult the cache via `ModelsManager::reload_from_disk_cache`.
+    /// `~/.xvora/models_cache.json` was rewritten on disk (possibly by another
+    /// xvora process sharing the home dir). The agent should consult the cache via `ModelsManager::reload_from_disk_cache`.
     /// That method content-dedupes self-writes (`persist` / `renew_ttl`) before applying.
     /// The variant carries no payload: validation (TTL, version, auth method) requires `ModelsManager` state the reloader doesn't have.
     ModelsCacheChanged,
@@ -73,7 +73,7 @@ pub(crate) struct ConfigReloader {
     /// Per-cwd content hash of the project MCP config files.
     /// It drops redundant `ProjectMcpServersChanged` dispatches on mtime-only touches (see `hash_project_mcp_config`).
     last_project_mcp_hashes: HashMap<PathBuf, u64>,
-    grok_home: PathBuf,
+    xvora_home: PathBuf,
     auth_scope: String,
     remote_settings: Option<crate::util::config::RemoteSettings>,
     config_update_tx: mpsc::UnboundedSender<ConfigUpdate>,
@@ -82,7 +82,7 @@ pub(crate) struct ConfigReloader {
 
 impl ConfigReloader {
     pub(crate) fn new(
-        grok_home: PathBuf,
+        xvora_home: PathBuf,
         initial_auth_key_hash: u64,
         initial_config: toml::Value,
         auth_scope: String,
@@ -97,7 +97,7 @@ impl ConfigReloader {
             last_global_config: initial_config,
             last_effective_config,
             last_project_mcp_hashes: HashMap::new(),
-            grok_home,
+            xvora_home,
             auth_scope,
             remote_settings,
             config_update_tx,
@@ -159,7 +159,7 @@ impl ConfigReloader {
                         error!(error = %e, "auth hot-reload failed, keeping previous credentials");
                         // Whole-file deletion (NotFound) and corrupt JSON land here
                         // The resulting memory/disk divergence must be visible in unified.jsonl
-                        let path = self.grok_home.join("auth.json");
+                        let path = self.xvora_home.join("auth.json");
                         telemetry::unified_log::error(
                             "auth reload: auth.json unreadable, keeping previous credentials",
                             None,
@@ -210,7 +210,7 @@ impl ConfigReloader {
 
             // Fan out one `ProjectMcpServersChanged { cwd }` per affected project root
             // The legacy unit `McpServersChanged` above stays for global-config edits; both variants can fire in the
-            // same tick (e.g. `~/.grok/config.toml` AND
+            // same tick (e.g. `~/.xvora/config.toml` AND
             // `<cwd>/.mcp.json` edited together).
             for cwd in project_cwds {
                 // Skip the dispatch when the project config bytes are unchanged (the watcher fires on mtime-only touches)
@@ -239,7 +239,7 @@ impl ConfigReloader {
     }
 
     pub(crate) fn reload_auth(&mut self) -> anyhow::Result<()> {
-        let auth_path = self.grok_home.join("auth.json");
+        let auth_path = self.xvora_home.join("auth.json");
         let store = read_auth_json(&auth_path)?;
 
         match crate::auth::lookup_auth(&store, &self.auth_scope) {
@@ -290,8 +290,8 @@ impl ConfigReloader {
         };
 
         // MCP servers: compare the [mcp_servers] table in the **global**
-        // config (`~/.grok/config.toml`) via toml::Value. Project-
-        // scoped changes (`<cwd>/.grok/config.toml`, `<cwd>/.mcp.json`) go out separately as `ConfigUpdate::ProjectMcpServersChanged { cwd }`
+        // config (`~/.xvora/config.toml`) via toml::Value. Project-
+        // scoped changes (`<cwd>/.xvora/config.toml`, `<cwd>/.mcp.json`) go out separately as `ConfigUpdate::ProjectMcpServersChanged { cwd }`
         // That per-cwd dispatch (see `collect_project_cwds`) keeps them from sweeping unrelated sessions
         let old_mcp_table = self.last_global_config.get("mcp_servers");
         let new_mcp_table = new_global.get("mcp_servers");
@@ -403,7 +403,7 @@ fn changed_memory_config(
 ///
 /// | `ConfigChangeEvent`        | path shape              | cwd               |
 /// |----------------------------|-------------------------|-------------------|
-/// | `ProjectConfigChanged`     | `<cwd>/.grok/config.toml` | `<cwd>`           |
+/// | `ProjectConfigChanged`     | `<cwd>/.xvora/config.toml` | `<cwd>`           |
 /// | `McpConfigChanged`         | `<cwd>/.mcp.json`         | `<cwd>`           |
 /// | `McpConfigChanged`         | `<cwd>/.claude.json`      | `<cwd>`           |
 ///
@@ -413,7 +413,7 @@ fn collect_project_cwds(batch: &[ConfigChangeEvent]) -> Vec<PathBuf> {
     for evt in batch {
         let cwd = match evt {
             ConfigChangeEvent::ProjectConfigChanged { path } => {
-                // <cwd>/.grok/config.toml yields <cwd>
+                // <cwd>/.xvora/config.toml yields <cwd>
                 path.parent()
                     .and_then(|p| p.parent())
                     .map(|p| p.to_path_buf())
@@ -434,10 +434,10 @@ fn collect_project_cwds(batch: &[ConfigChangeEvent]) -> Vec<PathBuf> {
 }
 
 /// Content hash of the cwd-dependent MCP config files a `ProjectMcpServersChanged { cwd }` reload re-reads.
-/// It walks ancestors up to the git root as the loaders do: `find_project_configs` for `.grok/config.toml`, `find_mcp_json_files` for `.mcp.json`.
+/// It walks ancestors up to the git root as the loaders do: `find_project_configs` for `.xvora/config.toml`, `find_mcp_json_files` for `.mcp.json`.
 /// That keeps the hash from drifting from the set the merge actually reads; `<cwd>/.claude.json` (watched at the project root) is hashed too.
 /// A stable hash means the reload would be a no-op. Home-level sources
-/// (`~/.grok/config.toml`, `~/.claude.json`, `~/.cursor/mcp.json`)
+/// (`~/.xvora/config.toml`, `~/.claude.json`, `~/.cursor/mcp.json`)
 /// change through their own events.
 ///
 /// Returns `None` on a non-`NotFound` read error so the caller dispatches rather than risk suppressing a real edit.
@@ -472,7 +472,7 @@ pub(crate) fn hash_auth_key(key: &str) -> u64 {
 
 /// Extract the `[skills]` table from an effective config.
 ///
-/// Consumers: the reload dispatch above (change detection into `ConfigUpdate::Skills`) and `grok inspect` (via the `crate::config` re-export).
+/// Consumers: the reload dispatch above (change detection into `ConfigUpdate::Skills`) and `xvora inspect` (via the `crate::config` re-export).
 /// Both therefore honor the same paths/ignore/disabled as a live session.
 /// Session spawn parses the same table separately through the typed `Config.skills` (agent/config.rs).
 /// Keep these in sync rather than adding a fourth parse path.
@@ -782,7 +782,7 @@ mod tests {
         assert_ne!(created, changed, "editing content changes the hash");
     }
 
-    /// The hash must reflect ancestor `.grok/config.toml` and `.mcp.json` under `cwd`; otherwise an ancestor edit would be wrongly suppressed.
+    /// The hash must reflect ancestor `.xvora/config.toml` and `.mcp.json` under `cwd`; otherwise an ancestor edit would be wrongly suppressed.
     #[test]
     fn hash_project_mcp_config_covers_ancestors() {
         let tmp = tempfile::TempDir::new().unwrap();
@@ -800,12 +800,12 @@ mod tests {
         let h2 = hash_project_mcp_config(&child).expect("readable");
         assert_ne!(h1, h2, "ancestor .mcp.json edit must change the hash");
 
-        std::fs::create_dir_all(tmp.path().join(".grok")).unwrap();
-        std::fs::write(tmp.path().join(".grok").join("config.toml"), "x = 1").unwrap();
+        std::fs::create_dir_all(tmp.path().join(".xvora")).unwrap();
+        std::fs::write(tmp.path().join(".xvora").join("config.toml"), "x = 1").unwrap();
         let h3 = hash_project_mcp_config(&child).expect("readable");
         assert_ne!(
             h2, h3,
-            "ancestor .grok/config.toml create must change the hash"
+            "ancestor .xvora/config.toml create must change the hash"
         );
     }
 
@@ -821,13 +821,13 @@ mod tests {
         let config: toml::Value = toml::from_str(
             r#"
 [skills]
-paths = ["/home/user/.grok/skills"]
+paths = ["/home/user/.xvora/skills"]
 ignore = ["/tmp"]
 "#,
         )
         .unwrap();
         let skills = parse_skills_config(&config);
-        assert_eq!(skills.paths, vec!["/home/user/.grok/skills".to_string()]);
+        assert_eq!(skills.paths, vec!["/home/user/.xvora/skills".to_string()]);
         assert_eq!(skills.ignore, vec!["/tmp".to_string()]);
     }
 
@@ -923,8 +923,8 @@ base_url = "https://api.example.com/v1"
 
     #[test]
     fn models_changed_detects_default_change() {
-        let a: toml::Value = toml::from_str("[models]\ndefault = \"grok-code-fast-1\"").unwrap();
-        let b: toml::Value = toml::from_str("[models]\ndefault = \"grok-code-slow-1\"").unwrap();
+        let a: toml::Value = toml::from_str("[models]\ndefault = \"xvora-code-fast-1\"").unwrap();
+        let b: toml::Value = toml::from_str("[models]\ndefault = \"xvora-code-slow-1\"").unwrap();
         assert_ne!(a.get("models"), b.get("models"));
     }
 
@@ -975,7 +975,7 @@ command = "/bin/test"
         let batch = vec![
             ConfigChangeEvent::HomeClaudeJsonChanged,
             ConfigChangeEvent::ProjectConfigChanged {
-                path: PathBuf::from("/repo/x/.grok/config.toml"),
+                path: PathBuf::from("/repo/x/.xvora/config.toml"),
             },
         ];
         let cwds = collect_project_cwds(&batch);
@@ -984,19 +984,19 @@ command = "/bin/test"
         assert_eq!(cwds, vec![PathBuf::from("/repo/x")]);
     }
 
-    /// `collect_project_cwds` extracts `<cwd>` from `ProjectConfigChanged` (`<cwd>/.grok/config.toml`) and `McpConfigChanged` (`<cwd>/.mcp.json`).
+    /// `collect_project_cwds` extracts `<cwd>` from `ProjectConfigChanged` (`<cwd>/.xvora/config.toml`) and `McpConfigChanged` (`<cwd>/.mcp.json`).
     /// It de-duplicates while preserving order.
     #[test]
     fn collect_project_cwds_dedupes_and_extracts() {
         let batch = vec![
             ConfigChangeEvent::ProjectConfigChanged {
-                path: PathBuf::from("/repo/a/.grok/config.toml"),
+                path: PathBuf::from("/repo/a/.xvora/config.toml"),
             },
             ConfigChangeEvent::McpConfigChanged {
                 path: PathBuf::from("/repo/a/.mcp.json"),
             },
             ConfigChangeEvent::ProjectConfigChanged {
-                path: PathBuf::from("/repo/b/.grok/config.toml"),
+                path: PathBuf::from("/repo/b/.xvora/config.toml"),
             },
         ];
         let cwds = collect_project_cwds(&batch);

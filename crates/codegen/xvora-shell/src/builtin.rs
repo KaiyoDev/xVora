@@ -1,14 +1,14 @@
-//! Built-in files extracted to `~/.grok/` on startup.
+//! Built-in files extracted to `~/.xvora/` on startup.
 
 const BUILTIN_FILES: &[(&str, &str)] = &[("README.md", include_str!("../README.md"))];
 
-/// Extract built-in metadata files to `~/.grok/` on startup.
+/// Extract built-in metadata files to `~/.xvora/` on startup.
 ///
-/// User skills under `~/.grok/skills/` are never managed here. Platform skills
+/// User skills under `~/.xvora/skills/` are never managed here. Platform skills
 /// are delivered separately through the bundled skill cache.
-pub fn extract_builtin_files(grok_home: &std::path::Path) {
+pub fn extract_builtin_files(xvora_home: &std::path::Path) {
     let version = version::VERSION;
-    let marker = grok_home.join(".metadata_version");
+    let marker = xvora_home.join(".metadata_version");
 
     if let Ok(existing) = std::fs::read_to_string(&marker)
         && existing.trim() == version
@@ -16,15 +16,15 @@ pub fn extract_builtin_files(grok_home: &std::path::Path) {
         return;
     }
 
-    let _ = std::fs::create_dir_all(grok_home);
+    let _ = std::fs::create_dir_all(xvora_home);
 
     // Clean up cached changelog files from previous version so /release-notes fetches fresh content for the new version
     for stale in &["CHANGELOG.json", "CHANGELOG.md"] {
-        let _ = std::fs::remove_file(grok_home.join(stale));
+        let _ = std::fs::remove_file(xvora_home.join(stale));
     }
 
     for &(filename, content) in BUILTIN_FILES {
-        if let Err(e) = std::fs::write(grok_home.join(filename), content) {
+        if let Err(e) = std::fs::write(xvora_home.join(filename), content) {
             tracing::debug!(error = %e, filename, "Failed to extract built-in file");
         }
     }
@@ -33,7 +33,7 @@ pub fn extract_builtin_files(grok_home: &std::path::Path) {
     tracing::debug!(version, "Extracted built-in files");
 }
 
-/// `(name, sha256)` of every `SKILL.md` body ever extracted into `$GROK_HOME/skills/`; `help` rows hash the pre-substitution bytes.
+/// `(name, sha256)` of every `SKILL.md` body ever extracted into `$xvora_home/skills/`; `help` rows hash the pre-substitution bytes.
 const FORMER_PLATFORM_SKILL_HASHES: &[(&str, &str)] = &[
     (
         "create-skill",
@@ -125,28 +125,28 @@ const FORMER_PLATFORM_SKILL_HASHES: &[(&str, &str)] = &[
     ),
 ];
 
-/// Remove platform-skill leftovers extracted into `$GROK_HOME/skills/` by pre-bundle binaries, where they shadow `bundled/skills/`.
+/// Remove platform-skill leftovers extracted into `$xvora_home/skills/` by pre-bundle binaries, where they shadow `bundled/skills/`.
 /// Only dirs whose `SKILL.md` byte-matches a known shipped body are removed; user skills and edits are kept.
 /// Runs every startup so restored backups get re-cleaned.
-pub fn purge_stale_extracted_skills(grok_home: &std::path::Path) {
-    purge_skill_dirs_matching(grok_home, FORMER_PLATFORM_SKILL_HASHES);
+pub fn purge_stale_extracted_skills(xvora_home: &std::path::Path) {
+    purge_skill_dirs_matching(xvora_home, FORMER_PLATFORM_SKILL_HASHES);
 }
 
-fn purge_skill_dirs_matching(grok_home: &std::path::Path, known: &[(&str, &str)]) {
-    // For reversing the extract-time `~/.grok/` -> home rewrite (help only).
-    let home_prefix = format!("{}/", grok_home.to_string_lossy());
+fn purge_skill_dirs_matching(xvora_home: &std::path::Path, known: &[(&str, &str)]) {
+    // For reversing the extract-time `~/.xvora/` -> home rewrite (help only).
+    let home_prefix = format!("{}/", xvora_home.to_string_lossy());
 
     let mut names: Vec<&str> = known.iter().map(|&(name, _)| name).collect();
     names.dedup();
 
     for name in names {
-        let dir = grok_home.join("skills").join(name);
+        let dir = xvora_home.join("skills").join(name);
         // Absent or unreadable: nothing provably ours.
         let Ok(content) = std::fs::read_to_string(dir.join("SKILL.md")) else {
             continue;
         };
         let on_disk = sha256_hex(content.as_bytes());
-        let unrewritten = sha256_hex(content.replace(&home_prefix, "~/.grok/").as_bytes());
+        let unrewritten = sha256_hex(content.replace(&home_prefix, "~/.xvora/").as_bytes());
         let managed = known
             .iter()
             .any(|&(n, hash)| n == name && (hash == on_disk || hash == unrewritten));
@@ -303,8 +303,8 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let home = tmp.path();
         // help's on-disk bytes are machine-dependent (home substituted in).
-        let raw = EXTRACTED_BODY.replace("platform", "read ~/.grok/docs/user-guide then platform");
-        let body = raw.replace("~/.grok/", &format!("{}/", home.to_string_lossy()));
+        let raw = EXTRACTED_BODY.replace("platform", "read ~/.xvora/docs/user-guide then platform");
+        let body = raw.replace("~/.xvora/", &format!("{}/", home.to_string_lossy()));
         let raw_hash = sha256_hex(raw.as_bytes());
         let dir = write_skill(home, "help", &body);
 

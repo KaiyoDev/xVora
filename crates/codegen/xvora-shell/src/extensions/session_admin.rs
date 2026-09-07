@@ -468,7 +468,7 @@ async fn handle_session_delete(agent: &MvpAgent, args: &acp::ExtRequest) -> ExtR
     agent.teardown_live_session_before_delete(&session_id).await;
 
     // Shared delete: remote-first, then local disk and FTS eviction
-    // Mirrored by the `grok sessions delete <id>` CLI path.
+    // Mirrored by the `xvora sessions delete <id>` CLI path.
     crate::session::persistence::delete_session_history(
         &req.session_id,
         req.cwd.as_deref(),
@@ -674,12 +674,12 @@ async fn handle_reload_all_mcp_servers(agent: &MvpAgent) -> ExtResult {
 
 /// Reload MCP servers for sessions whose `cwd` matches (or sits beneath)
 /// the project root passed in `params.cwd`.
-/// Called by the config hot-reload watcher when `<cwd>/.grok/config.toml`, `<cwd>/.mcp.json`, or `<cwd>/.claude.json` changes.
+/// Called by the config hot-reload watcher when `<cwd>/.xvora/config.toml`, `<cwd>/.mcp.json`, or `<cwd>/.claude.json` changes.
 ///
 /// Sessions in unrelated cwds are intentionally NOT touched.
 /// That is the whole point of [`crate::config::reloader::ConfigUpdate::ProjectMcpServersChanged`] being a per-cwd variant.
 /// The legacy [`handle_reload_all_mcp_servers`] is still the fan-out for global
-/// `~/.grok/config.toml` edits.
+/// `~/.xvora/config.toml` edits.
 async fn handle_reload_project_mcp_servers(agent: &MvpAgent, args: &acp::ExtRequest) -> ExtResult {
     #[derive(Deserialize)]
     struct Params {
@@ -802,7 +802,7 @@ fn handle_reload_models(agent: &MvpAgent) -> ExtResult {
 
 // internal/reload_models_cache
 
-/// Hot-reload the model catalog from `~/.grok/models_cache.json` after an
+/// Hot-reload the model catalog from `~/.xvora/models_cache.json` after an
 /// external write detected by the config watcher.
 ///
 /// Routed through the agent's ACP stream (injected by the `ConfigUpdate::ModelsCacheChanged` arm in `agent/app.rs`).
@@ -896,7 +896,7 @@ async fn handle_commands_list(agent: &MvpAgent, args: &acp::ExtRequest) -> ExtRe
 
     // For a given cwd, compute the plugin registry the same way a session would at spawn time (via build_for_cwd)
     // That is also how reload_plugins_impl computes it (ancestor project config walk and vendor compat merge)
-    // This makes `x.ai/commands/list` (the pull grok-desktop uses after session start) return plugin-provided slash commands for the target cwd
+    // This makes `x.ai/commands/list` (the pull xvora-desktop uses after session start) return plugin-provided slash commands for the target cwd
     //
     // The shared snapshot is only populated at agent boot (using process CWD) and by explicit reloads
     // In desktop-to-docker (and ssh) setups the agent's launch CWD is unrelated to the user's chosen workspace dir
@@ -917,7 +917,7 @@ async fn handle_commands_list(agent: &MvpAgent, args: &acp::ExtRequest) -> ExtRe
         // It is shared with reload_plugins_impl and the eager fan-out so the menu agrees with each session's registry for this cwd
         let disk_cfg = crate::config::resolve_effective_plugins_config(cwd).to_discovery_config();
 
-        // Fresh discovery for *this* cwd (includes .grok/plugins under it, plus the cli --plugin-dir dirs)
+        // Fresh discovery for *this* cwd (includes .xvora/plugins under it, plus the cli --plugin-dir dirs)
         // Does not mutate the shared snapshot
         agent
             .plugin_registry_handle()

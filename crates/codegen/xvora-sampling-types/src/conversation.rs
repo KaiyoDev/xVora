@@ -646,7 +646,7 @@ pub struct ConversationRequest {
     pub x_grok_req_id: Option<String>,
     pub x_grok_session_id: Option<String>,
     pub x_grok_turn_idx: Option<String>,
-    /// Turn-level resubmit attempt (absent on first submissions); sent as `x-grok-transient-retry` so the proxy can count retry traffic.
+    /// Turn-level resubmit attempt (absent on first submissions); sent as `x-xvora-transient-retry` so the proxy can count retry traffic.
     pub x_grok_transient_retry: Option<String>,
     pub x_grok_agent_id: Option<String>,
     pub x_grok_deployment_id: Option<String>,
@@ -854,7 +854,7 @@ pub struct ConversationResponse {
     /// When this is zero but the response contains text, the streaming events were lost (e.g. after an empty-response retry).
     /// The caller should then emit a fallback `AgentMessageChunk` so downstream consumers (e.g. the TUI) see the turn as complete.
     pub message_chunks_emitted: u64,
-    /// Server-reported doom-loop triggers for this response (Responses API only, opt-in via the `x-grok-doom-loop-check` header).
+    /// Server-reported doom-loop triggers for this response (Responses API only, opt-in via the `x-xvora-doom-loop-check` header).
     /// Empty when the check is disabled or nothing was reported; deduplicated by raw label.
     /// See [`crate::doom_loop`].
     pub doom_loop_signals: Vec<crate::doom_loop::DoomLoopSignal>,
@@ -1369,7 +1369,7 @@ impl ConversationItem {
 // for `ConversationItem`
 // ---------------------------------------------------------------------------
 //
-// Lets the shared engine in `crates/common/xvora-compaction` operate over grok-build's `ConversationItem` without depending on this crate
+// Lets the shared engine in `crates/common/xvora-compaction` operate over xvora-build's `ConversationItem` without depending on this crate
 // The orphan rule forces the impls to live here, next to the type
 // Mirrors the harness's `impl CompactionItem` for its own turn type
 //
@@ -1381,7 +1381,7 @@ impl ConversationItem {
 impl compaction::CompactionItem for ConversationItem {
     fn role(&self) -> compaction::CompactionRole {
         use compaction::CompactionRole;
-        // grok-build has no distinct `Developer` role; everything maps onto the four `Role` variants `ConversationItem::role()` already returns
+        // xvora-build has no distinct `Developer` role; everything maps onto the four `Role` variants `ConversationItem::role()` already returns
         match self.role() {
             Role::System => CompactionRole::System,
             Role::User => CompactionRole::User,
@@ -1401,15 +1401,15 @@ impl compaction::CompactionItem for ConversationItem {
     }
 
     fn is_compaction_summary(&self) -> bool {
-        // grok-build has no structural marker that uniquely identifies a prior compaction summary
+        // xvora-build has no structural marker that uniquely identifies a prior compaction summary
         // The carrier is a `user_meta` item whose `SyntheticReason::CompactionMeta` is also used for re-injected file contents
         // Returning `false` is safe for the full-replace path, which does not consult this (it summarizes the whole conversation)
-        // Revisit (add a dedicated marker) before routing grok-build history through the shared `history`/`inter` filter
+        // Revisit (add a dedicated marker) before routing xvora-build history through the shared `history`/`inter` filter
         false
     }
 
     fn attachment_refs(&self) -> Vec<compaction::CompactionFileRef> {
-        // grok-build `UserItem`s carry only `Text`/`Image { url }` content parts
+        // xvora-build `UserItem`s carry only `Text`/`Image { url }` content parts
         // There is no id-and-name attachment-ref concept like the chat harness's `GrokTurn` has
         // The full-replace path does not read this; revisit if image attachments need to survive into the `<grok_user_queries>` preamble
         Vec::new()
@@ -2307,7 +2307,7 @@ mod compaction_item_bridge_tests {
 
     #[test]
     fn metadata_accessors_are_conservative() {
-        // grok-build has no structural compaction-summary marker and no id-and-name attachment refs, so both return empty/false
+        // xvora-build has no structural compaction-summary marker and no id-and-name attachment refs, so both return empty/false
         assert!(!CompactionItem::is_compaction_summary(
             &ConversationItem::user("u")
         ));
@@ -3017,7 +3017,7 @@ mod tests {
     fn test_transform_cwd_transforms_tool_call_arguments() {
         // Tool call arguments containing paths are transformed alongside text content.
         // The model then sees consistent paths on the next turn
-        let worktree = "/home/user/.grok/worktrees/project/ab-uuid-a";
+        let worktree = "/home/user/.xvora/worktrees/project/ab-uuid-a";
         let root = "/home/user/project";
 
         let mut items = vec![ConversationItem::Assistant(AssistantItem {
@@ -3091,7 +3091,7 @@ mod tests {
     fn test_transform_cwd_worktree_to_root_syncback() {
         // End-to-end sync-back scenario: worktree paths become root paths
         // This simulates what happens when a forked session's worktree contents are synced back to the original root path
-        let worktree = "/home/user/.grok/worktrees/myproject/fork-a";
+        let worktree = "/home/user/.xvora/worktrees/myproject/fork-a";
         let root = "/home/user/myproject";
 
         let mut items = vec![
@@ -3159,7 +3159,7 @@ mod tests {
         // Forward direction: root to worktree (forking)
         // Tool call arguments are transformed so the fork session's history has consistent worktree paths everywhere
         let root = "/home/user/myproject";
-        let worktree = "/home/user/.grok/worktrees/myproject/fork-a";
+        let worktree = "/home/user/.xvora/worktrees/myproject/fork-a";
 
         let mut items = vec![
             ConversationItem::system(format!("Working in {root}.")),
@@ -3259,7 +3259,7 @@ mod tests {
     #[test]
     fn test_transform_cwd_assistant_only_tool_calls_no_content() {
         // Assistant message with empty content but tool calls containing paths
-        let worktree = "/home/user/.grok/worktrees/proj/fork-a";
+        let worktree = "/home/user/.xvora/worktrees/proj/fork-a";
         let root = "/home/user/proj";
 
         let mut items = vec![ConversationItem::assistant_tool_calls(vec![
@@ -4468,7 +4468,7 @@ mod tests {
             instructions: None,
             max_output_tokens: None,
             metadata: None,
-            model: "grok-build".to_string(),
+            model: "xvora-build".to_string(),
             object: "response".to_string(),
             output: vec![
                 make_reasoning("a", "thinking pre-search", None),
@@ -4673,7 +4673,7 @@ mod tests {
     // Three legacy on-disk shapes that the on-read upgrader must lift to sibling Reasoning / BackendToolCall items:
     //
     //   1. v1 assistant with `raw_output: Vec<OutputItem>` (backend-search era)
-    //   2. v1 assistant with singular `reasoning: ReasoningContent` (earlier grok-build / chat-completions written as v1)
+    //   2. v1 assistant with singular `reasoning: ReasoningContent` (earlier xvora-build / chat-completions written as v1)
     //   3. v0 `ChatRequestMessage` with top-level `reasoning_content`
     //
     // Idempotent (current-format rows produce zero siblings); verified by `upgrade_is_idempotent_on_post_pr_rows`
@@ -4690,7 +4690,7 @@ mod tests {
                 "encrypted": "bIfXFNBiP8EI8F7pkKC1tgbYjvVuIctMAlCUGMii",
                 "id": "rs_00000000-0000-4000-8000-000000000001"
             },
-            "model_id": "grok-build",
+            "model_id": "xvora-build",
             "model_fingerprint": "fp_test000000000001"
         });
         let mut seen = std::collections::HashSet::new();
@@ -4809,7 +4809,7 @@ mod tests {
         let raw = serde_json::json!({
             "type": "assistant",
             "content": "answer",
-            "model_id": "grok-build"
+            "model_id": "xvora-build"
         });
         let mut seen = std::collections::HashSet::new();
         assert!(upgrade_legacy_reasoning(&raw, &mut seen).is_empty());

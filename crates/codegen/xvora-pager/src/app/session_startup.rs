@@ -24,7 +24,7 @@ pub enum DeferredSessionStartup {
         parent_cwd: Option<PathBuf>,
         new_session_id: Option<String>,
     },
-    /// Fresh plain Grok session whose first prompt resumes a foreign tool session.
+    /// Fresh plain xvora session whose first prompt resumes a foreign tool session.
     ForeignResume {
         tool: foreign_sessions::ForeignSessionTool,
         native_id: String,
@@ -85,8 +85,8 @@ pub fn fork_session_params(
 /// Mirrors in-session `/fork` reading `agent.session.is_worktree`.
 pub fn parent_session_is_worktree(session_id: &str, cwd: &Path) -> bool {
     let cwd_str = cwd.to_string_lossy();
-    let sessions_root = shell::util::grok_home::grok_home().join("sessions");
-    let encoded = shell::util::grok_home::encode_cwd_dirname(&cwd_str);
+    let sessions_root = shell::util::xvora_home::xvora_home().join("sessions");
+    let encoded = shell::util::xvora_home::encode_cwd_dirname(&cwd_str);
     let summary_path = sessions_root
         .join(encoded)
         .join(session_id)
@@ -119,7 +119,7 @@ pub fn parent_session_is_worktree(session_id: &str, cwd: &Path) -> bool {
             return true;
         }
         if git.is_dir() {
-            return std::fs::read_to_string(git.join("grok-worktree-source"))
+            return std::fs::read_to_string(git.join("xvora-worktree-source"))
                 .is_ok_and(|s| !s.trim().is_empty());
         }
     }
@@ -702,7 +702,7 @@ pub struct MaterializeCtx {
     pub has_worktree: bool,
     /// When true, attempt remote restore if the session is not on disk.
     pub allow_remote_restore: bool,
-    /// Process-wide flag: resume targets are grok.com conversations, not the local disk store.
+    /// Process-wide flag: resume targets are xvora.com conversations, not the local disk store.
     /// Always `false` without the optional feature; setting it anyway errors rather than silently falling back to disk.
     pub chat_mode: bool,
     /// See [`TitleResolution`]; carried from the pre-sandbox pin outcome.
@@ -757,19 +757,19 @@ async fn most_recent_session_id(
         .ok_or_else(|| {
             anyhow::anyhow!(
                 "No session found for current directory. \
-                 Use 'grok' to start a new session."
+                 Use 'xvora' to start a new session."
             )
         })?;
     Ok((first.info.id.to_string(), first.display_title_opt()))
 }
-/// `AuthManager` for direct grok.com calls made outside the agent (pre-ACP `--continue` conversation listing, the GCS restore effect).
+/// `AuthManager` for direct xvora.com calls made outside the agent (pre-ACP `--continue` conversation listing, the GCS restore effect).
 /// Wires the auth-provider refresher before the first `auth()`.
 /// Without it, environments that mint credentials via `auth_provider_command` report `NoOauth`.
 pub(crate) fn pre_acp_auth_manager(
     agent_config: &shell::agent::config::Config,
 ) -> std::sync::Arc<shell::auth::AuthManager> {
     let auth = std::sync::Arc::new(shell::auth::AuthManager::new(
-        &shell::util::grok_home::grok_home(),
+        &shell::util::xvora_home::xvora_home(),
         agent_config.grok_com_config.clone(),
     ));
     auth.configure_refresher(
@@ -1117,7 +1117,7 @@ async fn restore_session_from_remote(
     use shell::agent::session_registry_client::SessionRegistryClient;
     use shell::auth::{AuthManager, ensure_authenticated_or_noninteractive};
     use shell::session::restore::{RestoreSessionOpts, restore_session_with_storage};
-    use shell::util::grok_home::grok_home;
+    use shell::util::xvora_home::xvora_home;
     let deployment_key = agent_config.endpoints.deployment_key.clone();
     ensure_authenticated_or_noninteractive(
         &agent_config.grok_com_config,
@@ -1127,7 +1127,7 @@ async fn restore_session_from_remote(
     .await
     .map_err(|e| anyhow::anyhow!("Failed to authenticate for session restore: {}", e))?;
     let auth_manager = std::sync::Arc::new(AuthManager::new(
-        &grok_home(),
+        &xvora_home(),
         agent_config.grok_com_config.clone(),
     ));
     let registry_client =
@@ -1142,7 +1142,7 @@ async fn restore_session_from_remote(
         Some(auth_manager),
         None,
         None,
-        "grok-pager",
+        "xvora-pager",
     );
     let progress: shell::session::restore::ProgressCallback = Box::new(move |event| {
         emit_pre_tui_restore_line(progress_on_stdout, &format!("  {}", event.display_line()));
@@ -1355,7 +1355,7 @@ mod tests {
         assert!(git2::Repository::discover(&dir).is_err());
         assert!(parent_session_is_worktree("any-sid", &dir));
     }
-    #[serial_test::serial(GROK_HOME)]
+    #[serial_test::serial(xvora_home)]
     #[test]
     fn parent_session_is_worktree_summary_session_kind() {
         let mut fx = crate::test_util::GrokHomeFixture::new();
@@ -1368,7 +1368,7 @@ mod tests {
         );
         assert!(parent_session_is_worktree("sid-kind", &repo.path));
     }
-    #[serial_test::serial(GROK_HOME)]
+    #[serial_test::serial(xvora_home)]
     #[test]
     fn parent_session_is_worktree_summary_source_workspace_dir() {
         let mut fx = crate::test_util::GrokHomeFixture::new();
@@ -1387,7 +1387,7 @@ mod tests {
         );
         assert!(!parent_session_is_worktree("sid-src-empty", &repo.path));
     }
-    #[serial_test::serial(GROK_HOME)]
+    #[serial_test::serial(xvora_home)]
     #[test]
     fn parent_session_is_worktree_summary_worktree_label() {
         let mut fx = crate::test_util::GrokHomeFixture::new();
@@ -1434,14 +1434,14 @@ mod tests {
     #[test]
     fn intent_default_is_new_auto() {
         assert_eq!(
-            parse(&["grok"]).session_startup_intent().unwrap(),
+            parse(&["xvora"]).session_startup_intent().unwrap(),
             SessionStartupIntent::NewAuto
         );
     }
     #[test]
     fn intent_resume_id() {
         assert_eq!(
-            parse(&["grok", "--resume", "abc"])
+            parse(&["xvora", "--resume", "abc"])
                 .session_startup_intent()
                 .unwrap(),
             SessionStartupIntent::Resume {
@@ -1453,7 +1453,7 @@ mod tests {
     #[test]
     fn intent_resume_empty_is_most_recent() {
         assert_eq!(
-            parse(&["grok", "--resume"])
+            parse(&["xvora", "--resume"])
                 .session_startup_intent()
                 .unwrap(),
             SessionStartupIntent::Resume {
@@ -1465,7 +1465,7 @@ mod tests {
     #[test]
     fn intent_continue() {
         assert_eq!(
-            parse(&["grok", "-c"]).session_startup_intent().unwrap(),
+            parse(&["xvora", "-c"]).session_startup_intent().unwrap(),
             SessionStartupIntent::Resume {
                 session_id: None,
                 most_recent_for_cwd: true,
@@ -1475,7 +1475,7 @@ mod tests {
     #[test]
     fn intent_session_id_alone_is_new_with_id() {
         assert_eq!(
-            parse(&["grok", "--session-id", "my-id"])
+            parse(&["xvora", "--session-id", "my-id"])
                 .session_startup_intent()
                 .unwrap(),
             SessionStartupIntent::NewWithId {
@@ -1485,7 +1485,7 @@ mod tests {
     }
     #[test]
     fn intent_session_id_with_resume_without_fork_errors() {
-        let err = parse(&["grok", "-r", "a", "-s", "b"])
+        let err = parse(&["xvora", "-r", "a", "-s", "b"])
             .session_startup_intent()
             .unwrap_err();
         assert_eq!(err, StartupFlagError::SessionIdRequiresFork);
@@ -1493,7 +1493,7 @@ mod tests {
     #[test]
     fn intent_fork_with_resume() {
         assert_eq!(
-            parse(&["grok", "-r", "old", "--fork-session"])
+            parse(&["xvora", "-r", "old", "--fork-session"])
                 .session_startup_intent()
                 .unwrap(),
             SessionStartupIntent::ForkFrom {
@@ -1506,7 +1506,7 @@ mod tests {
     #[test]
     fn intent_fork_with_resume_and_new_id() {
         assert_eq!(
-            parse(&["grok", "-r", "old", "--fork-session", "-s", "new"])
+            parse(&["xvora", "-r", "old", "--fork-session", "-s", "new"])
                 .session_startup_intent()
                 .unwrap(),
             SessionStartupIntent::ForkFrom {
@@ -1518,21 +1518,21 @@ mod tests {
     }
     #[test]
     fn intent_fork_alone_errors() {
-        let err = parse(&["grok", "--fork-session"])
+        let err = parse(&["xvora", "--fork-session"])
             .session_startup_intent()
             .unwrap_err();
         assert_eq!(err, StartupFlagError::ForkRequiresResumeOrContinue);
     }
     #[test]
     fn intent_fork_with_worktree_errors() {
-        let err = parse(&["grok", "-r", "a", "--fork-session", "-w"])
+        let err = parse(&["xvora", "-r", "a", "--fork-session", "-w"])
             .session_startup_intent()
             .unwrap_err();
         assert_eq!(err, StartupFlagError::ForkWithWorktree);
     }
     #[test]
     fn intent_from_flags_matches_pager_args() {
-        let args = parse(&["grok", "-r", "old", "--fork-session", "-s", "new"]);
+        let args = parse(&["xvora", "-r", "old", "--fork-session", "-s", "new"]);
         let from_flags = session_startup_intent_from_flags(SessionStartupFlags {
             session_id: Some("new"),
             resume_session_id: Some("old"),
@@ -1638,16 +1638,16 @@ mod tests {
     #[test]
     fn materialize_ctx_recent_selection_follows_surface() {
         assert_eq!(
-            MaterializeCtx::from_pager_args(&parse(&["grok"])).recent_session_selection,
+            MaterializeCtx::from_pager_args(&parse(&["xvora"])).recent_session_selection,
             RecentSessionSelection::Interactive,
         );
         assert_eq!(
-            MaterializeCtx::from_pager_args(&parse(&["grok", "-p", "run"]))
+            MaterializeCtx::from_pager_args(&parse(&["xvora", "-p", "run"]))
                 .recent_session_selection,
             RecentSessionSelection::Any,
         );
     }
-    #[serial_test::serial(GROK_HOME)]
+    #[serial_test::serial(xvora_home)]
     #[tokio::test]
     async fn most_recent_fork_selection_follows_surface() {
         let mut fx = crate::test_util::GrokHomeFixture::new();
@@ -1668,9 +1668,9 @@ mod tests {
             }),
         );
         for (args, expected_parent) in [
-            (&["grok", "-c", "--fork-session"][..], interactive_id),
+            (&["xvora", "-c", "--fork-session"][..], interactive_id),
             (
-                &["grok", "-p", "run", "-c", "--fork-session"][..],
+                &["xvora", "-p", "run", "-c", "--fork-session"][..],
                 headless_id,
             ),
         ] {
@@ -1692,32 +1692,32 @@ mod tests {
     }
     #[test]
     fn materialize_ctx_chat_mode_from_args() {
-        assert!(!MaterializeCtx::from_pager_args(&parse(&["grok"])).chat_mode);
+        assert!(!MaterializeCtx::from_pager_args(&parse(&["xvora"])).chat_mode);
     }
     #[test]
     fn remote_restore_follows_compiled_restore_stack() {
         assert_eq!(
-            MaterializeCtx::from_pager_args(&parse(&["grok"])).allow_remote_restore,
+            MaterializeCtx::from_pager_args(&parse(&["xvora"])).allow_remote_restore,
             false
         );
     }
     #[test]
     fn from_pager_args_does_not_probe_tty_for_progress() {
         assert!(
-            !MaterializeCtx::from_pager_args(&parse(&["grok"])).restore_progress_on_stdout,
+            !MaterializeCtx::from_pager_args(&parse(&["xvora"])).restore_progress_on_stdout,
             "stdout vs stderr is decided at the composition root, not from_pager_args"
         );
     }
     #[test]
     fn materialize_ctx_restore_code_follows_cli_flag() {
-        assert!(!MaterializeCtx::from_pager_args(&parse(&["grok"])).restore_code);
-        assert!(!MaterializeCtx::from_pager_args(&parse(&["grok", "-r", "abc"])).restore_code);
+        assert!(!MaterializeCtx::from_pager_args(&parse(&["xvora"])).restore_code);
+        assert!(!MaterializeCtx::from_pager_args(&parse(&["xvora", "-r", "abc"])).restore_code);
         assert!(
-            MaterializeCtx::from_pager_args(&parse(&["grok", "-r", "abc", "--restore-code"]))
+            MaterializeCtx::from_pager_args(&parse(&["xvora", "-r", "abc", "--restore-code"]))
                 .restore_code
         );
         let wt = MaterializeCtx::from_pager_args(&parse(&[
-            "grok",
+            "xvora",
             "-r",
             "abc",
             "--restore-code",
@@ -2072,16 +2072,16 @@ mod tests {
         }
     }
     /// The chat passthrough does not bypass the cwd-collision refusal that `app/mod.rs` runs on the materialized id.
-    #[serial_test::serial(GROK_HOME)]
+    #[serial_test::serial(xvora_home)]
     #[tokio::test]
     async fn chat_resume_passthrough_keeps_cwd_collision_refusal() {
         let home = tempfile::tempdir().expect("home tempdir");
-        unsafe { std::env::set_var("GROK_HOME", home.path()) };
+        unsafe { std::env::set_var("xvora_home", home.path()) };
         let cwd = tempfile::tempdir().expect("cwd tempdir");
         let cwd_str = cwd.path().to_string_lossy().to_string();
         let id = "aaaaaaaa-1111-2222-3333-444444444444";
-        let encoded = shell::util::grok_home::encode_cwd_dirname(&cwd_str);
-        let sessions_cwd_dir = shell::util::grok_home::grok_home()
+        let encoded = shell::util::xvora_home::encode_cwd_dirname(&cwd_str);
+        let sessions_cwd_dir = shell::util::xvora_home::xvora_home()
             .join("sessions")
             .join(&encoded);
         struct RmDirOnDrop(std::path::PathBuf);
@@ -2151,7 +2151,7 @@ mod tests {
         async fn resume(arg: &str, cwd: &str) -> anyhow::Result<MaterializedStartup> {
             resume_with(arg, cwd, RecentSessionSelection::Interactive).await
         }
-        #[serial_test::serial(GROK_HOME)]
+        #[serial_test::serial(xvora_home)]
         #[tokio::test]
         async fn title_fallback_ignores_headless_matches() {
             let mut fx = GrokHomeFixture::new();
@@ -2169,7 +2169,7 @@ mod tests {
                 .expect_err("headless title must not resolve interactively");
             assert!(error.to_string().contains("does not exist"));
         }
-        #[serial_test::serial(GROK_HOME)]
+        #[serial_test::serial(xvora_home)]
         #[tokio::test]
         async fn headless_title_resume_keeps_headless_matches() {
             let mut fx = GrokHomeFixture::new();
@@ -2194,7 +2194,7 @@ mod tests {
             }
         }
         /// Also covers letter-case insensitivity: the query case differs from the stored title.
-        #[serial_test::serial(GROK_HOME)]
+        #[serial_test::serial(xvora_home)]
         #[tokio::test]
         async fn title_fallback_resumes_single_match_case_insensitively() {
             let mut fx = GrokHomeFixture::new();
@@ -2226,7 +2226,7 @@ mod tests {
         }
         /// Id resolution stays authoritative: when the arg is an on-disk session id, the title fallback is never consulted.
         /// That holds even though another session carries that exact title.
-        #[serial_test::serial(GROK_HOME)]
+        #[serial_test::serial(xvora_home)]
         #[tokio::test]
         async fn id_hit_beats_title_fallback() {
             let mut fx = GrokHomeFixture::new();
@@ -2253,7 +2253,7 @@ mod tests {
         }
         /// Provenance for the worktree failure hint: only the defer arm (a local id and title miss under `--worktree`) flags the target.
         /// A resolved local id, even a legacy non-UUID one, never does.
-        #[serial_test::serial(GROK_HOME)]
+        #[serial_test::serial(xvora_home)]
         #[tokio::test]
         async fn worktree_defer_flags_local_miss_and_local_hit_does_not() {
             let mut fx = GrokHomeFixture::new();
@@ -2486,12 +2486,12 @@ mod tests {
     }
     #[cfg(feature = "local-workspace")]
     #[serial_test::serial(GROK_CHAT_LOCAL_WORKSPACE_ACK)]
-    #[serial_test::serial(GROK_HOME)]
+    #[serial_test::serial(xvora_home)]
     #[test]
     fn local_workspace_non_tty_requires_ack() {
         let _ack = test_support::EnvGuard::unset(GROK_CHAT_LOCAL_WORKSPACE_ACK_ENV);
         let home = tempfile::tempdir().unwrap();
-        let _home = test_support::EnvGuard::set("GROK_HOME", home.path().to_str().unwrap());
+        let _home = test_support::EnvGuard::set("xvora_home", home.path().to_str().unwrap());
         let cfg = LocalWorkspaceConfig {
             mode: LocalWorkspaceMode::Attach,
             cwd: Some(std::path::PathBuf::from("/tmp/repo")),
