@@ -153,7 +153,7 @@ const CODING_DATA_SHARING_CHOICES: &[EnumChoice] = &[
     EnumChoice {
         canonical: "opt-in",
         display: "Opt in",
-        description: "Allow SpaceXAI to retain and use coding session data for training and product improvement.",
+        description: "Allow xVora to retain and use coding session data for training and product improvement.",
     },
     EnumChoice {
         canonical: "opt-out",
@@ -1159,7 +1159,7 @@ pub fn default_settings() -> Vec<SettingMeta> {
             category: SettingCategory::Privacy,
             owner: SettingOwner::Shell,
             label: "Coding data sharing",
-            description: "Controls whether SpaceXAI may retain and train on coding session data.",
+            description: "Controls whether xVora may retain and train on coding session data.",
             keywords: &[
                 "privacy",
                 "data",

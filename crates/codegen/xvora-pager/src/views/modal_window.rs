@@ -1,4 +1,4 @@
-//! Provides a single `ModalWindow` that handles the visual frame: border, title, close button, optional tab bar, footer shortcuts.
+﻿//! Provides a single `ModalWindow` that handles the visual frame: border, title, close button, optional tab bar, footer shortcuts.
 //! It also routes common input: Esc to close, tab switching, shortcut clicks.
 //! Each popup modal in the pager becomes an instance of `ModalWindow` with different features enabled via [`ModalWindowConfig`].
 //!
@@ -529,7 +529,7 @@ fn render_tab_bar(
             let label_w = display.width();
             // Inactive tab labels use `theme.gray` (secondary-text tier), not `theme.gray_dim`
             // At ANSI16 `gray_dim` collapses to the softer slot (silver on White), leaving text at ~1.2:1 contrast
-            // That is fine for the modal frame's one-cell border line but unreadable as text glyphs on grokday
+            // That is fine for the modal frame's one-cell border line but unreadable as text glyphs on XvoDay
             let style = if is_active {
                 if state.tabs_focused && !is_embedded {
                     Style::default()
