@@ -625,16 +625,18 @@ pub async fn run(
             shell::auth::GrokComConfig::default()
         }
     };
-    if matches!(
-        shell::auth::maybe_run_pre_tui_external_login(
-            &grok_com_config,
-            args.force_login,
-            io::stdin().is_terminal(),
-        )
-        .await?,
-        shell::auth::PreTuiLoginOutcome::SignedIn(_)
-    ) {
-        args.force_login = false;
+    if !shell::auth::is_no_auth_mode() {
+        if matches!(
+            shell::auth::maybe_run_pre_tui_external_login(
+                &grok_com_config,
+                args.force_login,
+                io::stdin().is_terminal(),
+            )
+            .await?,
+            shell::auth::PreTuiLoginOutcome::SignedIn(_)
+        ) {
+            args.force_login = false;
+        }
     }
     tty_utils::redirect_native_stderr();
     let refreshed_auth = tokio::time::timeout(

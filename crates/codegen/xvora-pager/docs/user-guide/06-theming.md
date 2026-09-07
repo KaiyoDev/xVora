@@ -1,4 +1,4 @@
-# Theming and Appearance Customization
+﻿# Theming and Appearance Customization
 
 xVora draws all TUI colors from a central theme. You can switch themes while xVora is running, follow your operating system's light or dark appearance, and adjust scrollback layout, animations, and block styling through configuration files.
 
@@ -10,8 +10,8 @@ xVora includes five built-in themes, plus an `auto` option that follows your sys
 
 | Theme | Config Names | Description | Truecolor Required |
 |-------|-------------|-------------|--------------------|
-| **GrokNight** | `groknight`, `xvora-night`, `dark` | Neutral dark base with a magenta accent. Default theme. Survives quantization cleanly on 256-color and 16-color terminals. | No |
-| **GrokDay** | `grokday`, `xvora-day`, `light`, `day` | Light theme for bright terminal backgrounds. | No |
+| **XvoNight** | `XvoNight`, `xvora-night`, `dark` | Neutral dark base with a magenta accent. Default theme. Survives quantization cleanly on 256-color and 16-color terminals. | No |
+| **XvoDay** | `XvoDay`, `xvora-day`, `light`, `day` | Light theme for bright terminal backgrounds. | No |
 | **TokyoNight** | `tokyonight`, `tokyo-night`, `tokyo` | Dark, blue-tinted backgrounds from the Tokyo Night palette. Loses its character when quantized. | Yes |
 | **RosePineMoon** | `rosepine`, `rose-pine`, `rosepine-moon`, `rose-pine-moon` | Muted dark palette with mauve accents, from the Rosé Pine family. | Yes |
 | **OscuraMidnight** | `oscura`, `oscura-midnight` | Deep dark base with purple accents. | Yes |
@@ -60,13 +60,13 @@ Set `theme = "auto"` to have xVora follow your operating system's light/dark app
 theme = "auto"
 ```
 
-By default, dark mode maps to **GrokNight** and light mode maps to **GrokDay**. Override either mapping with `auto_dark_theme` and `auto_light_theme`:
+By default, dark mode maps to **XvoNight** and light mode maps to **XvoDay**. Override either mapping with `auto_dark_theme` and `auto_light_theme`:
 
 ```toml
 [ui]
 theme = "auto"
 auto_dark_theme = "tokyonight"
-auto_light_theme = "grokday"
+auto_light_theme = "XvoDay"
 ```
 
 `theme = "system"` is an alias for `theme = "auto"`.
@@ -112,7 +112,7 @@ Every theme is defined using full RGB values. At startup, xVora quantizes all co
 - On **256-color** terminals, each RGB value is mapped to the nearest indexed palette entry.
 - On **16-color** terminals, colors map to ANSI names.
 
-GrokNight and GrokDay use neutral grays that quantize cleanly. TokyoNight, RosePineMoon, and OscuraMidnight use distinctive tinted backgrounds that lose their character when quantized, which is why the theme picker hides them on non-truecolor terminals.
+XvoNight and XvoDay use neutral grays that quantize cleanly. TokyoNight, RosePineMoon, and OscuraMidnight use distinctive tinted backgrounds that lose their character when quantized, which is why the theme picker hides them on non-truecolor terminals.
 
 ### Runtime-Generated Colors
 
@@ -149,8 +149,8 @@ Use compact mode on small screens to maximize content area.
 
 xVora bundles three `.tmTheme` files for code-block syntax highlighting and selects one based on the active theme:
 
-- `xvora-night.tmTheme` -- GrokNight, RosePineMoon, and OscuraMidnight
-- `xvora-day.tmTheme` -- GrokDay
+- `xvora-night.tmTheme` -- XvoNight, RosePineMoon, and OscuraMidnight
+- `xvora-day.tmTheme` -- XvoDay
 - `tokyo-night.tmTheme` -- TokyoNight
 
 xVora selects the matching file automatically when you switch themes. The `.tmTheme` files are built into the binary, so you cannot replace them with your own.

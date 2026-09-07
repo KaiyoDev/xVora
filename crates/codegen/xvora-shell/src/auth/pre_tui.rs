@@ -8,6 +8,8 @@
 //!
 //! Deliberately does **not** call [`super::flow::run_auth_flow`]: on provider failure that falls through to browser OIDC.
 //! The fallthrough (`Signing in with browser instead...`) would re-enter the TUI splash this path exists to skip.
+//!
+//! When `XVORA_NO_AUTH=1` is set, callers should skip this module entirely.
 
 use std::sync::Arc;
 

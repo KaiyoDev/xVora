@@ -1,4 +1,4 @@
-//! Application actions, effects, and task results.
+﻿//! Application actions, effects, and task results.
 //!
 //! This module defines the three enums that form the backbone of the pipeline from input event to dispatch to effect:
 //!
@@ -525,7 +525,7 @@ pub enum Action {
     SetContextualHintWordSelect(bool),
     SetContextualHintExportCopy(bool),
     SetContextualHintSshWrap(bool),
-    /// Commit the active theme (canonical name, e.g. `"groknight"`, `"auto"`).
+    /// Commit the active theme (canonical name, e.g. `"XvoNight"`, `"auto"`).
     SetTheme(String),
     /// Commit the UI locale (`"en"` or `"vi"`). Changes language immediately without restart.
     SetLocale(String),

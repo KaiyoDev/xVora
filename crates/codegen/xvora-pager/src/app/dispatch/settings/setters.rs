@@ -1,4 +1,4 @@
-//! Individual setting setters with persistence effects and toasts.
+﻿//! Individual setting setters with persistence effects and toasts.
 
 use super::ui::{refresh_open_settings_modals, save_success_toast};
 use crate::app::actions::Effect;
@@ -1420,8 +1420,8 @@ pub(in crate::app::dispatch) fn set_auto_dark_theme(app: &mut AppView, new: Stri
         .as_deref()
         .and_then(crate::theme::canonical_name)
         .filter(|s| *s != "auto")
-        // No prior config: fall back to GrokNight (the default).
-        .unwrap_or_else(|| crate::theme::ThemeKind::GrokNight.display_name());
+        // No prior config: fall back to XvoNight (the default).
+        .unwrap_or_else(|| crate::theme::ThemeKind::XvoNight.display_name());
     let new_canonical = match crate::theme::canonical_name(&new) {
         Some(c) if c != crate::theme::ThemeKind::Auto.display_name() => c,
         _ => {
@@ -1534,7 +1534,7 @@ pub(in crate::app::dispatch) fn set_auto_light_theme(
         .as_deref()
         .and_then(crate::theme::canonical_name)
         .filter(|s| *s != "auto")
-        .unwrap_or_else(|| crate::theme::ThemeKind::GrokDay.display_name());
+        .unwrap_or_else(|| crate::theme::ThemeKind::XvoDay.display_name());
     let new_canonical = match crate::theme::canonical_name(&new) {
         Some(c) if c != crate::theme::ThemeKind::Auto.display_name() => c,
         _ => {

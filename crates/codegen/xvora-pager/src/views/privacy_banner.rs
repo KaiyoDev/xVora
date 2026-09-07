@@ -1,4 +1,4 @@
-//! Coding-data sharing upsell banner (the Figma "Data Sharing Upsell" design).
+﻿//! Coding-data sharing upsell banner (the Figma "Data Sharing Upsell" design).
 //! Shared by the welcome tip slot and the agent-view banner slot; visibility is gated by `AppView::privacy_banner_should_show`.
 
 use crate::theme::Theme;
@@ -11,7 +11,7 @@ use ratatui::widgets::{Paragraph, Widget};
 /// Shares its row with the buttons.
 const PRIVACY_BANNER_TITLE: &str = "Help improve xvora";
 
-const PRIVACY_BANNER_DESC: &str = "Off by default. Opt-in to allow SpaceXAI to retain coding \
+const PRIVACY_BANNER_DESC: &str = "Off by default. Opt-in to allow xVora to retain coding \
      data, e.g., prompts, traces, & metrics, for training and debugging purposes. Change \
      anytime via settings.";
 
@@ -51,7 +51,7 @@ const CHROME_ROWS: u16 = 2;
 
 pub(crate) const MIN_HEIGHT: u16 = CHROME_ROWS + 1;
 
-/// Caps banner growth on narrow terminals; overflow is elided with `…` so the disclosure never looks complete when it isn't.
+/// Caps banner growth on narrow terminals; overflow is elided with `â€¦` so the disclosure never looks complete when it isn't.
 const MAX_BODY_ROWS: usize = 4;
 
 /// Past this, the body abandons the button column for the full slot width: a shorter banner beats a tidy right edge.

@@ -1,4 +1,4 @@
-//! Terminal-native palette for minimal mode.
+﻿//! Terminal-native palette for minimal mode.
 //!
 //! Any RGB theme is designed for one background polarity.
 //! Composited on the terminal's own canvas it can land dark-on-dark or light-on-light (e.g. macOS in Light Mode with a dark terminal profile).
@@ -278,8 +278,8 @@ mod tests {
     #[test]
     fn rgb_theme_muted_keeps_explicit_gray_without_forced_dim() {
         use ratatui::style::Modifier;
-        // GrokNight paints real RGB grays; muted/dim must not invent DIM.
-        let theme = Theme::groknight();
+        // XvoNight paints real RGB grays; muted/dim must not invent DIM.
+        let theme = Theme::XvoNight();
         assert!(!matches!(theme.gray, Color::Reset));
         let muted = theme.muted();
         assert_eq!(muted.fg, Some(theme.gray));

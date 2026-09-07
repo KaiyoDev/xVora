@@ -2158,7 +2158,7 @@ fn gate_refreshed_emits_check_subscription_on_gate_lift() {
     let mut app = test_app();
     // User starts gated (no subscription).
     app.gate = Some(shell::auth::GateInfo {
-        message: "SuperGrok subscription required".into(),
+        message: "Subscription required".into(),
         url: Some("https://xvora.com/supergrok".into()),
         label: Some("Subscribe".into()),
     });

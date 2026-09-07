@@ -160,8 +160,8 @@ SETTINGS_DESCS = {
         "Thời gian giữ vùng chọn trong app và double-click làm gì (thu gọn vs chọn & copy từ).",
     ),
     "coding_data_sharing": (
-        "Controls whether SpaceXAI may retain and train on coding session data.",
-        "Cho phép SpaceXAI lưu và huấn luyện trên dữ liệu phiên coding hay không.",
+        "Controls whether xVora may retain and train on coding session data.",
+        "Cho phép xVora lưu và huấn luyện trên dữ liệu phiên coding hay không.",
     ),
     "default_selected_permission": (
         "Which row the cursor preselects on permission prompts.",
@@ -218,8 +218,8 @@ CATEGORIES = {
 
 ENUM_DISPLAY = {
     "auto": ("Auto", "Tự động"),
-    "groknight": ("xVora Night", "xVora Night"),
-    "grokday": ("xVora Day", "xVora Day"),
+    "xvonight": ("xVora Night", "xVora Night"),
+    "xvoday": ("xVora Day", "xVora Day"),
     "tokyonight": ("Tokyo Night", "Tokyo Night"),
     "rosepine-moon": ("Rose Pine Moon", "Rose Pine Moon"),
     "oscura-midnight": ("Oscura Midnight", "Oscura Midnight"),
@@ -249,8 +249,8 @@ ENUM_DISPLAY = {
 CHROME = {
     "settings.title": ("Settings", "Cài đặt"),
     "settings.tip.long": (
-        'Tip · Ask xVora: "change theme to grokday" or "what does compact mode do?"',
-        'Mẹo · Hỏi xVora: "đổi theme sang grokday" hoặc "compact mode làm gì?"',
+        'Tip · Ask xVora: "change theme to xvoday" or "what does compact mode do?"',
+        'Mẹo · Hỏi xVora: "đổi theme sang xvoday" hoặc "compact mode làm gì?"',
     ),
     "settings.tip.short": (
         "Tip · Ask xVora to change a setting",

@@ -5,10 +5,10 @@ pub fn display(canonical: &str, fallback: &'static str) -> &'static str {
     match (locale(), canonical) {
         (Locale::Vi, "auto") => "Tự động",
         (Locale::En, "auto") => "Auto",
-        (Locale::Vi, "groknight") => "xVora Night",
-        (Locale::En, "groknight") => "xVora Night",
-        (Locale::Vi, "grokday") => "xVora Day",
-        (Locale::En, "grokday") => "xVora Day",
+        (Locale::Vi, "xvonight") => "xVora Night",
+        (Locale::En, "xvonight") => "xVora Night",
+        (Locale::Vi, "xvoday") => "xVora Day",
+        (Locale::En, "xvoday") => "xVora Day",
         (Locale::Vi, "tokyonight") => "Tokyo Night",
         (Locale::En, "tokyonight") => "Tokyo Night",
         (Locale::Vi, "rosepine-moon") => "Rose Pine Moon",
@@ -63,10 +63,10 @@ pub fn description(canonical: &str, fallback: &'static str) -> &'static str {
     match (locale(), canonical) {
         (Locale::Vi, "auto") => "Theo giao diện tối/sáng của hệ thống.",
         (Locale::En, "auto") => "Follow system dark/light appearance.",
-        (Locale::Vi, "groknight") => "Tối trung tính, accent magenta.",
-        (Locale::En, "groknight") => "Neutral dark with magenta accent.",
-        (Locale::Vi, "grokday") => "Theme sáng cho môi trường nhiều ánh sáng.",
-        (Locale::En, "grokday") => "Light theme for bright environments.",
+        (Locale::Vi, "xvonight") => "Tối trung tính, accent magenta.",
+        (Locale::En, "xvonight") => "Neutral dark with magenta accent.",
+        (Locale::Vi, "xvoday") => "Theme sáng cho môi trường nhiều ánh sáng.",
+        (Locale::En, "xvoday") => "Light theme for bright environments.",
         (Locale::Vi, "tokyonight") => "Tối xanh dương; cần truecolor.",
         (Locale::En, "tokyonight") => "Dark + blue-tinted; needs truecolor.",
         (Locale::Vi, "rosepine-moon") => "Tối dịu accent mauve; cần truecolor.",
@@ -84,10 +84,10 @@ pub fn description(canonical: &str, fallback: &'static str) -> &'static str {
             "Auto-approve every tool action. Skips ALL permission prompts."
         }
         (Locale::Vi, "opt-in") => {
-            "Cho phép SpaceXAI lưu và dùng dữ liệu phiên coding để huấn luyện và cải thiện sản phẩm."
+            "Cho phép xVora lưu và dùng dữ liệu phiên coding để huấn luyện và cải thiện sản phẩm."
         }
         (Locale::En, "opt-in") => {
-            "Allow SpaceXAI to retain and use coding session data for training and product improvement."
+            "Allow xVora to retain and use coding session data for training and product improvement."
         }
         (Locale::Vi, "opt-out") => "Không lưu dữ liệu phiên coding. Code không dùng để huấn luyện.",
         (Locale::En, "opt-out") => {

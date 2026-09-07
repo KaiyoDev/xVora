@@ -1,4 +1,4 @@
-//! Render [Mermaid](https://mermaid.js.org/) diagram source to a rasterized PNG, behind a swappable [`MermaidEngine`] trait.
+﻿//! Render [Mermaid](https://mermaid.js.org/) diagram source to a rasterized PNG, behind a swappable [`MermaidEngine`] trait.
 //!
 //! The crate turns Mermaid text into PNG bytes with no Node, no headless browser, and no network.
 //! The trait boundary lets the rest of the CLI swap engines or fall back to a code block without caring how a diagram is produced.
@@ -53,10 +53,10 @@ use std::sync::Arc;
 /// Mapped from the pager's theme by the caller; only the light/dark split is relevant to diagram rendering.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum MermaidTheme {
-    /// Light surfaces with dark text (e.g. `GrokDay`).
+    /// Light surfaces with dark text (e.g. `XvoDay`).
     #[default]
     Light,
-    /// Dark surfaces with light text (e.g. `GrokNight`, `TokyoNight`).
+    /// Dark surfaces with light text (e.g. `XvoNight`, `TokyoNight`).
     Dark,
 }
 

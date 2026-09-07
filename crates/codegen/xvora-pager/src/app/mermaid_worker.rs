@@ -1,4 +1,4 @@
-//! Off-draw-thread Mermaid render worker, per-session disk cache, and the [`AgentView`] lazy render-on-click glue (`[Open]` and `[Copy path]`).
+﻿//! Off-draw-thread Mermaid render worker, per-session disk cache, and the [`AgentView`] lazy render-on-click glue (`[Open]` and `[Copy path]`).
 //!
 //! Mirrors the existing inline-video worker model (`std::thread::spawn` and `std::sync::mpsc`, polled each tick via `try_recv`) rather than tokio.
 //! A single worker thread renders a requested diagram in a short-lived child process (see below).
@@ -1141,7 +1141,7 @@ mod tests {
     fn key(source: &str) -> MermaidCacheKey {
         MermaidCacheKey::derive(
             source,
-            ThemeKind::GrokNight,
+            ThemeKind::XvoNight,
             80,
             MermaidRenderQuality::Terminal,
         )
@@ -1931,12 +1931,12 @@ mod tests {
         let src = "flowchart LR\nA-->B";
         let dark_key = MermaidCacheKey::derive(
             src,
-            ThemeKind::GrokNight,
+            ThemeKind::XvoNight,
             80,
             MermaidRenderQuality::Terminal,
         );
         let light_key =
-            MermaidCacheKey::derive(src, ThemeKind::GrokDay, 80, MermaidRenderQuality::Terminal);
+            MermaidCacheKey::derive(src, ThemeKind::XvoDay, 80, MermaidRenderQuality::Terminal);
         assert_ne!(
             dark_key.cache_filename(),
             light_key.cache_filename(),
@@ -2170,7 +2170,7 @@ mod tests {
 
         // An on-click render in flight, keyed at the click-time theme and width
         let click_key =
-            MermaidCacheKey::derive(src, ThemeKind::GrokNight, 80, MermaidRenderQuality::Open);
+            MermaidCacheKey::derive(src, ThemeKind::XvoNight, 80, MermaidRenderQuality::Open);
         let mut rt = MermaidRuntime::new();
         rt.pending.push(PendingMermaidAction {
             key: click_key.clone(),
@@ -2180,7 +2180,7 @@ mod tests {
 
         // A later (live) theme and width derives a DIFFERENT full key for the same source; full-key matching would miss the pending render...
         let live_key =
-            MermaidCacheKey::derive(src, ThemeKind::GrokDay, 240, MermaidRenderQuality::Open);
+            MermaidCacheKey::derive(src, ThemeKind::XvoDay, 240, MermaidRenderQuality::Open);
         assert_ne!(
             click_key, live_key,
             "a theme/width change alters the full cache key",

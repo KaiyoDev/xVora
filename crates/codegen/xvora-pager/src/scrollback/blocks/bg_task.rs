@@ -1,4 +1,4 @@
-//! Three kinds: Started, Completed, Failed.
+﻿//! Three kinds: Started, Completed, Failed.
 //! All render as always-collapsed, groupable blocks with dimmed colored bullets (same dimming as execute blocks).
 //! Enter / Ctrl-F opens the block viewer with stdout from the central store.
 
@@ -447,7 +447,7 @@ mod tests {
     #[test]
     fn preamble_uses_primary_text_color_for_description() {
         // Pin theme to avoid races with parallel tests that call `cache::set`.
-        crate::theme::cache::set(crate::theme::ThemeKind::GrokNight);
+        crate::theme::cache::set(crate::theme::ThemeKind::XvoNight);
         let block =
             BgTaskBlock::started("ls", "t1").with_description(Some("List the files".into()));
         let text = block.preamble(&test_ctx()).expect("preamble");

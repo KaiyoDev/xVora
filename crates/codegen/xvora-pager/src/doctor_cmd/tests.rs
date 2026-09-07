@@ -1,4 +1,4 @@
-use super::*;
+﻿use super::*;
 use crate::clipboard::{
     ClipboardDelivery, ClipboardRoute, NativeClipboardPreflight, Osc52Capability,
 };
@@ -143,7 +143,7 @@ fn mixed_report() -> DiagnosticReport {
     report.facts.ssh = true;
     report.facts.color = ColorFacts {
         level: RuntimeFact::Available(ColorLevel::Ansi256),
-        available_themes: vec![ThemeKind::GrokNight, ThemeKind::GrokDay],
+        available_themes: vec![ThemeKind::XvoNight, ThemeKind::XvoDay],
         total_themes: ThemeKind::ALL.len(),
     };
     report.facts.keyboard = Some(KeyboardFact {
@@ -488,7 +488,7 @@ fn human_mixed_fixture_is_exact() {
             "  · byobu                        tmux\n",
             "  · ssh                          yes\n",
             "  · color                        256\n",
-            "  · themes                       2/5: groknight, grokday\n",
+            "  · themes                       2/5: XvoNight, XvoDay\n",
             "  · keyboard                     cmd=dropped, opt=native (OS rescue active)\n",
             "  · newline                      Alt+Enter (Cursor: xterm.js cannot distinguish Shift+Enter)\n",
             "\n",
@@ -733,7 +733,7 @@ fn json_contract_is_structural_stable_ordered_and_ansi_free() {
                 "ssh": true,
                 "color": {
                     "level": {"status": "available", "value": "256"},
-                    "availableThemes": ["groknight", "grokday"],
+                    "availableThemes": ["XvoNight", "XvoDay"],
                     "totalThemes": 5
                 },
                 "keyboard": {"cmd": "dropped", "opt": "native", "os": "macos"},

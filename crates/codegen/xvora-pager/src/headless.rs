@@ -448,13 +448,15 @@ fn auto_respond_to_permissions(
 fn auth_required_message(interactive: bool) -> String {
     if interactive {
         "Not signed in. Run `xvora login` to authenticate \
-         (or `xvora login --device-code` if no browser is available)."
+         (or `xvora login --device-code` if no browser is available), \
+         or set XVORA_NO_AUTH=1 to skip authentication."
             .to_string()
     } else {
         "Not signed in. To authenticate without a browser, run:\n  \
          xvora login --device-code\n\n\
-         Alternatively, set the XAI_API_KEY environment variable \
-         or run `xvora login` on a machine with a browser."
+         Alternatively, set the XAI_API_KEY environment variable, \
+         run `xvora login` on a machine with a browser, \
+         or set XVORA_NO_AUTH=1 to skip authentication."
             .to_string()
     }
 }

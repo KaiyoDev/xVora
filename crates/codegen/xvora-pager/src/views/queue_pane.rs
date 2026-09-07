@@ -1,4 +1,4 @@
-//! Queue pane: renders queued prompts in a `ListPane`.
+﻿//! Queue pane: renders queued prompts in a `ListPane`.
 //!
 //! Similar to [`super::todo_pane::TodoPane`] but for queued prompts.
 //! Shows `#1`, `#2`, … prefixes (positional, 1-based) with the first line of each prompt's text.
@@ -480,7 +480,7 @@ pub struct QueuePane {
     /// Visual style for the list pane framework.
     list_style: ListPaneStyle,
     /// Theme kind at the last render. Used to detect a theme switch and refresh `list_style`, whose `selection_bg` is captured from the theme.
-    /// (Otherwise the focused-row highlight keeps the previous theme's `bg_highlight`, e.g. GrokNight's dark band leaking into GrokDay.)
+    /// (Otherwise the focused-row highlight keeps the previous theme's `bg_highlight`, e.g. XvoNight's dark band leaking into XvoDay.)
     last_theme: ThemeKind,
     /// Shared visibility/focus state.
     pub overlay: OverlayState,
@@ -907,8 +907,8 @@ impl QueuePane {
     ) {
         // Detect a theme switch and refresh the list style
         // Its `selection_bg` (the focused-row highlight) is captured from the theme's `bg_highlight`
-        // Without this it would keep the theme active at construction (default GrokNight, dark) after the user switches
-        // That paints a dark band on a light GrokDay canvas
+        // Without this it would keep the theme active at construction (default XvoNight, dark) after the user switches
+        // That paints a dark band on a light XvoDay canvas
         let current_theme = Theme::current_kind();
         if current_theme != self.last_theme {
             self.last_theme = current_theme;

@@ -1235,17 +1235,17 @@ fn free_usage_upsell_shows_three_options_with_exact_labels() {
     assert_eq!(q.question, "You hit your free usage limit.");
     let expected = [
         (
-            "Upgrade to SuperGrok",
+            "Upgrade",
             "For everyday coding and productivity tasks",
             Some(UPSELL_URL_UPGRADE),
         ),
         (
-            "Upgrade to SuperGrok Plus",
+            "Upgrade",
             "Significantly higher usage and rate limits",
             Some(UPSELL_URL_UPGRADE),
         ),
         (
-            "Upgrade to SuperGrok Heavy",
+            "Upgrade",
             "Get the most out of xvora build. Highest usage limits.",
             Some(UPSELL_URL_UPGRADE),
         ),
@@ -1379,13 +1379,13 @@ fn restricted_command_submit_opens_three_option_upsell() {
         )
     ));
     let q = &qv.questions[0];
-    assert_eq!(q.question, "Unlock all features with SuperGrok.");
+    assert_eq!(q.question, "Unlock all features.");
     assert_eq!(q.options.len(), 3);
-    assert_eq!(q.options[0].label, "Upgrade to SuperGrok");
+    assert_eq!(q.options[0].label, "Upgrade");
     assert_eq!(q.options[0].id.as_deref(), Some(UPSELL_URL_UPGRADE));
-    assert_eq!(q.options[1].label, "Upgrade to SuperGrok Plus");
+    assert_eq!(q.options[1].label, "Upgrade");
     assert_eq!(q.options[1].id.as_deref(), Some(UPSELL_URL_UPGRADE));
-    assert_eq!(q.options[2].label, "Upgrade to SuperGrok Heavy");
+    assert_eq!(q.options[2].label, "Upgrade");
     assert_eq!(q.options[2].id.as_deref(), Some(UPSELL_URL_UPGRADE));
 }
 

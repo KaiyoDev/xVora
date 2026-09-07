@@ -1,4 +1,4 @@
-use super::super::load::load_config_from_toml;
+﻿use super::super::load::load_config_from_toml;
 use super::super::mcp::{McpConfig, parse_mcp_config_with_oauth};
 use super::*;
 use toml::Value as TomlValue;
@@ -306,7 +306,7 @@ fn merge_section_updates_modeled_fields_preserving_unmodeled() {
     ui.insert("show_timestamps".into(), TomlValue::Boolean(true));
     ui.insert(
         "auto_light_theme".into(),
-        TomlValue::String("grokday".into()),
+        TomlValue::String("XvoDay".into()),
     );
     table.insert("ui".into(), TomlValue::Table(ui));
     let cfg = crate::agent::config::UiConfig {
@@ -327,7 +327,7 @@ fn merge_section_updates_modeled_fields_preserving_unmodeled() {
     );
     assert_eq!(
         ui.get("auto_light_theme").and_then(|v| v.as_str()),
-        Some("grokday"),
+        Some("XvoDay"),
         "pre-existing field not in serialized output should be preserved"
     );
 }
@@ -447,14 +447,14 @@ fn ui_config_round_trip_preserves_pager_fields() {
 yolo = true
 show_timestamps = false
 auto_dark_theme = "tokyonight"
-auto_light_theme = "grokday"
+auto_light_theme = "XvoDay"
 "#;
     let root: TomlValue = toml::from_str(toml_str).unwrap();
     let cfg = load_config_from_toml(&root);
     assert!(cfg.ui.yolo);
     assert_eq!(cfg.ui.show_timestamps, Some(false));
     assert_eq!(cfg.ui.auto_dark_theme.as_deref(), Some("tokyonight"));
-    assert_eq!(cfg.ui.auto_light_theme.as_deref(), Some("grokday"));
+    assert_eq!(cfg.ui.auto_light_theme.as_deref(), Some("XvoDay"));
     let mut table = root.as_table().unwrap().clone();
     merge_section(&mut table, "ui", &cfg.ui);
     let ui = table.get("ui").unwrap().as_table().unwrap();
@@ -468,7 +468,7 @@ auto_light_theme = "grokday"
     );
     assert_eq!(
         ui.get("auto_light_theme").and_then(|v| v.as_str()),
-        Some("grokday")
+        Some("XvoDay")
     );
     assert_eq!(ui.get("yolo").and_then(|v| v.as_bool()), Some(true));
 }
@@ -535,7 +535,7 @@ fn merge_section_full_save_config_simulation() {
 [ui]
 show_timestamps = true
 auto_dark_theme = "tokyonight"
-auto_light_theme = "grokday"
+auto_light_theme = "XvoDay"
 
 [models]
 default = "grok-3"
@@ -562,7 +562,7 @@ auto_update = true
     );
     assert_eq!(
         ui.get("auto_light_theme").and_then(|v| v.as_str()),
-        Some("grokday")
+        Some("XvoDay")
     );
     let models = table.get("models").unwrap().as_table().unwrap();
     assert_eq!(
@@ -1138,8 +1138,8 @@ fn settings_helpers_target_correct_ui_fields() {
     assert_eq!(cfg.ui.theme, Some("auto".to_string()));
     let cfg = apply(|cfg| cfg.ui.auto_dark_theme = Some("tokyonight".to_string()));
     assert_eq!(cfg.ui.auto_dark_theme, Some("tokyonight".to_string()));
-    let cfg = apply(|cfg| cfg.ui.auto_light_theme = Some("grokday".to_string()));
-    assert_eq!(cfg.ui.auto_light_theme, Some("grokday".to_string()));
+    let cfg = apply(|cfg| cfg.ui.auto_light_theme = Some("XvoDay".to_string()));
+    assert_eq!(cfg.ui.auto_light_theme, Some("XvoDay".to_string()));
     let cfg = apply(|cfg| cfg.ui.hunk_tracker_mode = Some("off".to_string()));
     assert_eq!(cfg.ui.hunk_tracker_mode, Some("off".to_string()));
     let cfg = apply(|cfg| cfg.ui.screen_mode = Some("minimal".to_string()));
@@ -1152,7 +1152,7 @@ fn set_theme_round_trips_through_merge() {
     let original = r#"
 [ui]
 compact_mode = true
-theme = "groknight"
+theme = "XvoNight"
 auto_dark_theme = "tokyonight"
 custom_user_key = "preserve-me"
 "#;
@@ -1188,8 +1188,8 @@ fn set_auto_dark_and_light_theme_round_trip_through_merge() {
     let original = r#"
 [ui]
 theme = "auto"
-auto_dark_theme = "groknight"
-auto_light_theme = "grokday"
+auto_dark_theme = "XvoNight"
+auto_light_theme = "XvoDay"
 custom_unknown_key = 42
 "#;
     let root: TomlValue = toml::from_str(original).unwrap();

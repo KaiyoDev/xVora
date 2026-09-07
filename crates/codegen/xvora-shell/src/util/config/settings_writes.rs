@@ -1,4 +1,4 @@
-use super::persist::update_config;
+﻿use super::persist::update_config;
 use anyhow::Result;
 use std::sync::atomic::{AtomicU8, AtomicU64, Ordering};
 use std::time::UNIX_EPOCH;
@@ -168,7 +168,7 @@ pub async fn set_contextual_hint_ssh_wrap(value: bool) -> Result<()> {
 }
 
 /// Persist `[ui].theme` via `update_config`.
-/// Caller must pass the canonical theme name (`groknight`, `tokyonight`, `auto`, etc.).
+/// Caller must pass the canonical theme name (`XvoNight`, `tokyonight`, `auto`, etc.).
 pub async fn set_theme(value: String) -> Result<()> {
     update_config(|cfg| cfg.ui.theme = Some(value)).await
 }

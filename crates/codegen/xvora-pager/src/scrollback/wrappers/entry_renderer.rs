@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+﻿use std::borrow::Cow;
 use std::cell::OnceCell;
 use std::path::Path;
 
@@ -1379,7 +1379,7 @@ mod tests {
     fn background_block_gutter_uses_block_background_fill() {
         // Background blocks own the gutter via the existing full-area fill, so the no-bg clear must not run for them
         // Concrete theme so bg_light != bg_base (Theme::current() quantizes both to Reset in the test env)
-        let theme = Theme::groknight();
+        let theme = Theme::XvoNight();
         assert_ne!(
             theme.bg_light, theme.bg_base,
             "test premise: block bg must differ from base bg"
@@ -1409,13 +1409,13 @@ mod tests {
         // The per-row clear must reuse that bg, not bg_base, or the code rectangle gets a notch
         // Concrete theme so the two bgs differ
         //
-        // Requires color support: under `NO_COLOR` the global markdown style has no code background while this test's `groknight()` theme has RGB
+        // Requires color support: under `NO_COLOR` the global markdown style has no code background while this test's `XvoNight()` theme has RGB
         // That mismatch is impossible in production
         // (Historically this passed under NO_COLOR only because the md_style Reset-to-silver fallback bug painted a concrete bg despite the opt-out.)
         if !crate::theme::color_support::detect().has_color() {
             return;
         }
-        let theme = Theme::groknight();
+        let theme = Theme::XvoNight();
         let mut entry = ScrollbackEntry::new(RenderBlock::agent_message("```\nZZZZ\n```\n"));
         // The code block's only content row is the first content row, which is also where the timestamp overlay lands
         // Drop `created_at` so the overlay is skipped
@@ -1744,7 +1744,7 @@ mod tests {
         // (That Read/Search mark their previews as panel is pinned by block-side tests.)
         use crate::scrollback::block::StubBlock;
 
-        let theme = Theme::groknight();
+        let theme = Theme::XvoNight();
         let entry = ScrollbackEntry::new(RenderBlock::Stub(
             StubBlock::new("alpha\nbravo", Color::Blue).with_line_bg(LINE_BG, true),
         ));
@@ -1770,7 +1770,7 @@ mod tests {
         // They carry meaning, unlike the decorative tool-preview panels
         use crate::scrollback::block::StubBlock;
 
-        let theme = Theme::groknight();
+        let theme = Theme::XvoNight();
         let entry = ScrollbackEntry::new(RenderBlock::Stub(
             StubBlock::new("alpha\nbravo", Color::Blue).with_line_bg(LINE_BG, false),
         ));

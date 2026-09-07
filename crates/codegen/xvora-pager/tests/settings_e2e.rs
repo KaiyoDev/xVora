@@ -1,4 +1,4 @@
-//! End-to-end integration tests for the settings modal.
+﻿//! End-to-end integration tests for the settings modal.
 //!
 //! Every new `SettingMeta` in `default_settings()` MUST add an entry to `ALL_SETTINGS_EXERCISED` and a test for its keyboard AND mouse paths.
 //!
@@ -2020,9 +2020,9 @@ fn defaults_round_trip_through_registry() {
             "remember_tool_approvals" => SettingValue::Bool(true),
             "toolset.ask_user_question.timeout_enabled" => SettingValue::Bool(true),
             "keep_text_selection" => SettingValue::Enum("flash"),
-            "theme" => SettingValue::Enum("groknight"),
-            "auto_dark_theme" => SettingValue::Enum("groknight"),
-            "auto_light_theme" => SettingValue::Enum("grokday"),
+            "theme" => SettingValue::Enum("XvoNight"),
+            "auto_dark_theme" => SettingValue::Enum("XvoNight"),
+            "auto_light_theme" => SettingValue::Enum("XvoDay"),
             "render_mermaid" => SettingValue::Enum("auto"),
             "multiline_mode" => SettingValue::Bool(false),
             "permission_mode" => SettingValue::Enum("ask"),
@@ -3830,7 +3830,7 @@ fn docs_footer_renders_for_browse_and_picker() {
              {all_text}"
         );
         assert!(
-            all_text.contains("change theme to grokday"),
+            all_text.contains("change theme to xvoday"),
             "[{fixture_label}] docs footer must include the example phrasing"
         );
     }

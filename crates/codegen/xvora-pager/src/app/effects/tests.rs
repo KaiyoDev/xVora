@@ -1,4 +1,4 @@
-﻿#![cfg_attr(rustfmt, rustfmt::skip)]
+#![cfg_attr(rustfmt, rustfmt::skip)]
 use super::*;
 use shell::extensions::billing::{BillingConfig, Cent, UsagePeriod};
 /// The invalid-params server detail survives `attach_prompt_usage` wrapping `error.data` as `{message, promptUsage}`.
@@ -2588,7 +2588,7 @@ fn format_session_info_api_key_without_env() {
     assert!(!text.contains("XAI_API_KEY"), "{text}");
     assert!(!text.contains("Manage account and credits"), "{text}");
     assert!(
-            text.contains("Run `xvora login` to use your SuperGrok subscription instead."),
+            text.contains("Run `xvora login` to use your subscription instead."),
             "{text}"
         );
     assert!(!text.contains("xvora.com"), "{text}");
@@ -2600,7 +2600,7 @@ fn format_session_info_api_key_auth_suggests_grok_login() {
     assert!(text.contains("Auth method: API key (XAI_API_KEY)"), "{text}");
     assert!(!text.contains("Manage account and credits"), "{text}");
     assert!(
-            text.contains("Run `xvora login` to use your SuperGrok subscription instead."),
+            text.contains("Run `xvora login` to use your subscription instead."),
             "{text}"
         );
     assert!(!text.contains("Also present: XAI_API_KEY"), "{text}");

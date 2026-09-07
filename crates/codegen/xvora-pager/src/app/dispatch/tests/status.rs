@@ -1,4 +1,4 @@
-//! Tests for session status, sharing, privacy, and coding-data-sharing dispatchers.
+﻿//! Tests for session status, sharing, privacy, and coding-data-sharing dispatchers.
 
 use super::*;
 
@@ -1394,16 +1394,16 @@ fn dispatch_confirm_reset_setting_reset_dispatches_typed_setter_for_shared_enum(
             &mut app,
         );
 
-        // Reset dispatches SetTheme("groknight"), the registered default
+        // Reset dispatches SetTheme("XvoNight"), the registered default
         assert_eq!(effects.len(), 1);
         match &effects[0] {
             Effect::PersistSetting { key, value, .. } => {
                 assert_eq!(*key, "theme");
-                assert_eq!(value, &SettingValue::Enum("groknight"));
+                assert_eq!(value, &SettingValue::Enum("XvoNight"));
             }
             other => panic!("expected PersistSetting, got {other:?}"),
         }
-        assert_eq!(app.current_ui.theme.as_deref(), Some("groknight"));
+        assert_eq!(app.current_ui.theme.as_deref(), Some("XvoNight"));
     });
 }
 

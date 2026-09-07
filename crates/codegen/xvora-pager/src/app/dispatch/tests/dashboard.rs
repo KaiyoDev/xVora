@@ -1915,7 +1915,7 @@ fn dashboard_slash_restricted_command_upsells_via_toast() {
         .as_deref()
         .expect("restricted command must set the upsell toast");
     assert!(
-        toast.contains("/imagine") && toast.contains("SuperGrok"),
+        toast.contains("/imagine") && toast.contains("paid subscription"),
         "toast must carry the upsell: {toast}"
     );
 }
@@ -2098,7 +2098,7 @@ fn dashboard_slash_usage_hidden_for_external_auth() {
         "must not mis-label /usage as session-scoped: {toast}"
     );
     assert!(
-        !toast.contains("SuperGrok"),
+        !toast.contains("paid subscription"),
         "must not upsell billing on external auth: {toast}"
     );
 }

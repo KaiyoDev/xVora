@@ -154,6 +154,13 @@ pub(crate) fn use_local_auth() -> bool {
         .map(|v| !v.is_empty() && v != "0")
         .unwrap_or(false)
 }
+/// Returns `true` when `XVORA_NO_AUTH=1` is set, bypassing all OAuth/login flows.
+/// Allows the app to run without authentication for users who only use custom API keys or local models.
+pub fn is_no_auth_mode() -> bool {
+    std::env::var("XVORA_NO_AUTH")
+        .map(|v| !v.is_empty() && v != "0")
+        .unwrap_or(false)
+}
 /// Returns the active xAI OAuth2 issuer: the local-dev issuer when `GROK_LOCAL_AUTH=1` is set, otherwise the production issuer.
 pub fn xvora_oauth2_issuer() -> &'static str {
     if use_local_auth() {

@@ -262,10 +262,10 @@ pub fn setting_description(key: &str, fallback: &'static str) -> &'static str {
             "How long in-app selection stays on screen and what double-click does (fold vs. select & copy a word)."
         }
         (Locale::Vi, "coding_data_sharing") => {
-            "Cho phép SpaceXAI lưu và huấn luyện trên dữ liệu phiên coding hay không."
+            "Cho phép xVora lưu và huấn luyện trên dữ liệu phiên coding hay không."
         }
         (Locale::En, "coding_data_sharing") => {
-            "Controls whether SpaceXAI may retain and train on coding session data."
+            "Controls whether xVora may retain and train on coding session data."
         }
         (Locale::Vi, "default_selected_permission") => "Hàng con trỏ chọn sẵn trên hộp hỏi quyền.",
         (Locale::En, "default_selected_permission") => {
@@ -327,10 +327,10 @@ pub fn enum_display(canonical: &str, fallback: &'static str) -> &'static str {
     match (locale(), canonical) {
         (Locale::Vi, "auto") => "Tự động",
         (Locale::En, "auto") => "Auto",
-        (Locale::Vi, "groknight") => "xVora Night",
-        (Locale::En, "groknight") => "xVora Night",
-        (Locale::Vi, "grokday") => "xVora Day",
-        (Locale::En, "grokday") => "xVora Day",
+        (Locale::Vi, "xvonight") => "xVora Night",
+        (Locale::En, "xvonight") => "xVora Night",
+        (Locale::Vi, "xvoday") => "xVora Day",
+        (Locale::En, "xvoday") => "xVora Day",
         (Locale::Vi, "tokyonight") => "Tokyo Night",
         (Locale::En, "tokyonight") => "Tokyo Night",
         (Locale::Vi, "rosepine-moon") => "Rose Pine Moon",
@@ -355,10 +355,10 @@ pub fn enum_display(canonical: &str, fallback: &'static str) -> &'static str {
         (Locale::En, "on") => "On",
         (Locale::Vi, "off") => "Tắt",
         (Locale::En, "off") => "Off",
-        (Locale::Vi, "Toggle") => "Bật/tắt",
-        (Locale::En, "Toggle") => "Toggle",
-        (Locale::Vi, "Hold to talk") => "Giữ để nói",
-        (Locale::En, "Hold to talk") => "Hold to talk",
+        (Locale::Vi, "toggle") => "Bật/tắt",
+        (Locale::En, "toggle") => "Toggle",
+        (Locale::Vi, "hold-to-talk") => "Giữ để nói",
+        (Locale::En, "hold-to-talk") => "Hold to talk",
         (Locale::Vi, "System") => "Hệ thống",
         (Locale::En, "System") => "System",
         (Locale::Vi, "(no override)") => "(không ghi đè)",
@@ -369,14 +369,14 @@ pub fn enum_display(canonical: &str, fallback: &'static str) -> &'static str {
         (Locale::En, "Hold until dismissed") => "Hold until dismissed",
         (Locale::Vi, "Word select (terminal-like)") => "Chọn từ (kiểu terminal)",
         (Locale::En, "Word select (terminal-like)") => "Word select (terminal-like)",
-        (Locale::Vi, "Agent only") => "Chỉ agent",
-        (Locale::En, "Agent only") => "Agent only",
-        (Locale::Vi, "All dirty") => "Mọi file dirty",
-        (Locale::En, "All dirty") => "All dirty",
+        (Locale::Vi, "agent-only") => "Chỉ agent",
+        (Locale::En, "agent-only") => "Agent only",
+        (Locale::Vi, "all-dirty") => "Mọi file dirty",
+        (Locale::En, "all-dirty") => "All dirty",
         (Locale::Vi, "Auto-detect") => "Tự nhận",
         (Locale::En, "Auto-detect") => "Auto-detect",
-        (Locale::Vi, "Mouse wheel") => "Bánh xe chuột",
-        (Locale::En, "Mouse wheel") => "Mouse wheel",
+        (Locale::Vi, "wheel") => "Bánh xe chuột",
+        (Locale::En, "wheel") => "Mouse wheel",
         (Locale::Vi, "Trackpad") => "Trackpad",
         (Locale::En, "Trackpad") => "Trackpad",
         _ => fallback,
@@ -388,10 +388,10 @@ pub fn chrome(key: &str) -> &'static str {
         (Locale::Vi, "settings.title") => "Cài đặt",
         (Locale::En, "settings.title") => "Settings",
         (Locale::Vi, "settings.tip.long") => {
-            "Mẹo · Hỏi xVora: \"đổi theme sang grokday\" hoặc \"compact mode làm gì?\""
+            "Mẹo · Hỏi xVora: \"đổi theme sang xvoday\" hoặc \"compact mode làm gì?\""
         }
         (Locale::En, "settings.tip.long") => {
-            "Tip · Ask xVora: \"change theme to grokday\" or \"what does compact mode do?\""
+            "Tip · Ask xVora: \"change theme to xvoday\" or \"what does compact mode do?\""
         }
         (Locale::Vi, "settings.tip.short") => "Mẹo · Hỏi xVora để đổi một cài đặt",
         (Locale::En, "settings.tip.short") => "Tip · Ask xVora to change a setting",

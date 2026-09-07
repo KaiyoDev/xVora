@@ -34,7 +34,7 @@ pub const FREE_USAGE_EXHAUSTED_ERROR_CODE: &str = "subscription:free-usage-exhau
 
 /// User-facing free-usage exhaustion copy (paywall).
 /// Promises no reset duration; the backend config drives the quota window.
-pub const FREE_USAGE_USER_MESSAGE: &str = "You\u{2019}ve reached your free xvora build usage limit for now. Get SuperGrok for much higher limits, or try again later: https://xvora.com/supergrok?referrer=xvora-build";
+pub const FREE_USAGE_USER_MESSAGE: &str = "You\u{2019}ve reached your free xvora build usage limit for now. Upgrade for much higher limits, or try again later: https://xvora.com/supergrok?referrer=xvora-build";
 
 /// Whether flattened server detail is free-usage-quota exhaustion (paywall), not transient throttling.
 /// Sniffs the well-known code embedded by `parse_error_bytes`.

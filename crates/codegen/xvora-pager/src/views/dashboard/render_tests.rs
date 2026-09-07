@@ -1,4 +1,4 @@
-use super::*;
+﻿use super::*;
 use crate::views::dashboard::DashboardRowId;
 use crate::views::dashboard::state::DashboardState;
 
@@ -816,7 +816,7 @@ fn render_rows_hit_rects_leave_no_dead_zones() {
     // These rows are title-only, so the content line is the middle of the 3-cell rect
     // Use an unquantized theme
     // `Theme::current()` in the test environment collapses `bg_hover` onto `bg_base`, which (correctly) suppresses the halos
-    let theme = Theme::groknight();
+    let theme = Theme::XvoNight();
     assert_ne!(theme.bg_hover, theme.bg_base);
     let (id, rect) = state.row_rects[0].clone();
     state.hovered_row = Some(id);

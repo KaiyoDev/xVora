@@ -1,4 +1,4 @@
-//! In-TUI `/doctor` formatter tests.
+﻿//! In-TUI `/doctor` formatter tests.
 
 use super::format_doctor;
 use crate::clipboard::ClipboardRoute;
@@ -240,7 +240,7 @@ fn limited_color_output_is_stable() {
             "  multiplexer  None detected\n",
             "  ssh          no\n",
             "  color        256\n",
-            "  themes       2/5: groknight, grokday\n",
+            "  themes       2/5: XvoNight, XvoDay\n",
             "\n",
             "Clipboard\n",
             "  native       local (pbcopy)\n",

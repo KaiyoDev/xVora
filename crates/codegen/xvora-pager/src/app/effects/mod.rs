@@ -1,4 +1,4 @@
-﻿#![cfg_attr(rustfmt, rustfmt::skip)]
+#![cfg_attr(rustfmt, rustfmt::skip)]
 //! This module takes [`Effect`] values produced by [`super::dispatch`] and spawns them as async tasks on a [`JoinSet`].
 //! When tasks complete, the event loop converts their output into [`TaskResult`] and feeds it back through dispatch.
 mod helpers;
@@ -4888,7 +4888,7 @@ fn format_auth_lines(is_api_key_auth: bool, api_key_env_set: bool) -> String {
             "  Auth method: API key\n"
         };
         return format!(
-            "{method}  Run `xvora login` to use your SuperGrok subscription instead.\n"
+            "{method}  Run `xvora login` to use your subscription instead.\n"
         );
     }
     String::from("  Auth method: OAuth\n")

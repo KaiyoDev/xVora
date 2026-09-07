@@ -33,7 +33,7 @@ pub(crate) use auth_provider::{test_backdate_provider_mint, test_counting_provid
 pub(crate) use config::LEGACY_AUTH_SCOPE;
 pub use config::{
     ForceLoginTeam, GrokComConfig, OAuth2ProviderConfig, OidcAuthConfig, PreferredAuthMethod,
-    XAI_OAUTH2_ISSUER, is_xai_oauth2_issuer, xvora_oauth2_issuer,
+    XAI_OAUTH2_ISSUER, is_no_auth_mode, is_xai_oauth2_issuer, xvora_oauth2_issuer,
 };
 pub(crate) use config::{
     force_login_team_from_env, force_login_team_from_requirements, resolve_force_login_team,

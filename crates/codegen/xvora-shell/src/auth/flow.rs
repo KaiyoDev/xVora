@@ -624,7 +624,7 @@ pub(super) async fn run_auth_flow_steps(
         "auth: no OAuth2 configuration available (neither enterprise OIDC nor xAI OAuth2 configured)"
     );
     anyhow::bail!(
-        "No OAuth2 configuration available. Run `xvora login` to authenticate, or contact your administrator if you use enterprise SSO."
+        "No OAuth2 configuration available. Run `xvora login` to authenticate, set XAI_API_KEY, or set XVORA_NO_AUTH=1 to skip authentication. Contact your administrator if you use enterprise SSO."
     )
 }
 /// Non-interactive auth refresh: returns valid credentials if available without ever triggering interactive login (browser, device code, etc.).
@@ -798,11 +798,16 @@ pub async fn ensure_authenticated_with_override(
 }
 /// Decides *whether to prompt* for an interactive login (the wire credential is chosen separately by `ShellAuthCredentialProvider`).
 /// With `has_noninteractive_auth`, only refresh a cached token best-effort (no browser, no cold mint); otherwise require an interactive login.
+/// When `XVORA_NO_AUTH=1` is set, skips all auth entirely and returns `Ok(None)`.
 pub async fn ensure_authenticated_or_noninteractive(
     grok_com_config: &GrokComConfig,
     has_noninteractive_auth: bool,
     message_prefix: Option<&str>,
 ) -> anyhow::Result<Option<GrokAuth>> {
+    if crate::auth::config::is_no_auth_mode() {
+        tracing::info!("XVORA_NO_AUTH=1: skipping auth entirely");
+        return Ok(None);
+    }
     if has_noninteractive_auth {
         Ok(try_ensure_fresh_auth(grok_com_config).await)
     } else {

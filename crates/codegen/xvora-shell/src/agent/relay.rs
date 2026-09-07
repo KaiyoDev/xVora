@@ -158,7 +158,7 @@ async fn attempt_auth_recovery(
     context: &str,
 ) -> bool {
     let Some(ref am) = config.auth_manager else {
-        teprintln!("Authentication required. Run `xvora login` to re-authenticate.");
+        teprintln!("Authentication required. Run `xvora login` to re-authenticate, or set XVORA_NO_AUTH=1 to skip authentication.");
         cancel.cancel();
         return false;
     };

@@ -186,7 +186,9 @@ fn long_help_vi(id: ActionId) -> Option<&'static str> {
             "Arm agent dashboard tiếp theo spawn trong git worktree mới, cô lập checkout.\nChỉ khi working directory là git repo.\nChỉ agent mới, không đụng agent đang chạy.",
         ),
         ActionId::EditPromptExternal => Some(
-            "Opens the current prompt draft in $VISUAL or $EDITOR, falling back to vi when neither is set.\nSaving and closing the editor returns the updated text to the composer; it does not send the prompt.\nAvailable in minimal mode for ordinary attachment-free drafts.",
+            "Mở nháp prompt hiện tại trong $VISUAL hoặc $EDITOR, fallback sang vi nếu không có.\n"
+            "Lưu và đóng editor sẽ trả văn bản đã cập nhật về composer; không gửi prompt.\n"
+            "Khả dụng ở chế độ minimal cho nháp thông thường không đính kèm.",
         ),
         ActionId::ExpandAllThinking => Some(
             "Hiện hoặc ẩn mọi khối suy nghĩ (reasoning) của agent trên toàn transcript.\nXem agent suy luận thế nào, hoặc ẩn để tập trung kết quả.\nKhác E — E thu/mở mọi loại entry.",
@@ -228,7 +230,9 @@ fn long_help_vi(id: ActionId) -> Option<&'static str> {
             "Mở bảng phím tắt này.\nDuyệt j/k, mở rộng help bằng e, Enter xem trang chi tiết.\nGán Ctrl+. và Ctrl+X; thanh gợi ý phím terminal gửi ổn định.",
         ),
         ActionId::StashPrompt => Some(
-            "Stash your current prompt as a draft.\nCtrl+S sets the draft aside and clears the composer. Ctrl+S on an empty composer restores it. The draft also restores by itself after you send your next prompt. Use Alt+S if your terminal swallows Ctrl+S.\nOne draft at a time: a new stash replaces the old one.",
+            "Lưu nháp prompt hiện tại.\n"
+            "Ctrl+S bỏ nháp và xóa composer. Ctrl+S trên composer trống sẽ khôi phục nó. Nháp cũng tự khôi phục sau khi gửi prompt tiếp theo. Dùng Alt+S nếu terminal吞 Ctrl+S.\n"
+            "Một nháp mỗi lần: nháp mới thay thế nháp cũ.",
         ),
         ActionId::ToggleExpandAll => Some(
             "Thu gọn hoặc mở rộng mọi mục scrollback cùng lúc, khác e chỉ tác động hàng đang chọn.\nThu gọn transcript dài để quét tiêu đề, rồi mở lại tất cả.\nKhối suy nghĩ có phím riêng Ctrl+E.",

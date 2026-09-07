@@ -631,7 +631,7 @@ async fn workspace_start(
     ensure_authenticated(
         &agent_config.grok_com_config,
         false,
-        Some("No cached credentials found. Run `xvora login` first."),
+        Some("No cached credentials found. Run `xvora login` first, or set XVORA_NO_AUTH=1 to skip authentication."),
     )
     .await?;
     let env_urls = LeaderEnvUrls::from(&agent_config.grok_com_config);
