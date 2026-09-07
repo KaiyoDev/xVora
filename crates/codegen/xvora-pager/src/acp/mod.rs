@@ -33,6 +33,7 @@ use acp_lib::{AcpAgentTx, AcpClientRx, acp_send};
 use agent_client_protocol as acp;
 use shell::agent::auth_method::AuthMethodKind;
 use shell::agent::config::Config as AgentConfig;
+use shell::auth::config::is_no_auth_mode;
 use shell::sampling::types::ReasoningEffort;
 
 pub use model_state::ModelState;
@@ -703,6 +704,11 @@ async fn eager_auth_or_login_fallback(
     Option<serde_json::Value>,
 ) {
     if auth_methods.is_empty() {
+        // No-auth mode: empty methods means "no login required", not an error.
+        // The pager will show the welcome screen and let the user configure their provider.
+        if is_no_auth_mode() {
+            return (false, None, None, AuthStartMode::Pending, None);
+        }
         // preferred_method pin unavailable: fail closed, no invented method
         return (true, None, None, AuthStartMode::Pending, None);
     }

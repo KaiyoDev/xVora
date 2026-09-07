@@ -332,11 +332,9 @@ impl acp::Agent for MvpAgent {
             self.models_manager.models().values(),
             first_party_env_ok,
         );
-        // No-auth mode: force xvora.api_key advertising so the pager shows
-        // needs_login=false and skips the interactive login screen.
-        if crate::auth::config::is_no_auth_mode() {
-            has_external_api_key = true;
-        }
+        // No-auth mode: skip interactive login when no credentials exist at all.
+        // This lets the app start with an empty auth_methods list → welcome screen,
+        // rather than advertising a broken login that will fail with no API key configured.
         let init_token_state = self.auth_manager.cached_token_state();
         let init_has_current = matches!(init_token_state, CachedTokenState::Valid(_));
         let init_is_expired = matches!(init_token_state, CachedTokenState::Expired);
@@ -350,13 +348,20 @@ impl acp::Agent for MvpAgent {
             }),
             ),
         );
-        let mut has_cached_token = init_has_current;
+        let mut has_cached_token_after_refresh = init_has_current;
         if !init_has_current && init_is_expired {
-            has_cached_token = match self.auth_manager.silent_refresh().await {
+            has_cached_token_after_refresh = match self.auth_manager.silent_refresh().await {
                 SilentRefresh::Renewed(_) => true,
                 SilentRefresh::Failed(remedy) => remedy.is_self_healing(),
             };
         }
+        let skip_interactive_login = crate::auth::config::is_no_auth_mode()
+            && !has_external_api_key
+            && !has_cached_token_after_refresh
+            && !has_enterprise_oidc;
+        let init_has_current = init_has_current; // reuse for downstream telemetry
+        let init_is_expired = init_is_expired;
+        let mut has_cached_token = has_cached_token_after_refresh;
         let (
             login_label,
             has_auth_provider,
@@ -411,6 +416,7 @@ impl acp::Agent for MvpAgent {
             login_label: login_label.as_deref(),
             has_auth_provider_command: has_auth_provider,
             preferred_method,
+            skip_interactive_login,
         });
         let auth_methods = built.methods;
         telemetry::unified_log::info(

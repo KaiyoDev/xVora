@@ -104,6 +104,10 @@ pub struct AuthMethodsBuildInputs<'a> {
     /// Config pin (`[auth] preferred_method`).
     /// `None` keeps multi-method fallthrough; `Some` is fail-closed (only that method family).
     pub preferred_method: Option<PreferredAuthMethod>,
+    /// When true, skip advertising interactive login methods even when unpinned.
+    /// Used by `XVORA_NO_AUTH=1` mode where no credentials exist but the user
+    /// wants the app to start without requiring a login screen.
+    pub skip_interactive_login: bool,
 }
 
 /// Output of [`build_auth_methods`].
@@ -148,6 +152,7 @@ pub fn build_auth_methods(inputs: AuthMethodsBuildInputs<'_>) -> BuiltAuthMethod
         login_label,
         has_auth_provider_command,
         preferred_method,
+        skip_interactive_login,
     } = inputs;
 
     match preferred_method {
@@ -158,6 +163,7 @@ pub fn build_auth_methods(inputs: AuthMethodsBuildInputs<'_>) -> BuiltAuthMethod
             enterprise_oidc_issuer,
             login_label,
             has_auth_provider_command,
+            false, // pinned modes already control login behavior
         ),
         None => build_unpinned(
             has_external_api_key,
@@ -166,6 +172,7 @@ pub fn build_auth_methods(inputs: AuthMethodsBuildInputs<'_>) -> BuiltAuthMethod
             enterprise_oidc_issuer,
             login_label,
             has_auth_provider_command,
+            skip_interactive_login,
         ),
     }
 }
@@ -194,6 +201,7 @@ fn build_pinned_oidc(
     enterprise_oidc_issuer: Option<&str>,
     login_label: Option<&str>,
     has_auth_provider_command: bool,
+    _skip_interactive_login: bool,
 ) -> BuiltAuthMethods {
     let mut methods: Vec<acp::AuthMethod> = Vec::new();
     let mut default_auth_method_id: Option<acp::AuthMethodId> = None;
@@ -203,6 +211,7 @@ fn build_pinned_oidc(
         default_auth_method_id = Some(acp::AuthMethodId::new(CACHED_TOKEN_AUTH_METHOD_ID));
     }
 
+    // Pinned OIDC mode always advertises interactive login (user explicitly requested OIDC)
     push_interactive_login(
         &mut methods,
         has_enterprise_oidc,
@@ -224,6 +233,7 @@ fn build_unpinned(
     enterprise_oidc_issuer: Option<&str>,
     login_label: Option<&str>,
     has_auth_provider_command: bool,
+    skip_interactive_login: bool,
 ) -> BuiltAuthMethods {
     let mut methods: Vec<acp::AuthMethod> = Vec::new();
     let mut default_auth_method_id: Option<acp::AuthMethodId> = None;
@@ -250,13 +260,16 @@ fn build_unpinned(
         }
     }
 
-    push_interactive_login(
-        &mut methods,
-        has_enterprise_oidc,
-        enterprise_oidc_issuer,
-        login_label,
-        has_auth_provider_command,
-    );
+    // Only advertise interactive login when explicitly requested
+    if !skip_interactive_login {
+        push_interactive_login(
+            &mut methods,
+            has_enterprise_oidc,
+            enterprise_oidc_issuer,
+            login_label,
+            has_auth_provider_command,
+        );
+    }
 
     BuiltAuthMethods {
         methods,
@@ -547,6 +560,7 @@ mod tests {
             login_label: None,
             has_auth_provider_command: false,
             preferred_method: None,
+            skip_interactive_login: false,
         }
     }
 
